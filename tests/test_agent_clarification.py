@@ -38,7 +38,7 @@ class ClarificationFlowTests(unittest.TestCase):
         self.assertEqual(len(result["criteria_review"]), 5)
         self.assertEqual(len(result["questions"]), 1)
         self.assertEqual(result["questions"][0]["id"], "ai_availability")
-        self.assertIn("до двух", adapter.calls[0]["system"])
+        self.assertIn("максимум два", adapter.calls[0]["system"])
         sent = json.loads(adapter.calls[0]["user"])["answers"]
         self.assertNotIn("applicant_name", sent)
         self.assertNotIn("email", sent)
