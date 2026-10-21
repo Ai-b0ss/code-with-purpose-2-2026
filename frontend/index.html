@@ -736,22 +736,9 @@
 
         <!-- Образование / ВУЗ -->
         <div id="educationBlock">
-          <div class="grid-2">
-            <div class="field">
-              <label class="title" for="university">ВУЗ / Учебное заведение</label>
-              <select id="university" name="university">
-                <option value="">Выберите учебное заведение</option>
-                <option value="МГУ имени М.В. Ломоносова">МГУ имени М.В. Ломоносова</option>
-                <option value="Российский государственный гуманитарный университет (РГГУ)">РГГУ</option>
-                <option value="НИУ ВШЭ">НИУ «Высшая школа экономики»</option>
-                <option value="Российский университет дружбы народов (РУДН)">РУДН</option>
-                <option value="Другое">Другое учебное заведение</option>
-              </select>
-            </div>
-            <div class="field" id="universityOtherField" hidden>
-              <label class="title" for="university_other">Укажите название ВУЗа</label>
-              <input type="text" id="university_other" name="university_other" placeholder="Название университета / института">
-            </div>
+          <div class="field">
+            <label class="title" for="university">ВУЗ / место учёбы</label>
+            <input type="text" id="university" name="university" placeholder="Например: НИУ ВШЭ, МГУ, РГГУ или колледж">
           </div>
 
           <div class="grid-2">
@@ -1062,8 +1049,6 @@
   const clearDraftBtn = document.getElementById("clearDraftBtn");
   const motivationInput = document.getElementById("motivation");
   const motivationCount = document.getElementById("motivationCount");
-  const universitySelect = document.getElementById("university");
-  const universityOtherField = document.getElementById("universityOtherField");
 
   let currentStep = 0;
   let applicationId = null;
@@ -1099,13 +1084,6 @@
   if (motivationInput && motivationCount) {
     motivationInput.addEventListener("input", () => {
       motivationCount.textContent = motivationInput.value.trim().length;
-    });
-  }
-
-  // --- University Other toggle ---
-  if (universitySelect && universityOtherField) {
-    universitySelect.addEventListener("change", () => {
-      universityOtherField.hidden = universitySelect.value !== "Другое";
     });
   }
 
@@ -1176,8 +1154,8 @@
       age_over_18: byId("age_over_18").checked,
       consent_personal_data: byId("consent_personal_data").checked,
       status: getSelectedStatus(),
-      university: byId("university").value,
-      university_other: byId("university_other") ? byId("university_other").value.trim() : "",
+      university: byId("university") ? byId("university").value.trim() : "",
+      university_other: "",
       faculty: byId("faculty") ? byId("faculty").value.trim() : "",
       course: byId("course") ? byId("course").value : "",
       scientific_interests: byId("scientific_interests") ? byId("scientific_interests").value.trim() : "",
@@ -1345,12 +1323,8 @@
         const r = document.querySelector(`input[name="status"][value="${data.status}"]`);
         if (r) r.checked = true;
       }
-      if (data.university) {
+      if (data.university && byId("university")) {
         byId("university").value = data.university;
-        if (data.university === "Другое" && universityOtherField) {
-          universityOtherField.hidden = false;
-          if (data.university_other) byId("university_other").value = data.university_other;
-        }
       }
       if (data.faculty && byId("faculty")) byId("faculty").value = data.faculty;
       if (data.course && byId("course")) byId("course").value = data.course;

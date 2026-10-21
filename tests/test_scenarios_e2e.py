@@ -3,6 +3,7 @@ import csv
 import io
 import json
 import os
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -14,6 +15,8 @@ from backend.app import (
     evaluate_demo,
     db_connection,
     safe_csv,
+    format_created_at,
+    format_birth_date,
     DIRECTIONS,
 )
 
@@ -216,6 +219,18 @@ class ScenariosVerificationTests(unittest.TestCase):
         self.assertEqual(cm.exception.status_code, 400)
         self.assertIn("согласие", cm.exception.detail)
 
+    def test_date_formatting_helpers(self):
+        # 1. format_created_at with UTC ISO string -> converted to MSK (+3)
+        self.assertEqual(format_created_at("2026-10-21T14:30:00+00:00"), "21.10.2026 17:30")
+        # 2. format_created_at with SQLite datetime('now') naive string -> assumed UTC -> MSK (+3)
+        self.assertEqual(format_created_at("2026-10-21 14:30:00"), "21.10.2026 17:30")
+        # 3. format_created_at with empty string
+        self.assertEqual(format_created_at(""), "")
+        # 4. format_birth_date from YYYY-MM-DD to DD.MM.YYYY
+        self.assertEqual(format_birth_date("2000-11-15"), "15.11.2000")
+        self.assertEqual(format_birth_date(""), "")
+        self.assertEqual(format_birth_date("invalid-date"), "invalid-date")
+
     def test_export_csv_semicolon_format(self):
         from backend.app import export_csv
         app_data = ApplicationInput(
@@ -223,6 +238,7 @@ class ScenariosVerificationTests(unittest.TestCase):
             applicant_name="=HYPERLINK(1)",
             age_over_18=True,
             consent_personal_data=True,
+            birth_date="2000-11-25",
             motivation="Первая строка\nВторая строка",
             desired_direction="media",
             availability_hours_month=16,
@@ -252,7 +268,11 @@ class ScenariosVerificationTests(unittest.TestCase):
         self.assertEqual(len(columns), 32)
         self.assertEqual(len(rows), 2)
         self.assertEqual(len(rows[1]), len(columns))
+        # Date column (created_at formatted as DD.MM.YYYY HH:MM)
+        self.assertRegex(rows[1][1], r"^\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}$")
         self.assertEqual(rows[1][2], "'=HYPERLINK(1)")
+        # Birth date column (formatted as DD.MM.YYYY)
+        self.assertEqual(rows[1][5], "25.11.2000")
         self.assertEqual(rows[1][14], "Первая строка Вторая строка")
 
 
