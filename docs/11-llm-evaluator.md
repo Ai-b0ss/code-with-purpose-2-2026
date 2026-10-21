@@ -64,3 +64,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\start-reformboss.ps1 -Comp
 **Не путать лимит сообщений Telegram-бота и лимит ReformBoss API.** Узнайте ограничения непосредственно в сервисе. Используйте только вымышленные анкеты до подтверждения условий обработки данных. Если live-проверка не прошла, скрипт не запускает приложение в режиме LLM и не выдаёт `rules_demo` за настоящий ИИ.
 
 Таймаут #5 диагностирован и исправлен; следующий шаг — проверить 4 кейса Евы и время формы (#27), затем живую запись Google Sheets (#6). Запись в Google Sheets в этом скрипте **не реализована**.
+
+## Граница данных: актуальный аудит
+
+Текущий evaluate() исключает applicant_name и application_id, но остальные поля ApplicationInput, включая email/vk_url/birth_date, передаются в answers. Выделенного allowlist в main пока нет (#28). Все зафиксированные live-проверки использовали synthetic input. При переносе полезного allowlist из scoring.py Саши сохранить контракт текущих recommendations и evidence.
+
+Новый rag_llm Саши не равен настроенному ReformBoss: scoring.py задаёт OpenAI chat endpoint, knowledge.py требует OpenAI embeddings. Для его принятия нужны provider-конфигурация, live-проверка и согласованная рубрика (#32); таймаут и результаты main нельзя автоматически переносить на другой путь.

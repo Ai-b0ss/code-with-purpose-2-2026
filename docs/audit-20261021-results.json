@@ -1,0 +1,93 @@
+{
+  "snapshot_msk": "2026-10-21 20:31",
+  "window_msk": [
+    "2026-10-21 18:31",
+    "2026-10-21 20:31"
+  ],
+  "refs": {
+    "main": "1e5b6264a6e92486e264fec75a89ae6868554eaa",
+    "ilya": "4ccefa841bad9055f8dd07005579c54fe7786a67",
+    "sasha": "80ae28d"
+  },
+  "initial_remote_branches": 18,
+  "initial_pr_count": 15,
+  "initial_open_prs": 0,
+  "github_workflow_runs": 0,
+  "github_releases": 0,
+  "tests": {
+    "main_runner": {
+      "pass": 61,
+      "skip": 1,
+      "fail": 0
+    },
+    "ilya_unittest": {
+      "pass": 15
+    },
+    "sasha_pytest": {
+      "pass": 50,
+      "skip": 1,
+      "subtests_pass": 37
+    }
+  },
+  "extra_probes": {
+    "main_same_id_concurrent": {
+      "evaluator_calls": 2,
+      "rows": 1,
+      "errors": [
+        "IntegrityError"
+      ]
+    },
+    "ilya_same_id_concurrent": {
+      "evaluator_calls": 2,
+      "rows": 1,
+      "errors": []
+    },
+    "sasha_session_submit_then_csv": {
+      "session_status": "SCORED",
+      "csv_data_rows": 0,
+      "contains_session_id": false
+    },
+    "sasha_consent_withdrawal": {
+      "state": "CLOSED",
+      "run_inputs_before": 1,
+      "run_inputs_after": 1,
+      "synthetic_answer_retained": true
+    },
+    "sasha_inclusive_role_parser": {
+      "value_type": "str",
+      "false_inclusive_assignments_unique": 72
+    }
+  },
+  "corpus": {
+    "main_nonempty_rows": 112,
+    "sasha_source_rows": 168,
+    "sasha_unique": 113,
+    "train": 90,
+    "holdout": 23,
+    "duplicate_spring_rows": 55,
+    "grade_counts": {
+      "0": 27,
+      "1": 16,
+      "2": 54,
+      "3": 16
+    }
+  },
+  "local_runtime": {
+    "8766": {
+      "mode": "llm",
+      "fallback": false,
+      "frontend_matches": "main"
+    },
+    "8765": "no_response",
+    "17474": "closed",
+    "17687": "closed"
+  },
+  "external_model_calls_in_this_audit": 0,
+  "issues": {
+    "atomic_id": 31,
+    "rag_readiness": 32,
+    "privacy": 28,
+    "sheets": 6,
+    "expert_acceptance": 27
+  }
+}
