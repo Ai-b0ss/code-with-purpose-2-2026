@@ -8,6 +8,8 @@ from unittest.mock import MagicMock, patch
 
 from vk_bot.bot import (
     DIRECTION_MAPPING,
+    PROCESSING_INTERMEDIATE_MSG,
+    RETRY_ERROR_MSG,
     BotConfig,
     DialogState,
     GimApiClient,
@@ -41,6 +43,7 @@ class VkBotUnitTests(unittest.TestCase):
             VkKeyboards.commitments(),
             VkKeyboards.clarification_skip(),
             VkKeyboards.finished(),
+            VkKeyboards.retry(),
             VkKeyboards.empty(),
         ]
         for kb_str in keyboards:
@@ -340,7 +343,7 @@ class VkBotUnitTests(unittest.TestCase):
         self.assertEqual(session.state, DialogState.START)
 
     def test_backend_submission_error_handling(self):
-        """При сбое API бэкенда бот выдаёт понятное сообщение об ошибке, не падая."""
+        """При сбое API бэкенда бот выдаёт понятное сообщение об ошибке с кнопкой повтора, не падая."""
         mock_api = MagicMock(spec=GimApiClient)
         mock_api.get_clarifications.return_value = {"questions": []}
         mock_api.submit_application.side_effect = RuntimeError("Backend down 500")
@@ -355,9 +358,12 @@ class VkBotUnitTests(unittest.TestCase):
         session.motivation = "Достаточная мотивация для музея"
         session.desired_direction = "project"
 
-        resp, _ = fsm.handle_message(user_id, "Только учёба")
-        self.assertIn("временно недоступен", resp)
-        self.assertIn("ответы сохранены", resp)
+        resp, kb = fsm.handle_message(user_id, "Только учёба")
+        self.assertIn("перегружена", resp)
+        self.assertIn("сохранены в черновике", resp)
+        self.assertIn("Повторить отправку", resp)
+        self.assertIn("🔄 Повторить отправку", kb)
+        self.assertEqual(session.state, DialogState.COMMITMENTS)
 
     def test_application_payload_matches_backend_contract(self):
         """Payload VK-бота должен проходить ApplicationInput без потери типов."""
@@ -406,10 +412,12 @@ class VkBotUnitTests(unittest.TestCase):
         session.motivation = "Достаточная мотивация для участия в музейной программе."
         session.desired_direction = "project"
 
-        first, _ = fsm.handle_message(1007, "Только учёба")
-        second, _ = fsm.handle_message(1007, "Повторить отправку")
+        first, kb1 = fsm.handle_message(1007, "Только учёба")
+        self.assertIn("перегружена", first)
+        self.assertIn("сохранены в черновике", first)
+        self.assertIn("🔄 Повторить отправку", kb1)
 
-        self.assertIn("временно недоступен", first)
+        second, _ = fsm.handle_message(1007, "🔄 Повторить отправку")
         self.assertIn("успешно принята", second)
         first_payload = mock_api.submit_application.call_args_list[0].args[0]
         second_payload = mock_api.submit_application.call_args_list[1].args[0]
@@ -502,6 +510,72 @@ class VkBotUnitTests(unittest.TestCase):
         resp, _ = fsm.handle_message(uid, "Основная работа на фрилансе, время планирую сам")
         self.assertIn("Ваша заявка успешно принята", resp)
         self.assertEqual(fsm.sessions[uid].other_commitments, "Основная работа на фрилансе, время планирую сам")
+
+    def test_gim_api_client_default_timeout_is_180_seconds(self):
+        """HTTP-тайм-аут API-клиента по умолчанию должен быть 180 секунд."""
+        client = GimApiClient()
+        self.assertEqual(client.timeout, 180)
+
+    def test_intermediate_processing_notice_on_submission(self):
+        """Перед обращением к бэкенду бот отправляет промежуточный статус."""
+        mock_api = MagicMock(spec=GimApiClient)
+        mock_api.get_clarifications.return_value = {"questions": []}
+        mock_api.submit_application.return_value = {"application_id": "GIM-NOTICE-1", "created": True}
+
+        notified_messages = []
+        def test_notifier(uid: int, msg: str):
+            notified_messages.append((uid, msg))
+
+        fsm = VolunteerBotFSM(api_client=mock_api, notifier=test_notifier)
+        session = fsm.get_or_create_session(3001, "Ольга")
+        session.state = DialogState.COMMITMENTS
+        session.age_over_18 = True
+        session.consent_personal_data = True
+        session.motivation = "Большая мотивация для волонтёрства в музее."
+        session.desired_direction = "project"
+
+        resp, kb = fsm.handle_message(3001, "Только учёба")
+
+        self.assertIn("успешно принята", resp)
+        self.assertTrue(len(notified_messages) >= 1)
+        self.assertEqual(notified_messages[0][0], 3001)
+        self.assertIn("Ваша анкета принята в обработку", notified_messages[0][1])
+        self.assertIn("ИИ-ассистент анализирует", notified_messages[0][1])
+        self.assertIn("от 30 секунд до 1.5–2 минут", notified_messages[0][1])
+
+    def test_process_vk_message_event_sends_intermediate_message_and_typing(self):
+        """process_vk_message_event сразу же отправляет промежуточное сообщение и включает typing."""
+        mock_api = MagicMock(spec=GimApiClient)
+        mock_api.get_clarifications.return_value = {"questions": []}
+        mock_api.submit_application.return_value = {"application_id": "GIM-EVENT-1", "created": True}
+
+        fsm = VolunteerBotFSM(api_client=mock_api)
+        session = fsm.get_or_create_session(3002, "Сергей")
+        session.state = DialogState.COMMITMENTS
+        session.age_over_18 = True
+        session.consent_personal_data = True
+        session.motivation = "Достаточная мотивация для работы в музее."
+        session.desired_direction = "project"
+
+        vk = MagicMock()
+        vk.users.get.return_value = [{"first_name": "Сергей", "last_name": "Иванов"}]
+
+        event = MagicMock()
+        event.type = VkBotEventType.MESSAGE_NEW
+        event.message = {"from_id": 3002, "text": "Только учёба"}
+
+        process_vk_message_event(event, vk, fsm, {})
+
+        # Проверяем, что typing и промежуточное сообщение были вызваны
+        vk.messages.setActivity.assert_called_with(type="typing", peer_id=3002)
+        send_calls = vk.messages.send.call_args_list
+        self.assertTrue(len(send_calls) >= 2)
+        # Первое сообщение — промежуточный статус
+        first_call = send_calls[0].kwargs
+        self.assertIn("Ваша анкета принята в обработку", first_call["message"])
+        # Второе сообщение — итоговое подтверждение с номером заявки
+        second_call = send_calls[-1].kwargs
+        self.assertIn("успешно принята", second_call["message"])
 
 
 if __name__ == "__main__":
