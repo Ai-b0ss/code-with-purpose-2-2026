@@ -60,7 +60,13 @@ class Evaluation(BaseModel):
     direction_reason: str = Field(min_length=1, max_length=4000)
     fit_for_museum: str = Field(min_length=1, max_length=4000)
     fit_for_candidate: str = Field(min_length=1, max_length=4000)
-    interview_questions: list[str] = Field(min_length=1, max_length=12)
+    # Legacy field retained for stored records; follow-up questions are asked
+    # BEFORE the final evaluation via /api/v1/clarification.
+    interview_questions: list[str] = Field(max_length=2)
+    preliminary_verdict: Literal[
+        "suggest_interview", "manual_review", "insufficient_information"
+    ] | None = None
+    verdict_comment: str = Field(default="", max_length=2000)
     evidence: list[Evidence] = Field(min_length=1, max_length=30)
     scorecard: list[CriterionRating] = Field(default_factory=list, max_length=5)
 
@@ -113,11 +119,22 @@ media — фото, видео, тексты, дизайн; undecided — нед
 
 Раздельно заполни fit_for_museum (вклад, навыки, доступность) и fit_for_candidate
 (совпадение ожиданий с волонтёрскими задачами, ограничения и что уточнить).
-Дай краткое саммари, сильные стороны, возможные проблемы как гипотезы/уточнения,
-обоснование направления. Для собеседования выбери 1–2 САМЫХ ВАЖНЫХ,
-неповторяющихся вопроса: сначала о существенных противоречиях и реальном графике,
-затем о релевантных навыках/мотивации. Не переспрашивай уже известное.
-Не выдавай длинный список вопросов. Каждый вопрос должен менять решение куратора.
+На предыдущем этапе тебе уже задали дополнительные вопросы КАНДИДАТУ.
+Ответы находятся в followup_answers и followup_answer; ОБЯЗАТЕЛЬНО
+учти их наряду с исходной анкетой при итоговой оценке пяти критериев.
+Если кандидат ответил о графике, не сохраняй прежний риск так, будто
+ответа не было. Не домысливай ограничения поверх прямых уточнений.
+Теперь сформируй ФИНАЛЬНОЕ ЗАКЛЮЧЕНИЕ: саммари, пять критериев,
+сильные стороны, подтверждённые риски, аргументированное направление,
+числовые составляющие и предварительный вердикт для КУРАТОРА.
+preliminary_verdict — suggest_interview, manual_review или
+insufficient_information (не решение о приёме и не формальный отказ).
+verdict_comment — кратко объясни, почему именно такой исход,
+что подтверждено анкетой и что осталось неопределённым.
+Важное: НЕ ГЕНЕРИРУЙ СПИСОК ВОПРОСОВ ДЛЯ СОБЕСЕДОВАНИЯ вместо
+уже прошедших уточнений; interview_questions верни пустым списком [].
+Если есть нерешённая неопределённость, обозначь её в рисках,
+вердикте и комментарии, а не спрашивай кандидата после отправки.
 Каждое фактическое утверждение обоснуй ответами. В evidence укажи question_id
 поля и reason — СТРОКУ с точной непустой цитатой из этого поля. Для числа,
 boolean или списка reason тоже строка: JSON-представление значения внутри строки
@@ -365,6 +382,10 @@ def validate_response(raw: str, answers: dict, *, allow_legacy: bool = False) ->
                     raise EvaluationError("invalid_model_json", (f"evidence.{i}.quote_not_exact",))
             elif item.reason != json.dumps(source, ensure_ascii=False):
                 raise EvaluationError("invalid_model_json", (f"evidence.{i}.value_not_exact",))
+        if not allow_legacy and (
+            result.preliminary_verdict is None or not result.verdict_comment.strip()
+        ):
+            raise EvaluationError("invalid_model_json", ("verdict.missing",))
         if not result.scorecard and not allow_legacy:
             raise EvaluationError("invalid_model_json", ("scorecard.missing",))
         score, raw_mean, graded_count = (
@@ -454,8 +475,9 @@ def evaluate(data: ApplicationInput | dict, *, mode: str | None = None,
     # Legacy fixtures accept omitted scorecards, but NEW model output must
     # contain the five-group rubric. Make that explicit in the passed schema.
     schema.setdefault("required", [])
-    if "scorecard" not in schema["required"]:
-        schema["required"].append("scorecard")
+    for field_name in ("scorecard", "preliminary_verdict", "verdict_comment"):
+        if field_name not in schema["required"]:
+            schema["required"].append(field_name)
     user = json.dumps({"answers": answers, "output_schema": schema}, ensure_ascii=False)
     try:
         result = validate_response(adapter.complete(system=SYSTEM_PROMPT, user=user, schema=schema), answers)
