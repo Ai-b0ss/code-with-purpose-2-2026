@@ -48,6 +48,7 @@ class BasicTests(unittest.TestCase):
     def test_csv_formula_escape(self):
         self.assertEqual(safe_csv("=HYPERLINK(1)"), "'=HYPERLINK(1)")
         self.assertEqual(safe_csv("обычный текст"), "обычный текст")
+        self.assertEqual(safe_csv("строка 1\nстрока 2\r\nстрока 3"), "строка 1 строка 2 строка 3")
 
     def test_sqlite_initialization(self):
         with tempfile.TemporaryDirectory() as directory:
