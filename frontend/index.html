@@ -585,6 +585,45 @@
       font-size: 12.5px;
       padding: 0;
     }
+    .submit-loading {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-top: 18px;
+      padding: 14px 18px;
+      background: #fbf8f2;
+      border: 1px solid #ebdcc5;
+      border-radius: var(--radius);
+      color: var(--text);
+    }
+    .submit-loading[hidden] {
+      display: none;
+    }
+    .submit-loading-text {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .submit-loading-text strong {
+      color: var(--gim-red);
+      font-size: 14px;
+    }
+    .submit-loading-text span {
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+    .spinner {
+      width: 26px;
+      height: 26px;
+      border: 3px solid rgba(142, 24, 27, 0.2);
+      border-top-color: var(--gim-red);
+      border-radius: 50%;
+      animation: spin 0.85s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
     .error-box {
       background: #fdf5f5;
       border: 1px solid #f2c2c2;
@@ -969,6 +1008,14 @@
       </section>
 
       <div class="error-box" id="errorBox" role="alert" hidden></div>
+
+      <div class="submit-loading" id="submitLoading" hidden>
+        <div class="spinner" aria-hidden="true"></div>
+        <div class="submit-loading-text">
+          <strong>⏳ Анализируем ответы с помощью ИИ (до 2 мин)...</strong>
+          <span>Пожалуйста, не закрывайте страницу, нейросеть формирует итоговые рекомендации...</span>
+        </div>
+      </div>
 
       <!-- Action Buttons -->
       <div class="actions">
@@ -1471,6 +1518,12 @@
     if (!validateStep(currentStep)) return;
 
     submitBtn.disabled = true;
+    prevBtn.disabled = true;
+    const origSubmitText = submitBtn.textContent;
+    submitBtn.textContent = "⏳ Анализируем ответы с помощью ИИ (до 2 мин)...";
+    const submitLoading = byId("submitLoading");
+    if (submitLoading) submitLoading.hidden = false;
+    errorBox.hidden = true;
     try {
       if (!applicationId) {
         applicationId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : "gim-" + Date.now();
@@ -1531,6 +1584,9 @@
       showError(err.message || "Ошибка отправки анкеты. Попробуйте еще раз.");
     } finally {
       submitBtn.disabled = false;
+      prevBtn.disabled = false;
+      submitBtn.textContent = origSubmitText;
+      if (submitLoading) submitLoading.hidden = true;
     }
   });
 

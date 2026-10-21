@@ -12,13 +12,14 @@ import logging
 import os
 import re
 import sys
+import threading
 import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import requests
 import vk_api
@@ -212,7 +213,7 @@ def parse_and_validate_birth_date(date_str: str) -> str | None:
 class GimApiClient:
     """Клиент для общения с FastAPI-сервером ГИМ."""
 
-    def __init__(self, base_url: str = "http://127.0.0.1:8765", timeout: int = 10):
+    def __init__(self, base_url: str = "http://127.0.0.1:8765", timeout: int = 180):
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
 
@@ -238,6 +239,25 @@ class GimApiClient:
         resp = requests.post(url, json=payload, timeout=self.timeout)
         resp.raise_for_status()
         return resp.json()
+
+
+# -----------------------------------------------------------------------------
+# СТАТУСНЫЕ СООБЩЕНИЯ ДЛЯ ДОЛГИХ ОПЕРАЦИЙ (LLM 30-120 сек)
+# -----------------------------------------------------------------------------
+
+PROCESSING_INTERMEDIATE_MSG = (
+    "⏳ Ваша анкета принята в обработку!\n\n"
+    "🏛️ Наш ИИ-ассистент анализирует ваши ответы, сопоставляет интересы с направлениями музея "
+    "и формирует персональные рекомендации.\n"
+    "⏱️ Это может занять от 30 секунд до 1.5–2 минут.\n\n"
+    "Пожалуйста, подождите, мы пришлём подтверждение сразу, как только анализ завершится!"
+)
+
+RETRY_ERROR_MSG = (
+    "Нейросеть музея сейчас перегружена из-за большого потока заявок. "
+    "Все ваши ответы надёжно сохранены в черновике! "
+    "Нажмите кнопку «Повторить отправку», чтобы отправить заявку ещё раз без повторного ввода данных."
+)
 
 
 # -----------------------------------------------------------------------------
@@ -351,6 +371,12 @@ class VkKeyboards:
     def finished() -> str:
         kb = VkKeyboard(one_time=False)
         kb.add_button("Заполнить новую анкету", color=VkKeyboardColor.PRIMARY)
+        return kb.get_keyboard()
+
+    @staticmethod
+    def retry() -> str:
+        kb = VkKeyboard(inline=True)
+        kb.add_button("🔄 Повторить отправку", color=VkKeyboardColor.PRIMARY)
         return kb.get_keyboard()
 
     @staticmethod
@@ -506,10 +532,30 @@ class VolunteerBotFSM:
 
     EMAIL_REGEX = re.compile(r"^[\w\.\+\-]+@[a-zA-Z0-9\-]+(\.[a-zA-Z0-9\-]+)+$")
 
-    def __init__(self, api_client: GimApiClient, session_ttl: int = 86400):
-        self.api_client = api_client
+    def __init__(
+        self,
+        api_client: GimApiClient | None = None,
+        session_ttl: int = 86400,
+        notifier: Callable[[int, str], None] | None = None,
+    ):
+        self.api_client = api_client or GimApiClient()
         self.session_ttl = session_ttl
+        self.notifier = notifier
         self.sessions: dict[int, UserSession] = {}
+        self._last_intermediate_notification: dict[int, float] = {}
+
+    def _notify_intermediate(self, user_id: int) -> None:
+        """Отправляет немедленное промежуточное уведомление перед долгим запросом."""
+        now = time.time()
+        last_time = self._last_intermediate_notification.get(user_id, 0.0)
+        if now - last_time < 15.0:
+            return
+        self._last_intermediate_notification[user_id] = now
+        if self.notifier:
+            try:
+                self.notifier(user_id, PROCESSING_INTERMEDIATE_MSG)
+            except Exception as exc:
+                logger.warning("Не удалось отправить промежуточный статус пользователю %s: %s", user_id, exc)
 
     def get_or_create_session(self, user_id: int, user_name: str | None = None) -> UserSession:
         now = time.time()
@@ -552,6 +598,10 @@ class VolunteerBotFSM:
 
         is_new_user = user_id not in self.sessions
         session = self.get_or_create_session(user_id, user_name)
+
+        # 1.1 Повторная отправка сохранённой заявки при сбое
+        if ("повтор" in lower_text or "повторить" in lower_text) and session.consent_personal_data and session.motivation:
+            return self._submit_final_application(session)
 
         # Если пользователь пишет боту впервые — отправляем приветствие со стартовой кнопкой
         if is_new_user:
@@ -1002,12 +1052,14 @@ class VolunteerBotFSM:
     def _step_handle_commitments(
         self, session: UserSession, clean_text: str, lower_text: str
     ) -> tuple[str, str]:
-        session.other_commitments = clean_text[:1500]
+        if "повтор" not in lower_text:
+            session.other_commitments = clean_text[:1500]
         # Запрос динамических уточнений из backend
         return self._fetch_clarifications_or_submit(session)
 
     def _fetch_clarifications_or_submit(self, session: UserSession) -> tuple[str, str]:
         """Отправляет черновик в POST /api/v1/clarification."""
+        self._notify_intermediate(session.user_id)
         payload = session.to_application_input()
         try:
             res = self.api_client.get_clarifications(payload)
@@ -1076,6 +1128,7 @@ class VolunteerBotFSM:
         # дублей, если backend сохранил заявку, но ответ потерялся в сети.
         if not session.application_id:
             session.application_id = f"vk-{session.user_id}-{uuid.uuid4().hex}"
+        self._notify_intermediate(session.user_id)
         payload = session.to_application_input()
         try:
             res = self.api_client.submit_application(payload)
@@ -1094,12 +1147,7 @@ class VolunteerBotFSM:
 
         except Exception as exc:
             logger.error("Ошибка отправки заявки на бэкенд: %s", exc)
-            msg = (
-                "⚠️ Сервер музея временно недоступен, но ваши ответы сохранены в текущем диалоге.\n"
-                "Отправьте любое сообщение через минуту — бот повторит отправку заявки. "
-                "Для начала заново используйте /reset."
-            )
-            return msg, VkKeyboards.empty()
+            return RETRY_ERROR_MSG, VkKeyboards.retry()
 
 
 # -----------------------------------------------------------------------------
@@ -1142,11 +1190,53 @@ def process_vk_message_event(
                 logger.warning("Не удалось получить профиль пользователя %s: %s", from_id, err)
                 user_name_cache[from_id] = f"Волонтёр #{from_id}"
 
-        reply_text, keyboard = fsm.handle_message(
-            user_id=from_id,
-            text=str(text or ""),
-            user_name=user_name_cache[from_id],
-        )
+        typing_active = threading.Event()
+        typing_thread: threading.Thread | None = None
+
+        def typing_worker(peer_id: int) -> None:
+            while not typing_active.is_set():
+                if hasattr(vk, "messages") and hasattr(vk.messages, "setActivity"):
+                    try:
+                        vk.messages.setActivity(type="typing", peer_id=peer_id)
+                    except Exception:
+                        pass
+                typing_active.wait(7.0)
+
+        def event_notifier(uid: int, msg: str) -> None:
+            nonlocal typing_thread
+            if hasattr(vk, "messages"):
+                try:
+                    vk.messages.setActivity(type="typing", peer_id=uid)
+                except Exception:
+                    pass
+                try:
+                    vk.messages.send(
+                        user_id=uid,
+                        random_id=get_random_id(),
+                        message=msg,
+                    )
+                except Exception as exc:
+                    logger.warning("Не удалось отправить промежуточное сообщение в VK: %s", exc)
+
+                if typing_thread is None or not typing_thread.is_alive():
+                    typing_active.clear()
+                    typing_thread = threading.Thread(target=typing_worker, args=(uid,), daemon=True)
+                    typing_thread.start()
+
+        orig_notifier = fsm.notifier
+        if fsm.notifier is None:
+            fsm.notifier = event_notifier
+
+        try:
+            reply_text, keyboard = fsm.handle_message(
+                user_id=from_id,
+                text=str(text or ""),
+                user_name=user_name_cache[from_id],
+            )
+        finally:
+            typing_active.set()
+            if orig_notifier is None:
+                fsm.notifier = None
         send_kwargs: dict[str, Any] = {
             "user_id": from_id,
             "random_id": get_random_id(),
