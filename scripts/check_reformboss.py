@@ -19,7 +19,7 @@ from backend.app import ApplicationInput
 from backend.evaluator import ChatCompletionsAdapter, EvaluationError, evaluate
 
 ENDPOINT = "https://api.reformboss.com/v1/chat/completions"
-MODELS = ("deepseek-v4.1-flash-1017", "glm-5.3", "kimi-k3")
+MODELS = ("deepseek-v4.1-flash", "glm-5.3", "kimi-k3")
 
 
 def sample_candidate() -> ApplicationInput:
@@ -175,7 +175,7 @@ def main() -> int:
 
     key = os.environ.get("GIM_LLM_API_KEY", "")
     if not key:
-        print("Ключ не задан: запустите start-reformboss.ps1 для скрытого ввода.")
+        print("Ключ не задан: запустите start-reformboss.ps1 для обычного ввода.")
         return 2
     if args.list_models:
         list_models(key, args.endpoint)
