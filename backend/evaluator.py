@@ -64,7 +64,8 @@ class Evaluation(BaseModel):
     # BEFORE the final evaluation via /api/v1/clarification.
     interview_questions: list[str] = Field(max_length=12)
     preliminary_verdict: Literal[
-        "suggest_interview", "manual_review", "insufficient_information"
+        "suggest_interview", "manual_review", "not_recommended_for_interview",
+        "insufficient_information"
     ] | None = None
     verdict_comment: str = Field(default="", max_length=2000)
     evidence: list[Evidence] = Field(min_length=1, max_length=30)
@@ -129,8 +130,12 @@ media — фото, видео, тексты, дизайн; undecided — нед
 Теперь сформируй ФИНАЛЬНОЕ ЗАКЛЮЧЕНИЕ: саммари, пять критериев,
 сильные стороны, подтверждённые риски, аргументированное направление,
 числовые составляющие и предварительный вердикт для КУРАТОРА.
-preliminary_verdict — suggest_interview, manual_review или
-insufficient_information (не решение о приёме и не формальный отказ).
+preliminary_verdict — suggest_interview, manual_review,
+not_recommended_for_interview или insufficient_information.
+not_recommended_for_interview допустим только при явном подтверждённом
+несоответствии выбранным волонтёрским задачам, а не из-за курса,
+закрытой страницы VK, отсутствия опыта или непроверенной занятости.
+Любой вердикт предварительный; последнее слово за координатором.
 verdict_comment — кратко объясни, почему именно такой исход,
 что подтверждено анкетой и что осталось неопределённым.
 Важное: НЕ ГЕНЕРИРУЙ СПИСОК ВОПРОСОВ ДЛЯ СОБЕСЕДОВАНИЯ вместо
