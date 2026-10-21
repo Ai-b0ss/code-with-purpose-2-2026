@@ -299,12 +299,16 @@ def health():
 
 @app.post("/api/v1/clarification")
 def clarification(data: ApplicationInput):
-    questions = clarifications_for(data)
-    legacy_question = clarification_for(data)
-    return {
-        "question": legacy_question,
-        "questions": questions,
-    }
+    # In live mode, ask the model to review five criteria BEFORE a final
+    # evaluation. Do not confuse questions asked now with interview notes.
+    from backend.clarification_agent import questions_before_verdict
+    from backend.evaluator import EvaluationError
+    try:
+        result = questions_before_verdict(data)
+    except EvaluationError as exc:
+        # Do not silently switch from LLM to heuristic questions in live mode.
+        raise HTTPException(status_code=503, detail=f"clarification_{exc.code}") from None
+    return {"question": None, **result}
 
 
 @app.post("/api/v1/preview")
