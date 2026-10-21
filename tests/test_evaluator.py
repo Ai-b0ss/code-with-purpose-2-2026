@@ -81,7 +81,7 @@ class EvaluatorTests(unittest.TestCase):
                 self.assertEqual(sent["followup_answer"], data.followup_answer)
                 self.assertNotIn("applicant_name", sent)
                 self.assertNotIn("application_id", sent)
-                self.assertIn("НЕ означают автоматический отказ", request["system"])
+                self.assertIn("Не делай автоматический", request["system"])
                 self.assertIn("Первый курс", request["system"])
                 self.assertIn("10–18", request["system"])
                 self.assertIn("не обязательный минимум", request["system"])

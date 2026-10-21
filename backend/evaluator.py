@@ -13,6 +13,7 @@ from urllib.parse import urlsplit
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from backend.app import ApplicationInput, DIRECTIONS, Direction, evaluate_demo
+from backend.availability_policy import availability_risks
 
 
 class EvaluationError(RuntimeError):
@@ -66,8 +67,14 @@ SYSTEM_PROMPT = """Ты помощник куратора волонтёрско
 Отмечай заявленные редкие навыки: жестовый язык, реставрация, инклюзия, видеомонтаж.
 Непрофильное образование и отсутствие опыта не означают отказ.
 3. Нагрузка: реальные свободные часы, дни и устойчивость графика, дорога, сессия,
-учёба, работа и другие программы. Первый курс, полная ставка и другое волонтёрство
-НЕ означают автоматический отказ или штраф. Уточни реальную совместимость.
+учёба, работа и другие программы. По прямым словам представителя ГИМ Первый курс бакалавриата, работа на полной ставке и множество параллельных волонтёрских
+проектов — НЕБЛАГОПРИЯТНЫЕ факторы: повышают риск отсутствия регулярных смен
+и раннего прекращения участия. Это предварительный МИНУС в соответствии кандидата
+требованиям музея, даже если мотивация высока. Обязательно укажи риск в
+possible_problems и fit_for_museum и спроси о реальном графике и удержании.
+При подтверждённых конкретных свободных днях, часах и устойчивых обязательствах
+возможно индивидуальное исключение и смягчение минуса. Не делай автоматический
+отказ и не подменяй отсутствие калиброванной шкалы выдуманными баллами.
 16 ч/мес — положительный сигнал таблицы, не обязательный минимум или порог отказа.
 4. Полнота смысловых ответов и возможность связи в ВК. Не проверяй профиль,
 не делай выводы по фото/постам; если контакт не передан, он неизвестен.
@@ -221,6 +228,26 @@ def adapter_from_env(env: Mapping[str, str] | None = None) -> ChatCompletionsAda
         raise EvaluationError("invalid_configuration") from None
 
 
+def _with_availability_risks(data: ApplicationInput, result: dict) -> dict:
+    """Make the curator's negative workload signals visible even in mock/fallback.
+
+    Signals do not set numeric curator scores or automatically reject people.
+    The human curator reviews evidence and potential exceptions.
+    """
+    risks = availability_risks(data)
+    if not risks:
+        return result
+    result["possible_problems"] = [
+        *result.get("possible_problems", []),
+        *(risk for risk in risks if risk not in result.get("possible_problems", [])),
+    ]
+    result["fit_for_museum"] = (
+        result.get("fit_for_museum", "") +
+        " Риски доступности для ГИМ: " + " ".join(risks)
+    ).strip()
+    return result
+
+
 def evaluate(data: ApplicationInput | dict, *, mode: str | None = None,
              adapter: LLMAdapter | None = None, fallback_to_demo: bool = False) -> dict:
     """Return a JSON-serializable result. LLM errors raise unless fallback is explicit.
@@ -235,7 +262,7 @@ def evaluate(data: ApplicationInput | dict, *, mode: str | None = None,
         result["fit_for_museum"] = (
             "Предварительное описание по анкете; соответствие задачам музея требует интервью."
         )
-        return result
+        return _with_availability_risks(data, result)
     if mode != "llm":
         raise EvaluationError("invalid_mode")
     adapter = adapter if adapter is not None else adapter_from_env()
@@ -243,7 +270,8 @@ def evaluate(data: ApplicationInput | dict, *, mode: str | None = None,
     schema = Evaluation.model_json_schema()
     user = json.dumps({"answers": answers, "output_schema": schema}, ensure_ascii=False)
     try:
-        return validate_response(adapter.complete(system=SYSTEM_PROMPT, user=user, schema=schema), answers)
+        result = validate_response(adapter.complete(system=SYSTEM_PROMPT, user=user, schema=schema), answers)
+        return _with_availability_risks(data, result)
     except EvaluationError as exc:
         if not fallback_to_demo:
             raise
