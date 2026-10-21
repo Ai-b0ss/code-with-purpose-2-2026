@@ -11,7 +11,7 @@ from urllib.error import URLError, HTTPError
 
 from backend.app import evaluate_demo
 from backend.evaluator import (
-    ChatCompletionsAdapter, EvaluationError, adapter_from_env, evaluate,
+    ChatCompletionsAdapter, EvaluationError, adapter_from_env, evaluate, validate_response,
 )
 from test_smoke import applicant
 
@@ -115,6 +115,39 @@ class EvaluatorTests(unittest.TestCase):
             with self.subTest(raw=raw[:100]), self.assertRaises(EvaluationError) as ctx:
                 evaluate(data, adapter=FakeAdapter(raw))
             self.assertEqual(ctx.exception.code, "invalid_model_json")
+
+    def test_safe_diagnostics_for_schema_and_fake_quotes(self):
+        data = candidate()
+        answers = data.model_dump(exclude={"applicant_name", "application_id"})
+        original = response(data)
+        incomplete = {key: value for key, value in original.items() if key != "fit_for_candidate"}
+        with self.assertRaises(EvaluationError) as caught:
+            validate_response(json.dumps(incomplete, ensure_ascii=False), answers)
+        self.assertEqual(caught.exception.code, "invalid_model_json")
+        self.assertTrue(any("fit_for_candidate:missing" in d for d in caught.exception.details))
+        self.assertNotIn(data.motivation, str(caught.exception.details))
+
+        untrue = {**original, "evidence": [
+            {"question_id": "motivation", "reason": "не говорилось в ответах"}
+        ]}
+        with self.assertRaises(EvaluationError) as caught:
+            validate_response(json.dumps(untrue, ensure_ascii=False), answers)
+        self.assertEqual(caught.exception.details, ("evidence.0.quote_not_exact",))
+        self.assertNotIn("не говорилось в ответах", str(caught.exception.details))
+
+        with self.assertRaises(EvaluationError) as caught:
+            validate_response("NOT JSON", answers)
+        self.assertEqual(caught.exception.details, ("json_syntax",))
+
+    def test_json_fence_accepted_without_relaxing_evidence(self):
+        data = candidate()
+        answers = data.model_dump(exclude={"applicant_name", "application_id"})
+        raw = json.dumps(response(data), ensure_ascii=False)
+        tick = chr(96) * 3
+        fenced = tick + "json\\n" + raw + "\\n" + tick
+        result = validate_response(fenced, answers)
+        self.assertEqual(result["evaluation_mode"], "llm")
+        self.assertIsNone(result["score"])
 
     def test_label_is_derived_locally(self):
         value = response(candidate())
