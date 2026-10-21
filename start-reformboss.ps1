@@ -1,8 +1,8 @@
 # ReformBoss OpenAI-compatible LLM for GIM. Nothing is saved to disk.
-# Default: DeepSeek V4.1 Flash 1017, as displayed in the user's ReformBoss menu.
+# Default: DeepSeek V4.1 Flash, as returned by authenticated /v1/models.
 param(
-    [ValidateSet("deepseek-v4.1-flash-1017", "glm-5.3", "kimi-k3")]
-    [string]$Model = "deepseek-v4.1-flash-1017",
+    [ValidateSet("deepseek-v4.1-flash", "glm-5.3", "kimi-k3")]
+    [string]$Model = "deepseek-v4.1-flash",
     [switch]$Compare,
     [switch]$DisableJsonMode,
     [switch]$SkipProbe
@@ -14,7 +14,7 @@ try {
     Write-Host "GIM / ReformBoss live LLM"
     Write-Host "Model: $Model"
     Write-Host "Endpoint: https://api.reformboss.com/v1/chat/completions"
-    Write-Host "No key will be printed, written to disk or committed."
+    Write-Host "Key will be VISIBLE while typing. Do not share a screenshot or terminal recording."
 
     # No secret is requested or sent until Python can establish a valid
     # HTTPS connection. HTTP 401 here is normal: the probe has no API key.
@@ -24,19 +24,11 @@ try {
         return
     }
 
-    # Secure local terminal input; only the current PowerShell process and its
-    # child uvicorn process receive the temporary environment variable.
-    $secret = Read-Host "Enter ReformBoss API key (hidden)" -AsSecureString
-    $ptr = [IntPtr]::Zero
-    try {
-        $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secret)
-        $env:GIM_LLM_API_KEY = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
-    } finally {
-        if ($ptr -ne [IntPtr]::Zero) {
-            [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)
-        }
-        $secret.Dispose()
-    }
+    # Plain Read-Host intentionally avoids SecureString conversion because the
+    # same key successfully authenticated via direct Invoke-RestMethod.
+    # The value appears on screen while typing; it is NOT persisted to a file.
+    # The variable is cleared when this PowerShell process exits.
+    $env:GIM_LLM_API_KEY = (Read-Host "Enter ReformBoss API key (VISIBLE)").Trim()
     if ([string]::IsNullOrWhiteSpace($env:GIM_LLM_API_KEY)) {
         throw "No key provided."
     }
@@ -60,7 +52,7 @@ try {
         }
     }
     Write-Host "Live GIM server: http://127.0.0.1:8765"
-    Write-Host "Ctrl+C stops this server and clears its API key from this PowerShell session."
+    Write-Host "Ctrl+C stops this server. This script clears the key from its process environment on exit."
     python -m uvicorn backend.app:app --host 127.0.0.1 --port 8765
 } finally {
     Remove-Item Env:GIM_LLM_API_KEY -ErrorAction SilentlyContinue
