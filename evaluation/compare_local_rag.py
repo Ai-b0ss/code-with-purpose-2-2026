@@ -16,7 +16,7 @@ from pathlib import Path
 from backend.app import ApplicationInput
 from backend.evaluator import ChatCompletionsAdapter, EvaluationError
 from backend.knowledge import retrieve
-from backend.scoring import assess
+from backend.scoring import assess, retrieval_question
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -59,17 +59,17 @@ CASES = [
 ]
 
 
-def main() -> None:
+def main(cases: list[dict] | None = None, target: Path | None = None) -> None:
+    cases = CASES if cases is None else cases
     adapter = ChatCompletionsAdapter(
         endpoint=os.getenv("GIM_LLM_ENDPOINT", "http://127.0.0.1:11434/api/chat"),
         model=os.getenv("GIM_LLM_MODEL", "qwen3:14b"),
         timeout=300,
     )
     observations = []
-    for case in CASES:
+    for case in cases:
         application = ApplicationInput(**case["data"])
-        context = retrieve(case["direction"],
-                           f"{case['direction']} {application.motivation} работа график собеседование")[:8]
+        context = retrieve(case["direction"], retrieval_question(application))[:8]
         for condition, knowledge in (("without_rag", []), ("with_rag", context)):
             capture = CaptureAdapter(adapter)
             record = {"case_id": case["case_id"], "condition": condition,
@@ -101,7 +101,7 @@ def main() -> None:
     report = {"created_at": datetime.now(timezone.utc).isoformat(),
               "method": "paired same-model same-rubric same-answers; only Neo4j context differs",
               "model": adapter.model, "summary": summary, "cases": observations}
-    target = ROOT / "evaluation" / "local-rag-comparison.json"
+    target = target or ROOT / "evaluation" / "local-rag-comparison.json"
     target.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(target)
 

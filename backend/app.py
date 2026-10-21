@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
 ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(ROOT / ".env")
 FRONTEND = ROOT / "frontend" / "index.html"
 DEFAULT_DB = ROOT / "data" / "gim.sqlite3"
 DIRECTIONS = {
@@ -325,14 +326,16 @@ def coordinator_home():
 
 @app.get("/api/v1/health")
 def health():
-    load_dotenv(ROOT / ".env")
     mode = os.getenv("GIM_EVALUATION_MODE", "demo")
     endpoint = os.getenv("GIM_LLM_ENDPOINT", "https://api.openai.com/v1/chat/completions")
-    model_key = os.getenv("GIM_LLM_API_KEY") or os.getenv("OPENAI_API_KEY", "")
+    model_key = os.getenv("GIM_LLM_API_KEY", "")
+    if not model_key and endpoint.startswith("https://api.openai.com/"):
+        model_key = os.getenv("OPENAI_API_KEY", "")
     embedding_key = os.getenv("OPENAI_API_KEY", "")
     return {
         "status": "ok", "version": "0.1.0",
         "evaluation_mode": mode if mode in {"llm", "rag_llm"} else "rules_demo",
+        "llm_model": os.getenv("GIM_LLM_MODEL", ""),
         "fallback_to_demo": os.getenv("GIM_LLM_FALLBACK_TO_DEMO", "0") == "1",
         "model_configured": bool(model_key and not model_key.startswith("replace-"))
             or endpoint.startswith(("http://127.0.0.1:", "http://localhost:")),
@@ -517,3 +520,5 @@ def export_csv(authorization: str | None = Header(default=None)):
 
 from backend.sessions import router as sessions_router
 app.include_router(sessions_router, prefix="/api/v1")
+from backend.auth import router as auth_router
+app.include_router(auth_router, prefix="/api/v1")

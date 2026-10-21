@@ -185,13 +185,21 @@ def score_criteria(criteria: list[dict], rubric=RUBRIC) -> tuple[int | None, flo
     return numerator, quarters / 4
 
 
+def retrieval_question(data: Any) -> str:
+    """Search on the applicant's stated expectations as well as the role."""
+    return " ".join(str(value) for value in (
+        data.desired_direction, data.expectations, data.motivation,
+        data.experience, data.other_commitments) if value)
+
+
 def assess(data: Any, adapter: ChatCompletionsAdapter | None = None, *,
            rubric=RUBRIC, rubric_version=RUBRIC_VERSION,
            answer_ids: dict[str, str] | None = None, knowledge: list[dict] | None = None) -> dict:
-    load_dotenv(Path(__file__).resolve().parent.parent / ".env")
     if adapter is None:
-        key = os.getenv("GIM_LLM_API_KEY") or os.getenv("OPENAI_API_KEY", "")
         endpoint = os.getenv("GIM_LLM_ENDPOINT", "https://api.openai.com/v1/chat/completions")
+        key = os.getenv("GIM_LLM_API_KEY", "")
+        if not key and endpoint.startswith("https://api.openai.com/"):
+            key = os.getenv("OPENAI_API_KEY", "")
         if (not key or key.startswith("replace-")) and endpoint.startswith("https://api.openai.com/"):
             raise EvaluationError("llm_api_key_required")
         adapter = adapter_from_env({**os.environ,
@@ -203,7 +211,7 @@ def assess(data: Any, adapter: ChatCompletionsAdapter | None = None, *,
     answers = {((answer_ids or {}).get(key, key)): value for key, value in answers.items()}
     try:
         chunks = knowledge if knowledge is not None else retrieve(
-            data.desired_direction, f"{data.desired_direction} {data.motivation}")
+            data.desired_direction, retrieval_question(data))
     except Exception as exc:
         raise EvaluationError("knowledge_unavailable") from exc
     payload = {

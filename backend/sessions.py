@@ -71,7 +71,6 @@ class _PostgresConnection:
 
 @contextmanager
 def _connection():
-    load_dotenv(ROOT / ".env")
     database_url = os.getenv("GIM_DATABASE_URL", "")
     if database_url:
         import psycopg
@@ -124,6 +123,13 @@ def _connection():
             con.execute("ALTER TABLE session_runs_v2 RENAME TO session_runs")
     con.execute("""CREATE TABLE IF NOT EXISTS run_inputs (
         run_id TEXT PRIMARY KEY, answers TEXT NOT NULL, answer_ids TEXT NOT NULL)""")
+    con.execute("""CREATE TABLE IF NOT EXISTS portal_accounts (
+        username TEXT PRIMARY KEY, role TEXT NOT NULL,
+        password_salt TEXT NOT NULL, password_hash TEXT NOT NULL)""")
+    con.execute("""CREATE TABLE IF NOT EXISTS portal_tokens (
+        token_hash TEXT PRIMARY KEY, username TEXT NOT NULL, expires_at TEXT NOT NULL)""")
+    con.execute("""CREATE TABLE IF NOT EXISTS session_owners (
+        session_id TEXT PRIMARY KEY, username TEXT NOT NULL)""")
     con.commit()
     try:
         yield con
@@ -152,13 +158,30 @@ class ReviewInput(BaseModel):
 
 
 def _coordinator_auth(authorization: str | None) -> None:
-    load_dotenv(ROOT / ".env")
+    from backend.auth import auth_required, require_account
+    if auth_required():
+        require_account(authorization, "coordinator")
+        return
     expected = os.getenv("GIM_COORDINATOR_TOKEN", "")
     if not expected or expected.startswith("replace-"):
         raise HTTPException(status_code=503, detail="coordinator_token_not_configured")
     supplied = authorization.removeprefix("Bearer ") if authorization else ""
     if not secrets.compare_digest(supplied, expected):
         raise HTTPException(status_code=401, detail="coordinator_auth_required")
+
+
+def _student_auth(session_id: str | None, authorization: str | None) -> str | None:
+    from backend.auth import auth_required, require_account
+    if not auth_required():
+        return None
+    username = require_account(authorization, "student")["username"]
+    if session_id:
+        with _connection() as con:
+            row = con.execute("SELECT username FROM session_owners WHERE session_id=?",
+                              (session_id,)).fetchone()
+        if not row or row["username"] != username:
+            raise HTTPException(status_code=403, detail="session_not_owned")
+    return username
 
 
 def _now() -> str:
@@ -225,18 +248,24 @@ def _key_digest(key: str) -> str:
 
 
 @router.post("/sessions", status_code=201)
-def create_session():
+def create_session(authorization: str | None = Header(default=None)):
+    owner = _student_auth(None, authorization)
     session_id = uuid.uuid4().hex
     with _connection() as con:
         con.execute("INSERT INTO sessions(id, created_at, state, questionnaire_version) VALUES(?,?,?,?)",
                     (session_id, _now(), "CONSENT", QUESTIONNAIRE_VERSION))
+        if owner:
+            con.execute("INSERT INTO session_owners(session_id,username) VALUES(?,?)",
+                        (session_id, owner))
     return {"session_id": session_id, "state": "CONSENT",
             "questionnaire_version": QUESTIONNAIRE_VERSION, "answer_revision": 0,
             "next_question": "consent_personal_data"}
 
 
 @router.post("/sessions/{session_id}/answers")
-def save_answer(session_id: str, data: AnswerInput):
+def save_answer(session_id: str, data: AnswerInput,
+                authorization: str | None = Header(default=None)):
+    _student_auth(session_id, authorization)
     if data.question_id not in ALLOWED:
         raise HTTPException(status_code=422, detail="unknown_question_id")
     payload = data.model_dump(exclude={"idempotency_key"})
@@ -352,6 +381,7 @@ def _evaluate_session(session_id: str, run_id: str, revision: int,
                for key, value in application.followup_answers.items()) and result["decision"]["needs_additional_questions"]:
             result["decision"].update({
                 "status": "coordinator_review_after_followup", "may_proceed": None,
+                "verdict": "сомнительно",
                 "needs_additional_questions": False,
                 "reason": "Дополнительные ответы получены; координатору нужно проверить обновлённую оценку.",
             })
@@ -383,7 +413,9 @@ def _peer_results(con, session_id: str) -> list[dict]:
 
 
 @router.post("/sessions/{session_id}/submit", status_code=202)
-def submit_session(session_id: str, data: SubmitInput, background: BackgroundTasks):
+def submit_session(session_id: str, data: SubmitInput, background: BackgroundTasks,
+                   authorization: str | None = Header(default=None)):
+    _student_auth(session_id, authorization)
     payload = data.model_dump(exclude={"idempotency_key"})
     with _connection() as con:
         session = _session(con, session_id)
@@ -441,7 +473,8 @@ def submit_session(session_id: str, data: SubmitInput, background: BackgroundTas
 
 
 @router.get("/sessions/{session_id}/result")
-def session_result(session_id: str):
+def session_result(session_id: str, authorization: str | None = Header(default=None)):
+    _student_auth(session_id, authorization)
     with _connection() as con:
         session = _session(con, session_id)
         run = con.execute("SELECT * FROM session_runs WHERE run_id=?", (session["active_run_id"],)).fetchone()
@@ -467,6 +500,7 @@ def list_runs(authorization: str | None = Header(default=None)):
         "created_at": row["created_at"], "answer_revision": row["answer_revision"],
         "status": row["status"], "active": row["run_id"] == row["active_run_id"],
         "score": (json.loads(row["result"]).get("score") if row["result"] else None),
+        "verdict": (json.loads(row["result"]).get("decision", {}).get("verdict") if row["result"] else None),
         "parent_run_id": row["parent_run_id"],
     } for row in rows]}
 

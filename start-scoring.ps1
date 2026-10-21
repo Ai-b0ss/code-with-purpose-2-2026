@@ -1,4 +1,4 @@
-param([switch]$SkipProbe)
+param([switch]$SkipProbe, [switch]$Local)
 $ErrorActionPreference = 'Stop'
 Push-Location $PSScriptRoot
 try {
@@ -6,6 +6,16 @@ try {
     $python = Join-Path $PSScriptRoot '.venv\Scripts\python.exe'
     if (-not (Test-Path -LiteralPath $python)) { throw 'Run: py -3.12 -m venv .venv; .\.venv\Scripts\python.exe -m pip install -r requirements.txt' }
     if (-not (Test-Path -LiteralPath '.env')) { throw 'Copy .env.example to .env and set GIM_LLM_API_KEY or OPENAI_API_KEY.' }
+    if ($Local) {
+        $env:GIM_LLM_ENDPOINT = 'http://127.0.0.1:11434/api/chat'
+        $env:GIM_LLM_MODEL = 'qwen3:14b'
+        # PowerShell removes an environment variable assigned ''; a sentinel
+        # prevents python-dotenv from reloading the cloud key for this launch.
+        $env:GIM_LLM_API_KEY = 'local-no-key'
+        Write-Host 'Scoring model: local Ollama qwen3:14b'
+    } else {
+        Write-Host 'Scoring model: configured in .env'
+    }
 
     # Keep Docker credentials and resources separate from other local projects.
     $dockerConfig = Join-Path $env:TEMP 'gim-graphrag-docker-config'
@@ -53,6 +63,11 @@ try {
     & $python -m uvicorn backend.app:app --host 127.0.0.1 --port 8765
 } finally {
     Remove-Item Env:GIM_EVALUATION_MODE -ErrorAction SilentlyContinue
+    if ($Local) {
+        Remove-Item Env:GIM_LLM_ENDPOINT -ErrorAction SilentlyContinue
+        Remove-Item Env:GIM_LLM_MODEL -ErrorAction SilentlyContinue
+        Remove-Item Env:GIM_LLM_API_KEY -ErrorAction SilentlyContinue
+    }
     if ($setLocalDatabaseUrl) { Remove-Item Env:GIM_DATABASE_URL -ErrorAction SilentlyContinue }
     Pop-Location
 }

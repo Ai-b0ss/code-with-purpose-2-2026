@@ -14,19 +14,19 @@ def route_candidate(result: dict, peer_results: list[dict] | None = None) -> dic
     eligibility = result.get("eligibility", {})
     if eligibility.get("status") in {"ineligible", "no_consent"}:
         return {"policy_version": POLICY_VERSION, "status": "does_not_meet_basic_requirement",
-                "may_proceed": False, "needs_additional_questions": False,
+                "may_proceed": False, "verdict": "нет", "needs_additional_questions": False,
                 "reason": eligibility.get("reason", "Не выполнено обязательное условие."),
                 "comparison": {"peer_count": 0, "available": False}}
     if eligibility.get("status") != "eligible" or result.get("score") is None:
         return {"policy_version": POLICY_VERSION, "status": "needs_review",
-                "may_proceed": None, "needs_additional_questions": True,
+                "may_proceed": None, "verdict": "сомнительно", "needs_additional_questions": True,
                 "reason": "Нужно проверить возраст или уточнить критерии без оценки. Балл пока не рассчитан.",
                 "comparison": {"peer_count": 0, "available": False}}
 
     score = result["score"]
     if score >= LOW_SCORE_BOUNDARY:
         return {"policy_version": POLICY_VERSION, "status": "coordinator_review",
-                "may_proceed": True, "needs_additional_questions": False,
+                "may_proceed": True, "verdict": "да", "needs_additional_questions": False,
                 "reason": "Пилотный балл достаточен для рассмотрения координатором; приглашение и приём решает музей.",
                 "comparison": {"peer_count": 0, "available": False}}
 
@@ -56,5 +56,6 @@ def route_candidate(result: dict, peer_results: list[dict] | None = None) -> dic
         status = "not_prioritized_for_interview"
     return {"policy_version": POLICY_VERSION, "status": status,
             "may_proceed": None if needs_questions else False,
+            "verdict": "сомнительно" if needs_questions else "нет",
             "needs_additional_questions": needs_questions,
             "reason": reason, "comparison": comparison}

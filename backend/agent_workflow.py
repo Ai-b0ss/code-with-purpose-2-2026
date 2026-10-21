@@ -28,11 +28,12 @@ class AssessmentState(TypedDict, total=False):
 
 def _retrieve(state: AssessmentState) -> dict:
     from backend.scoring import retrieve
+    from backend.scoring import retrieval_question
 
     application = state["application"]
     try:
         knowledge = retrieve(application.desired_direction,
-                             f"{application.desired_direction} {application.motivation}")
+                             retrieval_question(application))
     except Exception as exc:
         raise EvaluationError("knowledge_unavailable") from exc
     if not knowledge:

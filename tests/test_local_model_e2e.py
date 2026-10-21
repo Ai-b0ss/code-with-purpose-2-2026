@@ -15,7 +15,7 @@ def test_live_local_model_student_and_curator(monkeypatch, tmp_path):
     monkeypatch.setenv("GIM_PII_DB_PATH", str(tmp_path / "contacts.sqlite3"))
     monkeypatch.setenv("GIM_COORDINATOR_TOKEN", "synthetic-test-curator-token")
     monkeypatch.setenv("GIM_EVALUATION_MODE", "rag_llm")
-    monkeypatch.setenv("GIM_LLM_ENDPOINT", "http://127.0.0.1:11434/v1/chat/completions")
+    monkeypatch.setenv("GIM_LLM_ENDPOINT", "http://127.0.0.1:11434/api/chat")
     monkeypatch.setenv("GIM_LLM_MODEL", "qwen3:14b")
     monkeypatch.setenv("GIM_LLM_TIMEOUT", "300")
     client = TestClient(app)

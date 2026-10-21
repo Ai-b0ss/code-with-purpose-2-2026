@@ -6,6 +6,7 @@ import math
 import os
 import ssl
 import socket
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
@@ -147,7 +148,7 @@ class ChatCompletionsAdapter:
         if self.json_mode and not native_ollama:
             body["response_format"] = {"type": "json_object"}
         headers = {"Content-Type": "application/json"}
-        if self.api_key:
+        if self.api_key and not native_ollama:
             headers["Authorization"] = f"Bearer {self.api_key}"
         request = urllib.request.Request(
             self.endpoint, data=json.dumps(body).encode("utf-8"), headers=headers,
@@ -156,8 +157,19 @@ class ChatCompletionsAdapter:
         try:
             # Refuse redirects so a key/answers cannot be forwarded to another host.
             opener = urllib.request.build_opener(_NoRedirect())
-            with opener.open(request, timeout=self.timeout) as response:
-                raw = response.read(1_000_001)
+            for attempt in range(3):
+                try:
+                    with opener.open(request, timeout=self.timeout) as response:
+                        raw = response.read(1_000_001)
+                    break
+                except urllib.error.HTTPError as exc:
+                    if exc.code not in {429, 502, 503, 504} or attempt == 2:
+                        raise
+                    try:
+                        retry_after = float(exc.headers.get("Retry-After", ""))
+                    except (TypeError, ValueError):
+                        retry_after = (5.0, 15.0)[attempt]
+                    time.sleep(max(1.0, min(retry_after, 30.0)))
             if len(raw) > 1_000_000:
                 raise EvaluationError("response_too_large")
             envelope = json.loads(raw)

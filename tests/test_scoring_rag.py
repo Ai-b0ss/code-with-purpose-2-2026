@@ -108,6 +108,19 @@ def test_scoring_provider_can_use_separate_compatible_api(monkeypatch):
     assert captured["GIM_LLM_API_KEY"] == "provider-test-key"
 
 
+def test_local_ollama_does_not_receive_embedding_key(monkeypatch):
+    adapter = Adapter([model_response()])
+    captured = {}
+    monkeypatch.setenv("OPENAI_API_KEY", "private-embedding-key")
+    monkeypatch.delenv("GIM_LLM_API_KEY", raising=False)
+    monkeypatch.setenv("GIM_LLM_ENDPOINT", "http://127.0.0.1:11434/api/chat")
+    monkeypatch.setenv("GIM_LLM_MODEL", "qwen3.5:9b")
+    monkeypatch.setattr("backend.scoring.adapter_from_env",
+                        lambda env: (captured.update(env) or adapter))
+    assess(candidate())
+    assert captured["GIM_LLM_API_KEY"] == ""
+
+
 def test_invalid_quotes_never_produce_grades():
     adapter = Adapter([model_response(bad_quote=True)] * 2)
     result = assess(candidate(), adapter)
