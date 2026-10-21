@@ -1,5 +1,6 @@
 """Offline contract, policy prompt, failure and real HTTP transport tests."""
 import json
+import os
 import threading
 import unittest
 from io import BytesIO
@@ -126,6 +127,13 @@ class EvaluatorTests(unittest.TestCase):
         self.assertEqual(result["evaluation_error"], "invalid_model_json")
         self.assertIsNone(result["score"])
 
+    def test_provider_failure_fallback(self):
+        adapter = ChatCompletionsAdapter("http://localhost:1234/v1/chat/completions", "local")
+        with patch("urllib.request.OpenerDirector.open", side_effect=TimeoutError()):
+            result = evaluate(candidate(), adapter=adapter, fallback_to_demo=True)
+        self.assertEqual(result["evaluation_mode"], "rules_demo")
+        self.assertEqual(result["evaluation_error"], "provider_unavailable")
+
     def test_configuration_and_secret_repr(self):
         env = {"GIM_LLM_ENDPOINT": "http://localhost:1234/v1/chat/completions",
                "GIM_LLM_MODEL": "local", "GIM_LLM_API_KEY": "secret"}
@@ -201,6 +209,20 @@ class EvaluatorTests(unittest.TestCase):
                 thread.join()
         self.assertEqual(captured[0]["model"], "local")
         self.assertEqual(captured[0]["response_format"], {"type": "json_object"})
+
+
+class LiveEvaluatorTests(unittest.TestCase):
+    @unittest.skipUnless(
+        os.getenv("GIM_RUN_LIVE_TEST") == "1"
+        and os.getenv("GIM_LLM_ENDPOINT") and os.getenv("GIM_LLM_MODEL"),
+        "Live LLM not configured: set GIM_RUN_LIVE_TEST=1, GIM_LLM_ENDPOINT and GIM_LLM_MODEL",
+    )
+    def test_live_model_contract(self):
+        # Explicit opt-in only. No fallback: unavailable/invalid model must fail.
+        result = evaluate(candidate(), mode="llm", fallback_to_demo=False)
+        self.assertEqual(result["evaluation_mode"], "llm")
+        self.assertIsNone(result["score"])
+        self.assertTrue(result["evidence"])
 
 
 if __name__ == "__main__":
