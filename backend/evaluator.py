@@ -295,7 +295,30 @@ def _prioritize_interview_questions(questions: list[str]) -> list[str]:
     return selected
 
 
-def validate_response(raw: str, answers: dict) -> dict:
+def _pilot_score(scorecard: list[CriterionRating], evidence: list[Evidence]) -> tuple[int | None, float | None, int]:
+    """Equal-group pilot estimate; missing criteria do not count as zero."""
+    names = [rating.criterion for rating in scorecard]
+    if len(names) != len(CRITERION_IDS) or set(names) != set(CRITERION_IDS):
+        raise EvaluationError("invalid_model_json", ("scorecard.groups_invalid",))
+    evidence_ids = {item.question_id for item in evidence}
+    known = {}
+    for rating in scorecard:
+        if rating.level is None:
+            if rating.evidence_question_ids:
+                raise EvaluationError("invalid_model_json", ("scorecard.unknown_with_evidence",))
+        else:
+            if not rating.evidence_question_ids or any(
+                qid not in evidence_ids for qid in rating.evidence_question_ids
+            ):
+                raise EvaluationError("invalid_model_json", ("scorecard.evidence_invalid",))
+            known[rating.criterion] = rating.level
+    if len(known) < 3 or not {"motivation", "availability"}.issubset(known):
+        return None, None, len(known)
+    raw_mean = sum(known.values()) / len(known)
+    return min(3, int(math.floor(raw_mean + 0.5))), round(raw_mean, 2), len(known)
+
+
+def validate_response(raw: str, answers: dict, *, allow_legacy: bool = False) -> dict:
     """Validate strictly and classify errors without leaking the model text."""
     try:
         if not isinstance(raw, str) or len(raw) > 100_000:
