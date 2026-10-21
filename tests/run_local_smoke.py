@@ -280,6 +280,7 @@ def run_integration_tests(tracker: TestTracker) -> bool:
             "application_id": "smoke-test-candidate-001",
             "applicant_name": "Тестовый Кандидат",
             "age_over_18": True,
+            "consent_personal_data": True,
             "motivation": "Мне интересно создавать исторический медиаконтент и помогать музею.",
             "experience": "Делал видео для университетского кружка.",
             "expectations": "Хочу научиться работать с архивными историями.",
