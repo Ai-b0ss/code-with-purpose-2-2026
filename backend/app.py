@@ -376,7 +376,7 @@ def format_birth_date(date_str: str) -> str:
 @app.get("/api/v1/export.csv")
 def export_csv():
     columns = [
-        "ID заявки", "Дата", "Имя", "Возраст 18+", "Согласие ПД", "Дата рождения",
+        "ID заявки", "Имя", "Возраст 18+", "Согласие ПД", "Дата рождения",
         "Email", "VK", "Статус", "ВУЗ", "Факультет", "Курс", "Научные интересы",
         "Языки", "Мотивация", "Опыт", "Ожидания", "Хобби", "Часов/месяц", "Тип графика",
         "Дни", "Другие обязательства", "Другие волонтерства", "Направление", "Источник",
@@ -397,7 +397,6 @@ def export_csv():
         e = json.loads(row["evaluation"])
         writer.writerow([
             safe_csv(row["id"]),
-            safe_csv(format_created_at(row["created_at"])),
             safe_csv(entry.get("applicant_name", "")),
             entry.get("age_over_18", False),
             entry.get("consent_personal_data", False),
