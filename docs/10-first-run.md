@@ -56,3 +56,11 @@ python tests/smoke_http.py
 ## Следующие этапы
 
 Полная анкета и UX → согласование/слияние PR оценщика и тестов → подключение настоящей модели → Google Sheets → проверка качества на исторических оценках → репетиция защиты. [Задачи](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues) · [План](09-delivery-roadmap.md).
+
+## Проверочная сборка трёх линий — ещё не main
+
+Чтобы проверить новую полную анкету Ильи, автономный оценщик Codex и локальные тесты Antigravity, переключиться на ветку review/gim-acceptance-20261021.
+
+Windows: git fetch origin; git switch review/gim-acceptance-20261021; python -m pip install -r requirements.txt; run-tests.bat.
+
+Ожидается 26 unit PASS, 1 live-LLM SKIP плюс успешный HTTP smoke. **Настоящий LLM пока не вызывается FastAPI-маршрутами.** См. [личную приёмку](12-acceptance-20261021.md).

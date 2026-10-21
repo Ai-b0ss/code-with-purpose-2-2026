@@ -64,6 +64,10 @@ class TestTracker:
         print(f"  {Colors.RED}[FAIL]{Colors.RESET} {name}")
         print(f"         {Colors.RED}--> Ошибка: {error}{Colors.RESET}")
 
+    def skip_test(self, name: str, reason: str):
+        self.results.append(("SKIP", name, reason))
+        print(f"  [SKIP] {name}: {reason}")
+
     def info(self, text: str):
         print(f"  {Colors.BLUE}[INFO]{Colors.RESET} {text}")
 
@@ -131,11 +135,11 @@ def get_all_tests(test_suite: unittest.TestSuite | unittest.TestCase) -> list[un
 
 def run_unit_tests(tracker: TestTracker) -> bool:
     print_section("МОДУЛЬНЫЕ ТЕСТЫ (UNIT TESTS)", step="1/5")
-    tracker.info("Загрузка тестов из tests/test_smoke.py...")
+    tracker.info("Поиск всех тестов tests/test_*.py...")
 
     loader = unittest.TestLoader()
     try:
-        suite = loader.loadTestsFromName("tests.test_smoke")
+        suite = loader.discover(start_dir=str(REPO_ROOT / "tests"), pattern="test_*.py")
     except Exception as exc:
         tracker.fail_test("Импорт tests/test_smoke.py", str(exc))
         return False
@@ -150,7 +154,9 @@ def run_unit_tests(tracker: TestTracker) -> bool:
         test.run(result)
         elapsed_ms = (time.perf_counter() - start) * 1000
 
-        if result.wasSuccessful():
+        if result.skipped:
+            tracker.skip_test(f"Unit: {test_id}", result.skipped[0][1])
+        elif result.wasSuccessful():
             tracker.pass_test(f"Unit: {test_id}", f"{elapsed_ms:.1f}ms")
         else:
             all_passed = False
@@ -504,12 +510,14 @@ def main() -> int:
     print("\n" + "=" * 70)
     if tracker.failed_count == 0:
         print(f"{Colors.BOLD}{Colors.GREEN}ИТОГ: ВСЕ ТЕСТЫ УСПЕШНО ПРОЙДЕНЫ (PASS){Colors.RESET}")
-        print(f"Успешно: {tracker.passed_count} проверок, Ошибок: 0. Время: {elapsed_total:.2f}с.")
+        skipped_count = sum(1 for status, _, _ in tracker.results if status == "SKIP")
+        print(f"Успешно: {tracker.passed_count} проверок, Пропущено: {skipped_count}, Ошибок: 0. Время: {elapsed_total:.2f}с.")
         print("=" * 70 + "\n")
         return 0
     else:
         print(f"{Colors.BOLD}{Colors.RED}ИТОГ: ОБНАРУЖЕНЫ ОШИБКИ (FAIL){Colors.RESET}")
-        print(f"Успешно: {tracker.passed_count}, Ошибок: {tracker.failed_count}. Время: {elapsed_total:.2f}с.")
+        skipped_count = sum(1 for status, _, _ in tracker.results if status == "SKIP")
+        print(f"Успешно: {tracker.passed_count}, Пропущено: {skipped_count}, Ошибок: {tracker.failed_count}. Время: {elapsed_total:.2f}с.")
         print("Список упавших проверок:")
         for status, name, err in tracker.results:
             if status == "FAIL":
