@@ -34,6 +34,19 @@ class Evidence(BaseModel):
     reason: str = Field(min_length=1, max_length=4000)
 
 
+# Pilot rubric: five qualitative groups in the source museum questionnaire.
+CRITERION_IDS = ("motivation", "skills", "availability", "form_and_contact", "logistics")
+RUBRIC_VERSION = "gim-five-groups-pilot-v1"
+
+
+class CriterionRating(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    criterion: Literal["motivation", "skills", "availability", "form_and_contact", "logistics"]
+    level: int | None = Field(ge=0, le=3)
+    rationale: str = Field(min_length=10, max_length=1500)
+    evidence_question_ids: list[str] = Field(max_length=8)
+
+
 class Evaluation(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     score: None
@@ -49,7 +62,7 @@ class Evaluation(BaseModel):
     fit_for_candidate: str = Field(min_length=1, max_length=4000)
     interview_questions: list[str] = Field(min_length=1, max_length=12)
     evidence: list[Evidence] = Field(min_length=1, max_length=30)
-    scorecard: list[dict] = Field(default_factory=list, max_length=5)
+    scorecard: list[CriterionRating] = Field(default_factory=list, max_length=5)
 
 
 # Eva's five groups: docs/Критерии_отбора_ГИМ.xlsx, B5:G9.
