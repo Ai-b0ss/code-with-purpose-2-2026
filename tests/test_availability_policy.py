@@ -32,6 +32,13 @@ class AvailabilityPolicyTests(unittest.TestCase):
         self.assertIn("Первый курс", result["fit_for_museum"])
         self.assertNotIn("отклонён", result["fit_for_museum"])
 
+    def test_first_year_masters_is_not_mislabeled_bachelor(self):
+        a = candidate(course="1 курс магистратуры", availability_hours_month=30,
+                      availability_days=["суббота", "воскресенье"])
+        risks = availability_risks(a)
+        self.assertFalse(any("Первый курс бакалавриата" in x for x in risks))
+        self.assertNotIn("Первый курс бакалавриата", evaluate(a, mode="demo")["fit_for_museum"])
+
     def test_full_time_is_a_risk_even_with_weekend_availability(self):
         a = candidate(other_commitments="Работа на полную ставку; свободные субботы",
                       availability_hours_month=20, availability_days=["суббота"])
