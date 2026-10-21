@@ -11,6 +11,8 @@ import io
 import json
 import os
 import sqlite3
+import math
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -82,6 +84,13 @@ def db_connection():
             applicant_name TEXT NOT NULL,
             payload TEXT NOT NULL,
             evaluation TEXT NOT NULL
+        )"""
+    )
+    connection.execute(
+        """CREATE TABLE IF NOT EXISTS application_reservations (
+            id TEXT PRIMARY KEY,
+            token TEXT NOT NULL,
+            started_at REAL NOT NULL
         )"""
     )
     connection.commit()
@@ -293,33 +302,114 @@ def preview(data: ApplicationInput):
 
 @app.post("/api/v1/applications", status_code=201)
 def save_application(data: ApplicationInput):
+    """Reserve one ID in SQLite before a slow evaluator call.
+
+    Duplicate requests wait for the winning result and never evaluate again
+    while a live reservation exists. A crashed worker's reservation may be
+    claimed after 10 minutes; exactly-once external LLM calls across crashes
+    cannot be guaranteed without provider-side idempotency.
+    """
     application_id = data.application_id or uuid.uuid4().hex
     if not data.consent_personal_data:
         raise HTTPException(status_code=422, detail="Необходимо явное согласие на обработку персональных данных.")
+
+    token = uuid.uuid4().hex
     created_at = datetime.now(timezone.utc).isoformat()
-    with db_connection() as con:
-        previous = con.execute(
-            "SELECT payload, evaluation, created_at FROM applications WHERE id = ?",
-            (application_id,),
-        ).fetchone()
-        if previous is not None:
-            return {
-                "application_id": application_id,
-                "created_at": previous["created_at"],
-                "evaluation": json.loads(previous["evaluation"]),
-                "created": False,
-            }
-        # Evaluate only new applications. A retry with the same ID must not
-        # re-call a paid/slow/unavailable model or overwrite the original result.
+    try:
+        max_wait = float(os.getenv("GIM_LLM_TIMEOUT", "180")) + 30
+        if not math.isfinite(max_wait):
+            max_wait = 210
+    except ValueError:
+        max_wait = 210
+    deadline = time.monotonic() + min(360, max(30, max_wait))
+
+    def duplicate(row):
+        return {
+            "application_id": application_id,
+            "created_at": row["created_at"],
+            "evaluation": json.loads(row["evaluation"]),
+            "created": False,
+        }
+
+    # Keep each SQLite write transaction short; no DB-wide lock during LLM.
+    while True:
+        owner = False
+        with db_connection() as con:
+            con.execute("BEGIN IMMEDIATE")
+            row = con.execute(
+                "SELECT evaluation, created_at FROM applications WHERE id = ?",
+                (application_id,),
+            ).fetchone()
+            if row is not None:
+                return duplicate(row)
+
+            reservation = con.execute(
+                "SELECT token, started_at FROM application_reservations WHERE id = ?",
+                (application_id,),
+            ).fetchone()
+            if reservation is None:
+                con.execute(
+                    "INSERT INTO application_reservations(id, token, started_at) VALUES(?, ?, ?)",
+                    (application_id, token, time.time()),
+                )
+                owner = True
+            elif time.time() - reservation["started_at"] >= 600:
+                # Safe claim after a crash; the old token cannot commit results.
+                con.execute(
+                    "UPDATE application_reservations SET token = ?, started_at = ? WHERE id = ?",
+                    (token, time.time(), application_id),
+                )
+                owner = True
+        if owner:
+            break
+        if time.monotonic() >= deadline:
+            raise HTTPException(
+                status_code=409,
+                detail="Анкета с этим ID сейчас обрабатывается. Повторите запрос с тем же ID.",
+                headers={"Retry-After": "3"},
+            )
+        time.sleep(0.15)
+
+    try:
         evaluation = evaluate_application(data)
-        con.execute(
-            "INSERT INTO applications(id, created_at, applicant_name, payload, evaluation) "
-            "VALUES(?, ?, ?, ?, ?)",
-            (
-                application_id, created_at, data.applicant_name,
-                data.model_dump_json(), json.dumps(evaluation, ensure_ascii=False),
-            ),
-        )
+        with db_connection() as con:
+            con.execute("BEGIN IMMEDIATE")
+            reservation = con.execute(
+                "SELECT token FROM application_reservations WHERE id = ?",
+                (application_id,),
+            ).fetchone()
+            if reservation is None or reservation["token"] != token:
+                existing = con.execute(
+                    "SELECT evaluation, created_at FROM applications WHERE id = ?",
+                    (application_id,),
+                ).fetchone()
+                if existing is not None:
+                    return duplicate(existing)
+                raise HTTPException(
+                    status_code=409,
+                    detail="Резервирование анкеты истекло, результат не сохранён. Повторите запрос.",
+                )
+            con.execute(
+                "INSERT INTO applications(id, created_at, applicant_name, payload, evaluation) "
+                "VALUES(?, ?, ?, ?, ?)",
+                (application_id, created_at, data.applicant_name,
+                 data.model_dump_json(), json.dumps(evaluation, ensure_ascii=False)),
+            )
+            con.execute(
+                "DELETE FROM application_reservations WHERE id = ? AND token = ?",
+                (application_id, token),
+            )
+    except Exception:
+        try:
+            with db_connection() as con:
+                con.execute(
+                    "DELETE FROM application_reservations WHERE id = ? AND token = ?",
+                    (application_id, token),
+                )
+        except sqlite3.Error:
+            pass
+        raise
+
     return {
         "application_id": application_id,
         "created_at": created_at,
