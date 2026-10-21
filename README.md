@@ -52,7 +52,7 @@ python -m uvicorn backend.app:app --host 127.0.0.1 --port 8765
 - [Требования музея](docs/04-gim-requirements.md) · [Уточнение эксперта: занятость — отрицательный сигнал с исключениями](docs/06-gim-stakeholder-answers.md)
 - [План на следующий час и до защиты](docs/09-delivery-roadmap.md) · [API и запуск](docs/10-first-run.md)
 - [Настройка LLM](docs/11-llm-evaluator.md) · [Результат приёмки и открытые ограничения](docs/12-acceptance-20261021.md)
-- [Критерии отбора](docs/Критерии_отбора_ГИМ.xlsx) · [Материалы заказчика](materials/gim/)
+- [Критерии отбора](docs/Критерии_отбора_ГИМ.xlsx) · [12 синтетических профилей Евы (не кураторские баллы)](docs/08-synthetic-candidates.md) · [Контрастные сценарии](docs/Контрастные_сценарии_ГИМ.xlsx) · [Материалы заказчика](materials/gim/)
 - [Google Sheets-шаблон](https://docs.google.com/spreadsheets/d/1AJVzUTu8KJPfknSgQBem5InL3q_ynAQ3qSO2h8bDVSc/edit) · [Задачи](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues)
 
 **Критерий следующей большой готовности:** реальный LLM-результат, полезность которого подтвердила Ева, автоматически появляется в Google Sheets по итогам заполнения анкеты.
