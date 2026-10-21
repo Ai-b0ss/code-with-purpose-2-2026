@@ -35,6 +35,8 @@ def candidate(busy=False):
 def response(data):
     result = evaluate_demo(data)
     result.update(
+        preliminary_verdict="manual_review",
+        verdict_comment="Требуется сверить заявленный график и опыт кандидата с условиями музея.",
         evaluation_mode="llm", fit_for_museum="Заявленный опыт нужно обсудить на интервью.",
         fit_for_candidate="Нужно сопоставить ожидания с волонтёрскими задачами.",
         evidence=[{"question_id": "motivation", "reason": data.motivation},
