@@ -5,6 +5,8 @@ __pycache__/
 venv/
 data/
 .env
+*service-account*.json
+*credentials*.json
 .pytest_cache/
 GEMINI.md
 ~$*.xlsx

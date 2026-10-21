@@ -20,7 +20,8 @@ try {
     $versionOk = & $venvPython -c "import sys;print(int(sys.version_info >= (3,11)))"
     if ($versionOk -ne "1") { throw "Python 3.11+ required." }
     $ready = Join-Path $PSScriptRoot ".venv\deps-ready"
-    if (-not (Test-Path $ready)) {
+    $googleDepsReady = (& $venvPython -c "import google.auth, dotenv, requests; print('ok')" 2>$null) -eq 'ok'
+    if (-not (Test-Path $ready) -or -not $googleDepsReady) {
         Write-Host "Installing dependencies into local .venv (first run needs Internet)..."
         & $venvPython -m pip install --disable-pip-version-check -r requirements.txt
         if ($LASTEXITCODE -ne 0) { throw "Dependency installation failed." }
