@@ -1,0 +1,24 @@
+name: gim-graphrag
+
+services:
+  neo4j:
+    image: neo4j:5.26-community
+    container_name: gim-graphrag-neo4j
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:17474:7474"
+      - "127.0.0.1:17687:7687"
+    environment:
+      NEO4J_AUTH: neo4j/gim-local-graph-2026
+      NEO4J_server_memory_heap_initial__size: 256m
+      NEO4J_server_memory_heap_max__size: 512m
+    volumes:
+      - gim_neo4j_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p gim-local-graph-2026 'RETURN 1' >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  gim_neo4j_data:

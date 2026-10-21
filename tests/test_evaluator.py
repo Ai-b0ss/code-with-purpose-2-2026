@@ -82,10 +82,9 @@ class EvaluatorTests(unittest.TestCase):
                 self.assertEqual(sent["followup_answer"], data.followup_answer)
                 self.assertNotIn("applicant_name", sent)
                 self.assertNotIn("application_id", sent)
-                self.assertIn("Не делай автоматический", request["system"])
-                self.assertIn("Первый курс", request["system"])
-                self.assertIn("10–18", request["system"])
-                self.assertIn("не обязательный минимум", request["system"])
+                self.assertIn("не являются штрафами", request["system"])
+                self.assertIn("не выдумывай минимум часов", request["system"].lower())
+                self.assertIn("не подтверждено", request["system"])
                 if busy:
                     self.assertIn("график", result["possible_problems"][0])
                     self.assertIn("найма", result["fit_for_candidate"])

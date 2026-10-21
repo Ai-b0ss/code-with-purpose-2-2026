@@ -48,6 +48,7 @@ class ApplicationInput(BaseModel):
     other_commitments: str = Field(default="", max_length=1500)
     desired_direction: Direction
     followup_answer: str = Field(default="", max_length=2000)
+    case_response: str = Field(default="", max_length=2000)
 
     # Расширенные поля официальной анкеты ГИМ
     email: str = Field(default="", max_length=200)
@@ -69,6 +70,11 @@ class ApplicationInput(BaseModel):
     followup_answers: dict[str, str] = Field(default_factory=dict)
 
 
+class EligibilityInput(BaseModel):
+    birth_date: str = Field(max_length=30)
+    consent_personal_data: bool
+
+
 @contextmanager
 def db_connection():
     database = Path(os.environ.get("GIM_DB_PATH", str(DEFAULT_DB)))
@@ -84,6 +90,37 @@ def db_connection():
             evaluation TEXT NOT NULL
         )"""
     )
+    connection.execute(
+        """CREATE TABLE IF NOT EXISTS contacts (
+            application_id TEXT PRIMARY KEY,
+            payload TEXT NOT NULL,
+            FOREIGN KEY(application_id) REFERENCES applications(id)
+        )"""
+    )
+    connection.execute(
+        """CREATE TABLE IF NOT EXISTS assessment_runs (
+            run_id TEXT PRIMARY KEY,
+            application_id TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            rubric_version TEXT NOT NULL,
+            kb_versions TEXT NOT NULL,
+            result TEXT NOT NULL,
+            FOREIGN KEY(application_id) REFERENCES applications(id)
+        )"""
+    )
+    # Migrate records written before the contact split, preserving public API output.
+    for row in connection.execute(
+        "SELECT a.id, a.applicant_name, a.payload FROM applications a "
+        "LEFT JOIN contacts c ON c.application_id=a.id WHERE c.application_id IS NULL"
+    ).fetchall():
+        payload = json.loads(row["payload"])
+        contact = {key: payload.pop(key, "" if key != "consent_personal_data" else False)
+                   for key in ("applicant_name", "email", "vk_url", "birth_date", "consent_personal_data")}
+        contact["applicant_name"] = contact["applicant_name"] or row["applicant_name"]
+        connection.execute("INSERT INTO contacts(application_id, payload) VALUES(?, ?)",
+                           (row["id"], json.dumps(contact, ensure_ascii=False)))
+        connection.execute("UPDATE applications SET applicant_name='', payload=? WHERE id=?",
+                           (json.dumps(payload, ensure_ascii=False), row["id"]))
     connection.commit()
     try:
         yield connection
@@ -93,12 +130,10 @@ def db_connection():
 
 
 def clarification_for(data: ApplicationInput) -> str | None:
-    if not data.age_over_18:
-        return "Участие предполагает возраст 18+. Вы хотите уточнить условия у координатора?"
-    if len(data.motivation.strip()) < 65 and not data.followup_answer.strip():
-        return "Что именно в работе Исторического музея вам интересно и почему?"
-    if data.availability_hours_month < 8 and not data.followup_answer.strip():
-        return "При каких условиях вы могли бы выделять больше времени для участия?"
+    if not data.expectations.strip() and not data.followup_answer.strip():
+        return "Какие музейные задачи вы хотели бы выполнять?"
+    if data.availability_hours_month == 0 and not data.followup_answer.strip():
+        return "Когда и в каком формате вы сможете участвовать?"
     if data.desired_direction == "collections" and not data.followup_answer.strip():
         return "Готовы ли вы рассмотреть другие направления, если мест в фондах не будет?"
     return None
@@ -107,22 +142,13 @@ def clarification_for(data: ApplicationInput) -> str | None:
 def clarifications_for(data: ApplicationInput) -> list[dict]:
     items: list[dict] = []
 
-    # Возраст
-    if not data.age_over_18:
-        items.append({
-            "id": "age_terms",
-            "category": "Возраст и регламент",
-            "question": "Участие предполагает возраст 18+. Вы хотите уточнить условия у координатора?",
-            "reason": "По правилам музея большинство программ рассчитаны на совершеннолетних волонтёров.",
-        })
-
     # Мотивация
-    if len(data.motivation.strip()) < 65 and not data.followup_answer.strip() and not data.followup_answers.get("motivation_detail"):
+    if not data.expectations.strip() and not data.followup_answer.strip() and not data.followup_answers.get("motivation_detail"):
         items.append({
             "id": "motivation_detail",
             "category": "Мотивация",
             "question": "Что именно в работе Исторического музея вам наиболее интересно и почему?",
-            "reason": "Кураторам важно понимать конкретные причины выбора ГИМ среди других музеев.",
+            "reason": "Нужна связь интереса кандидата с конкретными задачами музея.",
         })
 
     # Специфика выбранного направления (из официальных материалов ГИМ)
@@ -156,12 +182,12 @@ def clarifications_for(data: ApplicationInput) -> list[dict]:
         })
 
     # Доступность и совмещение
-    if data.availability_hours_month < 8 and not data.followup_answers.get("availability_boost"):
+    if data.availability_hours_month == 0 and not data.followup_answers.get("availability_boost"):
         items.append({
             "id": "availability_boost",
             "category": "График и занятость",
-            "question": "При каких условиях вы могли бы выделять больше времени для участия (например, в выходные или на спецпроектах)?",
-            "reason": "Базовое участие в ГИМ обычно требует от 8–12 часов в месяц.",
+            "question": "Когда и в каком формате вы сможете участвовать в музейных задачах?",
+            "reason": "Нужно уточнить фактическую доступность для выбранного направления.",
         })
     elif data.other_volunteer_programs.strip() and not data.followup_answers.get("other_volunteering"):
         items.append({
@@ -181,19 +207,17 @@ def evaluate_demo(data: ApplicationInput) -> dict:
         direction = "project" if "квест" in data.motivation.lower() else "organizational"
 
     possible_problems = []
-    if data.availability_hours_month < 8:
-        possible_problems.append("Уточнить регулярность и достаточность доступного времени.")
+    if data.availability_hours_month == 0:
+        possible_problems.append("Уточнить, когда кандидат сможет участвовать.")
     if data.other_commitments.strip():
         possible_problems.append("Уточнить совместимость с другими обязательствами.")
-    if not data.age_over_18:
-        possible_problems.append("Нужно уточнить формальное требование возраста 18+.")
-    if len(data.motivation.strip()) < 65:
-        possible_problems.append("Мотивация требует более конкретного примера.")
+    if not data.expectations.strip():
+        possible_problems.append("Уточнить ожидаемые задачи.")
 
     strengths = ["Кандидат указал интерес к программе музея."]
     if data.experience.strip():
         strengths.append("Кандидат описал предыдущий опыт.")
-    if data.availability_hours_month >= 8:
+    if data.availability_hours_month > 0:
         strengths.append("Кандидат указал конкретное доступное время.")
 
     return {
@@ -238,11 +262,41 @@ def evaluate_application(data: ApplicationInput) -> dict:
     Provider failures are surfaced instead of passing simulated AI as real.
     """
     from backend.evaluator import EvaluationError, evaluate
+    from backend.eligibility import check_eligibility
+    eligibility = check_eligibility(data)
+    if eligibility["status"] == "age_unverified":
+        return {
+            "score": None, "score_status": "needs_review",
+            "evaluation_mode": "eligibility_rules", "eligibility": eligibility,
+            "summary": "Возраст необходимо проверить вручную перед оценкой.",
+            "recommended_direction": data.desired_direction,
+            "recommended_direction_label": DIRECTIONS[data.desired_direction],
+            "direction_reason": "Оценка ожидает подтверждения возраста.",
+            "strengths": [], "possible_problems": [eligibility["reason"]],
+            "interview_questions": [],
+        }
+    if eligibility["status"] == "ineligible":
+        return {
+            "score": None, "score_status": "ineligible",
+            "evaluation_mode": "eligibility_rules", "eligibility": eligibility,
+            "summary": "Заявка не проходит базовое условие участия: возраст 18+.",
+            "recommended_direction": data.desired_direction,
+            "recommended_direction_label": DIRECTIONS[data.desired_direction],
+            "direction_reason": "Оценка по рубрике не запускалась.",
+            "strengths": [], "possible_problems": [eligibility["reason"]],
+            "interview_questions": [],
+        }
     try:
-        return evaluate(
-            data,
-            fallback_to_demo=os.getenv("GIM_LLM_FALLBACK_TO_DEMO", "0") == "1",
-        )
+        if os.getenv("GIM_EVALUATION_MODE") == "rag_llm":
+            from backend.scoring import assess
+            result = assess(data)
+        else:
+            result = evaluate(
+                data,
+                fallback_to_demo=os.getenv("GIM_LLM_FALLBACK_TO_DEMO", "0") == "1",
+            )
+        result["eligibility"] = eligibility
+        return result
     except EvaluationError as exc:
         raise HTTPException(status_code=503, detail=f"evaluator_{exc.code}") from None
 
@@ -260,9 +314,15 @@ def health():
     mode = os.getenv("GIM_EVALUATION_MODE", "demo")
     return {
         "status": "ok", "version": "0.1.0",
-        "evaluation_mode": "llm" if mode == "llm" else "rules_demo",
+        "evaluation_mode": mode if mode in {"llm", "rag_llm"} else "rules_demo",
         "fallback_to_demo": os.getenv("GIM_LLM_FALLBACK_TO_DEMO", "0") == "1",
     }
+
+
+@app.post("/api/v1/eligibility")
+def eligibility_preview(data: EligibilityInput):
+    from backend.eligibility import check_eligibility
+    return check_eligibility(data)
 
 
 @app.post("/api/v1/clarification")
@@ -301,13 +361,26 @@ def save_application(data: ApplicationInput):
         # Evaluate only new applications. A retry with the same ID must not
         # re-call a paid/slow/unavailable model or overwrite the original result.
         evaluation = evaluate_application(data)
+        full_payload = data.model_dump()
+        contact_payload = {key: full_payload.pop(key) for key in ("applicant_name", "email", "vk_url", "birth_date", "consent_personal_data")}
         con.execute(
             "INSERT INTO applications(id, created_at, applicant_name, payload, evaluation) "
             "VALUES(?, ?, ?, ?, ?)",
             (
-                application_id, created_at, data.applicant_name,
-                data.model_dump_json(), json.dumps(evaluation, ensure_ascii=False),
+                application_id, created_at, "",
+                json.dumps(full_payload, ensure_ascii=False), json.dumps(evaluation, ensure_ascii=False),
             ),
+        )
+        con.execute(
+            "INSERT INTO contacts(application_id, payload) VALUES(?, ?)",
+            (application_id, json.dumps(contact_payload, ensure_ascii=False)),
+        )
+        con.execute(
+            "INSERT INTO assessment_runs(run_id, application_id, created_at, rubric_version, kb_versions, result) "
+            "VALUES(?, ?, ?, ?, ?, ?)",
+            (uuid.uuid4().hex, application_id, created_at,
+             evaluation.get("rubric_version", "legacy"),
+             json.dumps(evaluation.get("kb_versions", [])), json.dumps(evaluation, ensure_ascii=False)),
         )
     return {
         "application_id": application_id,
@@ -321,15 +394,16 @@ def save_application(data: ApplicationInput):
 def list_applications():
     with db_connection() as con:
         records = con.execute(
-            "SELECT id, created_at, applicant_name, evaluation "
-            "FROM applications ORDER BY created_at DESC LIMIT 200"
+            "SELECT a.id, a.created_at, a.applicant_name, a.evaluation, c.payload AS contact "
+            "FROM applications a LEFT JOIN contacts c ON c.application_id=a.id "
+            "ORDER BY a.created_at DESC LIMIT 200"
         ).fetchall()
     return {
         "items": [
             {
                 "application_id": row["id"],
                 "created_at": row["created_at"],
-                "applicant_name": row["applicant_name"],
+                "applicant_name": json.loads(row["contact"]).get("applicant_name", "") if row["contact"] else row["applicant_name"],
                 "evaluation": json.loads(row["evaluation"]),
             }
             for row in records
@@ -341,7 +415,8 @@ def list_applications():
 def get_application(application_id: str):
     with db_connection() as con:
         row = con.execute(
-            "SELECT id, created_at, payload, evaluation FROM applications WHERE id=?",
+            "SELECT a.id, a.created_at, a.payload, a.evaluation, c.payload AS contact "
+            "FROM applications a LEFT JOIN contacts c ON c.application_id=a.id WHERE a.id=?",
             (application_id,),
         ).fetchone()
     if row is None:
@@ -349,7 +424,7 @@ def get_application(application_id: str):
     return {
         "application_id": row["id"],
         "created_at": row["created_at"],
-        "answers": json.loads(row["payload"]),
+        "answers": {**json.loads(row["payload"]), **(json.loads(row["contact"]) if row["contact"] else {})},
         "evaluation": json.loads(row["evaluation"]),
     }
 
@@ -377,11 +452,11 @@ def export_csv():
     writer.writerow(columns)
     with db_connection() as con:
         records = con.execute(
-            "SELECT id, created_at, payload, evaluation "
-            "FROM applications ORDER BY created_at"
+            "SELECT a.id, a.created_at, a.payload, a.evaluation, c.payload AS contact "
+            "FROM applications a LEFT JOIN contacts c ON c.application_id=a.id ORDER BY a.created_at"
         ).fetchall()
     for row in records:
-        entry = json.loads(row["payload"])
+        entry = {**json.loads(row["payload"]), **(json.loads(row["contact"]) if row["contact"] else {})}
         e = json.loads(row["evaluation"])
         writer.writerow([
             safe_csv(row["id"]), safe_csv(row["created_at"]),
@@ -410,3 +485,7 @@ def export_csv():
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": 'attachment; filename="gim-applications.csv"'},
     )
+
+
+from backend.sessions import router as sessions_router
+app.include_router(sessions_router, prefix="/api/v1")

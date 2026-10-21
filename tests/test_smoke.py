@@ -33,8 +33,8 @@ class BasicTests(unittest.TestCase):
         self.assertIsNone(result["score"])
         self.assertTrue(result["interview_questions"])
 
-    def test_clarification_on_short_answer(self):
-        data = applicant(motivation="Хочу помочь")
+    def test_clarification_on_missing_expectations(self):
+        data = applicant(expectations="")
         self.assertIsNotNone(clarification_for(data))
         self.assertIsNone(clarification_for(applicant()))
 
@@ -87,19 +87,20 @@ class BasicTests(unittest.TestCase):
         self.assertEqual(len(app.availability_days), 3)
 
     def test_dynamic_clarifications_multiple(self):
-        # 1. Underage + short motivation + collections direction -> multiple distinct clarifications
+        # Missing expected tasks, zero hours, and collections direction need clarification.
         data = applicant(
             age_over_18=False,
             motivation="Хочу в фонд",
+            expectations="",
             desired_direction="collections",
-            availability_hours_month=4,
+            availability_hours_month=0,
         )
         questions = clarifications_for(data)
         self.assertGreaterEqual(len(questions), 3)
         categories = [q["category"] for q in questions]
-        self.assertIn("Возраст и регламент", categories)
         self.assertIn("Мотивация", categories)
         self.assertIn("Фондовое направление", categories)
+        self.assertIn("График и занятость", categories)
 
         # 2. When answers are provided in followup_answers, questions are cleared
         answered = applicant(
