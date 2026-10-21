@@ -126,6 +126,7 @@ class EvaluatorTests(unittest.TestCase):
                 self.assertTrue(result["fit_for_museum"])
                 self.assertTrue(result["fit_for_candidate"])
                 request = adapter.calls[0]
+                self.assertIn("scorecard", json.loads(request["user"])["output_schema"]["required"])
                 sent = json.loads(request["user"])["answers"]
                 self.assertEqual(sent["availability_hours_month"], 2 if busy else 24)
                 self.assertEqual(sent["followup_answer"], data.followup_answer)
