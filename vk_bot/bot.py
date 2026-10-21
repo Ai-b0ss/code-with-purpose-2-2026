@@ -48,18 +48,18 @@ class SafeStreamHandler(logging.StreamHandler):
 
     def emit(self, record: logging.LogRecord) -> None:
         try:
-            super().emit(record)
-        except UnicodeEncodeError:
-            try:
-                message = self.format(record)
-                encoding = getattr(self.stream, "encoding", None) or "utf-8"
-                fallback = message.encode(encoding, errors="backslashreplace").decode(
+            message = self.format(record)
+            encoding = getattr(self.stream, "encoding", None)
+            if encoding:
+                message = message.encode(encoding, errors="backslashreplace").decode(
                     encoding, errors="replace"
                 )
-                self.stream.write(fallback + self.terminator)
-                self.flush()
-            except Exception:
-                pass
+            self.stream.write(message + self.terminator)
+            self.flush()
+        except RecursionError:
+            raise
+        except Exception:
+            self.handleError(record)
 
 
 logging.basicConfig(
@@ -182,25 +182,9 @@ def load_config() -> BotConfig | None:
     )
 
 
-MONTHS_RU: dict[str, int] = {
-    "января": 1, "январь": 1, "янв": 1,
-    "февраля": 2, "февраль": 2, "фев": 2,
-    "марта": 3, "март": 3, "мар": 3,
-    "апреля": 4, "апрель": 4, "апр": 4,
-    "мая": 5, "май": 5,
-    "июня": 6, "июнь": 6, "июн": 6,
-    "июля": 7, "июль": 7, "июл": 7,
-    "августа": 8, "август": 8, "авг": 8,
-    "сентября": 9, "сентябрь": 9, "сен": 9, "сент": 9,
-    "октября": 10, "октябрь": 10, "окт": 10,
-    "ноября": 11, "ноябрь": 11, "ноя": 11,
-    "декабря": 12, "декабрь": 12, "дек": 12,
-}
-
-
 def parse_and_validate_birth_date(date_str: str) -> str | None:
-    """Проверяет дату (ДД.ММ.ГГГГ, словесную дату или ГГГГ-ММ-ДД) и возвращает её в формате 'ГГГГ-ММ-ДД'."""
-    text = " ".join(str(date_str).split())
+    """Принимает только числовую дату ДД.ММ.ГГГГ/ДД-ММ-ГГГГ/ДД/ММ/ГГГГ."""
+    text = str(date_str).strip()
     today = datetime.now().date()
 
     def normalize_date(year: int, month: int, day: int) -> str | None:
@@ -213,24 +197,9 @@ def parse_and_validate_birth_date(date_str: str) -> str | None:
         return None
 
     # ДД.ММ.ГГГГ, ДД-ММ-ГГГГ, ДД/ММ/ГГГГ
-    m = re.fullmatch(r"(\d{1,2})\s*[\.\-/]\s*(\d{1,2})\s*[\.\-/]\s*(\d{4})", text)
+    m = re.fullmatch(r"(\d{1,2})[\.\-/](\d{1,2})[\.\-/](\d{4})", text)
     if m:
         day, month, year = int(m.group(1)), int(m.group(2)), int(m.group(3))
-        return normalize_date(year, month, day)
-
-    # 15 мая 2003, 15 мая 2003 года, 15 май 2003
-    m_ru = re.fullmatch(r"(\d{1,2})\s+([а-яёА-ЯЁ]+)\s+(\d{4})(?:\s*года|\s*г\.?)?", text)
-    if m_ru:
-        day = int(m_ru.group(1))
-        month_name = m_ru.group(2).lower()
-        year = int(m_ru.group(3))
-        if month_name in MONTHS_RU:
-            return normalize_date(year, MONTHS_RU[month_name], day)
-
-    # ГГГГ-ММ-ДД
-    m_iso = re.fullmatch(r"(\d{4})\s*-\s*(\d{1,2})\s*-\s*(\d{1,2})", text)
-    if m_iso:
-        year, month, day = int(m_iso.group(1)), int(m_iso.group(2)), int(m_iso.group(3))
         return normalize_date(year, month, day)
 
     return None
@@ -293,26 +262,6 @@ class VkKeyboards:
         return kb.get_keyboard()
 
     @staticmethod
-    def full_name_hint(vk_name: str) -> str:
-        kb = VkKeyboard(one_time=False)
-        label = f"Использовать: {vk_name}".strip()
-        if len(label) > 40:
-            label = label[:37] + "..."
-        if label:
-            kb.add_button(label, color=VkKeyboardColor.PRIMARY)
-        return kb.get_keyboard()
-
-    @staticmethod
-    def status() -> str:
-        kb = VkKeyboard(one_time=False)
-        kb.add_button("Студент", color=VkKeyboardColor.PRIMARY)
-        kb.add_button("Работаю", color=VkKeyboardColor.PRIMARY)
-        kb.add_line()
-        kb.add_button("В поиске", color=VkKeyboardColor.SECONDARY)
-        kb.add_button("Другое", color=VkKeyboardColor.SECONDARY)
-        return kb.get_keyboard()
-
-    @staticmethod
     def skip(label: str = "Пропустить") -> str:
         kb = VkKeyboard(one_time=False)
         kb.add_button(label, color=VkKeyboardColor.SECONDARY)
@@ -321,27 +270,16 @@ class VkKeyboards:
     @staticmethod
     def course() -> str:
         kb = VkKeyboard(one_time=False)
-        kb.add_button("1 курс бакалавриата", color=VkKeyboardColor.PRIMARY)
-        kb.add_button("2 курс бакалавриата", color=VkKeyboardColor.PRIMARY)
-        kb.add_line()
-        kb.add_button("3 курс бакалавриата", color=VkKeyboardColor.PRIMARY)
-        kb.add_button("4 курс бакалавриата", color=VkKeyboardColor.PRIMARY)
-        kb.add_line()
-        kb.add_button("1 курс магистратуры", color=VkKeyboardColor.PRIMARY)
-        kb.add_button("2 курс магистратуры", color=VkKeyboardColor.PRIMARY)
-        kb.add_line()
-        kb.add_button("Выпускник", color=VkKeyboardColor.SECONDARY)
-        kb.add_button("Другое", color=VkKeyboardColor.SECONDARY)
+        kb.add_button("Выпускник / Не учусь", color=VkKeyboardColor.SECONDARY)
         return kb.get_keyboard()
 
     @staticmethod
     def languages() -> str:
         kb = VkKeyboard(one_time=False)
-        kb.add_button("Английский", color=VkKeyboardColor.PRIMARY)
-        kb.add_button("Немецкий", color=VkKeyboardColor.PRIMARY)
+        kb.add_button("Английский (B1-B2)", color=VkKeyboardColor.PRIMARY)
+        kb.add_button("Английский (C1-C2)", color=VkKeyboardColor.PRIMARY)
         kb.add_line()
-        kb.add_button("Французский", color=VkKeyboardColor.PRIMARY)
-        kb.add_button("Китайский", color=VkKeyboardColor.PRIMARY)
+        kb.add_button("Немецкий (B1+)", color=VkKeyboardColor.PRIMARY)
         kb.add_line()
         kb.add_button("Только русский / Нет", color=VkKeyboardColor.SECONDARY)
         return kb.get_keyboard()
@@ -370,11 +308,11 @@ class VkKeyboards:
     @staticmethod
     def hours() -> str:
         kb = VkKeyboard(one_time=False)
-        kb.add_button("8 часов", color=VkKeyboardColor.PRIMARY)
-        kb.add_button("16 часов", color=VkKeyboardColor.PRIMARY)
+        kb.add_button("8", color=VkKeyboardColor.PRIMARY)
+        kb.add_button("16", color=VkKeyboardColor.PRIMARY)
         kb.add_line()
-        kb.add_button("24 часа", color=VkKeyboardColor.PRIMARY)
-        kb.add_button("32 часа", color=VkKeyboardColor.SECONDARY)
+        kb.add_button("24", color=VkKeyboardColor.PRIMARY)
+        kb.add_button("32", color=VkKeyboardColor.SECONDARY)
         return kb.get_keyboard()
 
     @staticmethod
@@ -490,15 +428,6 @@ DIRECTION_MAPPING: dict[str, str] = {
     "undecided": "undecided",
 }
 
-STATUS_MAPPING: dict[str, str] = {
-    "студент": "student",
-    "работаю": "working",
-    "в поиске": "unemployed",
-    "в поиске работы": "unemployed",
-    "другое": "other",
-}
-
-
 @dataclass
 class UserSession:
     user_id: int
@@ -512,7 +441,7 @@ class UserSession:
     consent_personal_data: bool = False
     birth_date: str = ""
     email: str = ""
-    status: str = "student"
+    status: str = ""
     university: str = ""
     faculty: str = ""
     course: str = ""
@@ -522,7 +451,7 @@ class UserSession:
     experience: str = ""
     desired_direction: str = "undecided"
     availability_hours_month: int = 16
-    availability_schedule_type: str = "flexible"
+    availability_schedule_type: str = "Гибкий"
     availability_days: list[str] = field(default_factory=list)
     other_commitments: str = ""
 
@@ -562,7 +491,7 @@ class UserSession:
             "availability_schedule_type": self.availability_schedule_type,
             "availability_days": self.availability_days,
             "other_volunteer_programs": "",
-            "source": "vk_bot",
+            "source": "ВКонтакте, чат-бот ГИМ",
             "followup_answers": self.followup_answers,
         }
 
@@ -748,14 +677,11 @@ class VolunteerBotFSM:
             session.age_over_18 = True
             session.consent_personal_data = True
             session.state = DialogState.FULL_NAME
-            vk_name = session.applicant_name.strip()
             msg = (
-                "Укажите, пожалуйста, ваше полное ФИО (Фамилия, Имя и Отчество):\n\n"
-                "💡 Пример: Соколов Илья Александрович\n"
-                "💬 Нажмите кнопку ниже, чтобы использовать имя из профиля VK, или введите полное ФИО текстом."
+                "Пожалуйста, напишите ваше полное ФИО (Фамилию, Имя и Отчество):\n\n"
+                "💡 Пример: Иванов Иван Иванович\n"
             )
-            kb = VkKeyboards.full_name_hint(vk_name) if vk_name else VkKeyboards.empty()
-            return msg, kb
+            return msg, VkKeyboards.empty()
 
         msg = (
             "Пожалуйста, подтвердите возраст 18+ и согласие на обработку данных, "
@@ -764,29 +690,21 @@ class VolunteerBotFSM:
         return msg, VkKeyboards.consent()
 
     def _step_handle_full_name(self, session: UserSession, clean_text: str) -> tuple[str, str]:
-        if clean_text.lower().startswith("использовать:"):
-            name = clean_text.split(":", 1)[1].strip()
-            if not name:
-                name = session.applicant_name
-        else:
-            name = clean_text
-
-        if len(name) < 2:
+        name = " ".join(clean_text.split())
+        words = name.split(" ") if name else []
+        if len(words) < 3:
             msg = (
-                "Пожалуйста, укажите ваше полное ФИО (Фамилия, Имя и Отчество):\n\n"
-                "💡 Пример: Соколов Илья Александрович\n"
-                "💬 Нажмите кнопку ниже, чтобы использовать имя из профиля VK, или введите полное ФИО текстом."
+                "Пожалуйста, укажите также ваше отчество (если отчества нет по паспорту — "
+                "напишите «нет»):\n\n"
+                "💡 Пример: Иванов Иван Иванович"
             )
-            vk_name = session.applicant_name.strip()
-            kb = VkKeyboards.full_name_hint(vk_name) if vk_name else VkKeyboards.empty()
-            return msg, kb
+            return msg, VkKeyboards.empty()
 
         session.applicant_name = name[:200]
         session.state = DialogState.BIRTH_DATE
         msg = (
-            "Укажите вашу дату рождения:\n\n"
-            "💡 Пример: 15.05.2003 (или 15 мая 2003)\n"
-            "💬 Напишите дату числом в формате ДД.ММ.ГГГГ или текстом в чат."
+            "Укажите вашу дату рождения числом в формате ДД.ММ.ГГГГ:\n\n"
+            "💡 Пример: 15.05.2003\n"
         )
         return msg, VkKeyboards.empty()
 
@@ -794,9 +712,8 @@ class VolunteerBotFSM:
         bdate = parse_and_validate_birth_date(clean_text)
         if not bdate:
             msg = (
-                "Кажется, дата введена некорректно. Пожалуйста, укажите дату рождения:\n\n"
-                "💡 Пример: 15.05.2003 (или 15 мая 2003)\n"
-                "💬 Напишите дату числом в формате ДД.ММ.ГГГГ или текстом в чат."
+                "Пожалуйста, укажите вашу дату рождения только цифрами в формате ДД.ММ.ГГГГ:\n\n"
+                "💡 Пример: 15.05.2003\n"
             )
             return msg, VkKeyboards.empty()
 
@@ -825,32 +742,37 @@ class VolunteerBotFSM:
         session.state = DialogState.STATUS
         msg = (
             "Статус и образование 🎓\n\n"
-            "Какой у вас сейчас статус занятости?\n\n"
-            "💡 Пример: Студент 3 курса, Работаю в офисе 5/2, В поиске работы\n"
-            "💬 Выберите подходящую кнопку или напишите свой статус текстом в чат."
+            "Укажите ваш текущий статус занятости и примерный график:\n\n"
+            "💡 Пример: «Студент дневного отделения (пары до 16:00)», "
+            "«Работаю в офисе 5/2 с 9 до 18», «Сменный график 2/2», "
+            "«Фриланс / свободный график».\n"
+            "💬 Напишите ответ подробно, без выбора шаблонной кнопки."
         )
-        return msg, VkKeyboards.status()
+        return msg, VkKeyboards.empty()
 
     def _step_handle_status(
         self, session: UserSession, clean_text: str, lower_text: str
     ) -> tuple[str, str]:
-        if "студент" in lower_text or "учусь" in lower_text:
-            mapped = "student"
-        elif "работ" in lower_text or "офис" in lower_text or "занят" in lower_text:
-            mapped = "working"
-        elif "поиск" in lower_text or "безработ" in lower_text:
-            mapped = "unemployed"
-        elif "друг" in lower_text:
-            mapped = "other"
-        else:
-            mapped = clean_text[:50]
+        status = " ".join(clean_text.split())
+        if len(status) < 3 or status.lower() in {"-", "нет"}:
+            msg = (
+                "Пожалуйста, опишите статус занятости и график подробнее:\n\n"
+                "💡 Пример: «Студент дневного отделения (пары до 16:00)» "
+                "или «Работаю в офисе 5/2 с 9 до 18»."
+            )
+            return msg, VkKeyboards.empty()
+        if len(status) > 50:
+            return (
+                "Описание получилось слишком длинным. Укажите статус и график "
+                "не более чем в 50 символах, например: «Работаю 5/2, 9–18»."
+            ), VkKeyboards.empty()
 
-        session.status = mapped
+        session.status = status
         session.state = DialogState.UNIVERSITY
         msg = (
             "Укажите ваш ВУЗ, колледж или место учёбы:\n\n"
-            "💡 Пример: НИУ ВШЭ, МГУ им. Ломоносова, Колледж связи №54\n"
-            "💬 Напишите название учебного заведения или нажмите «Пропустить», если не учитесь."
+            "💡 Пример: НИТУ МИСИС, НИУ ВШЭ, Колледж связи №54\n"
+            "💬 Напишите название учебного заведения или нажмите «Пропустить», если не учитесь/учились."
         )
         return msg, VkKeyboards.skip("Пропустить")
 
@@ -880,16 +802,30 @@ class VolunteerBotFSM:
 
         session.state = DialogState.COURSE
         msg = (
-            "На каком курсе вы учитесь?\n\n"
-            "💡 Пример: 2 курс бакалавриата, 1 курс магистратуры, Выпускник\n"
-            "💬 Нажмите кнопку с курсом или напишите свой вариант текстом."
+            "На каком курсе и ступени обучения вы находитесь?\n\n"
+            "💡 Пример: «1 курс аспирантуры», «3 курс бакалавриата», "
+            "«2 курс базового высшего образования», «5 курс специалитета» "
+            "или «Окончил обучение (выпускник)».\n"
+            "💬 Напишите ваш вариант текстом."
         )
         return msg, VkKeyboards.course()
 
     def _step_handle_course(
         self, session: UserSession, clean_text: str, lower_text: str
     ) -> tuple[str, str]:
-        if lower_text in {"пропустить", "нет", "-", "—"}:
+        if lower_text in {
+            "выпускник / не учусь",
+            "выпускник",
+            "не учусь",
+            "окончила обучение",
+            "окончил обучение",
+            "пропустить",
+            "нет",
+            "-",
+            "—",
+        }:
+            session.course = "Окончил обучение (выпускник)"
+        elif not clean_text:
             session.course = ""
         else:
             session.course = clean_text[:100]
@@ -912,16 +848,25 @@ class VolunteerBotFSM:
 
         session.state = DialogState.LANGUAGES
         msg = (
-            "Владеете ли вы иностранными языками на уровне B1 и выше?\n\n"
-            "💡 Пример: Английский B2, Немецкий со словарём, Китайский начальный\n"
-            "💬 Выберите язык на кнопках или перечислите свои языки текстом в одном сообщении."
+            "Владеете ли вы иностранными языками на уровне B1 и выше "
+            "(средний уровень и свободное владение)?\n\n"
+            "💡 Пример: «Английский B2», «Французский B1», «Немецкий свободно» "
+            "или напишите «Только русский», если не владеете.\n"
+            "💬 Выберите подходящий вариант или перечислите языки текстом."
         )
         return msg, VkKeyboards.languages()
 
     def _step_handle_languages(
         self, session: UserSession, clean_text: str, lower_text: str
     ) -> tuple[str, str]:
-        if lower_text in {"только русский / нет", "нет", "только русский", "русский", "пропустить", "-", "—"}:
+        language_buttons = {
+            "английский (b1-b2)": "Английский B1-B2",
+            "английский (c1-c2)": "Английский C1-C2",
+            "немецкий (b1+)": "Немецкий B1+",
+        }
+        if lower_text in language_buttons:
+            session.foreign_languages = [language_buttons[lower_text]]
+        elif lower_text in {"только русский / нет", "нет", "только русский", "русский", "пропустить", "-", "—"}:
             session.foreign_languages = ["Только русский"]
         else:
             langs = [p.strip() for p in re.split(r"[,;]+", clean_text) if p.strip()]
@@ -996,9 +941,9 @@ class VolunteerBotFSM:
         session.desired_direction = found_key
         session.state = DialogState.HOURS
         msg = (
-            "Сколько часов в месяц вы готовы уделять волонтёрской деятельности в музее?\n\n"
-            "💡 Пример: 12 часов, 20 часов в месяц\n"
-            "💬 Выберите кнопку (8, 16, 24, 32 ч) или напишите любое удобное вам число."
+            "Сколько часов в месяц вы готовы уделять волонтёрству в музее? "
+            "Напишите просто число (например: 16) или выберите кнопку:\n\n"
+            "💡 Можно написать «20 часов», но в ответе должно быть число от 1 до 400."
         )
         return msg, VkKeyboards.hours()
 
@@ -1007,23 +952,13 @@ class VolunteerBotFSM:
         hours = None
         if digits:
             val = int(digits[0])
-            if 0 <= val <= 400:
+            if 1 <= val <= 400:
                 hours = val
 
         if hours is None:
-            lower = clean_text.lower()
-            if "максимум" in lower or "много" in lower:
-                hours = 32
-            elif "минимум" in lower or "мало" in lower:
-                hours = 8
-            elif "средне" in lower or "немного" in lower:
-                hours = 16
-
-        if hours is None:
             msg = (
-                "Пожалуйста, укажите количество часов числом от 0 до 400.\n\n"
-                "💡 Пример: 12 часов, 20 часов в месяц\n"
-                "💬 Выберите кнопку (8, 16, 24, 32 ч) или напишите любое удобное вам число."
+                "Пожалуйста, укажите количество часов числом от 1 до 400.\n\n"
+                "💡 Примеры: «16», «20 часов», «10–12 часов» — бот возьмёт первое число."
             )
             return msg, VkKeyboards.hours()
 
@@ -1040,9 +975,9 @@ class VolunteerBotFSM:
         self, session: UserSession, clean_text: str, lower_text: str
     ) -> tuple[str, str]:
         if "регуляр" in lower_text or "фикс" in lower_text:
-            session.availability_schedule_type = "regular"
+            session.availability_schedule_type = "Регулярный"
         else:
-            session.availability_schedule_type = "flexible"
+            session.availability_schedule_type = "Гибкий"
 
         session.state = DialogState.DAYS
         msg = (
