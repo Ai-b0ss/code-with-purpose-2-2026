@@ -23,6 +23,9 @@ class TeamPackageTests(TestCase):
                 for forbidden in (".env", ".git/", ".venv", "data/", "reports/", "xlsx", "docx"):
                     self.assertNotIn(forbidden, names)
                 self.assertIn(b"application_reservations", z.read(PREFIX+"backend/app.py"))
+                self.assertIn(b"questions_before_verdict", z.read(PREFIX+"backend/clarification_agent.py"))
+                self.assertIn(b"def write_row", z.read(PREFIX+"backend/google_sheets.py"))
+                self.assertIn(b"preliminary_verdict", z.read(PREFIX+"backend/evaluator.py"))
                 self.assertIn(b"scorecard", z.read(PREFIX+"backend/evaluator.py"))
                 self.assertIn(b"pilot_unvalidated", z.read(PREFIX+"backend/evaluator.py"))
 
