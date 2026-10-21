@@ -22,7 +22,7 @@ fi
 source .venv/bin/activate
 
 # Если зависимости не установлены — доустанавливаем
-python -c "import fastapi, uvicorn, pydantic, certifi" 2>/dev/null || pip install -r requirements.txt certifi
+python -c "import fastapi, uvicorn, pydantic, certifi, google.auth, dotenv, requests" 2>/dev/null || pip install -r requirements.txt certifi
 
 # Настройка SSL-сертификатов для macOS (предотвращает CERTIFICATE_VERIFY_FAILED)
 if python -c "import certifi" 2>/dev/null; then
@@ -38,4 +38,7 @@ echo "  Режим: ${GIM_EVALUATION_MODE:-rules_demo}             "
 echo "  Остановить сервер: Ctrl+C                             "
 echo "========================================================"
 
+if [ -f .env ]; then
+    exec uvicorn backend.app:app --host 127.0.0.1 --port "$PORT" --env-file .env
+fi
 exec uvicorn backend.app:app --host 127.0.0.1 --port "$PORT"
