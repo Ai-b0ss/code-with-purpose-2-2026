@@ -26,7 +26,7 @@
 
 CSV: **32 колонки, разделитель `;`, UTF-8 BOM**, переносы внутри ответов сворачиваются, формулы экранируются. Выгрузка предназначена координатору. Перед публичным размещением требуется закрыть API данных и аналитики: [#28](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues/28).
 
-**Свежая сверка 20:31 МСК:** коммиты Ильи `4ccefa8` и Саши `80ae28d` ещё не в main. Пилот Саши добавляет GraphRAG/сессии/другую рубрику, но имеет подтверждённые блокеры #32. [Архитектура](docs/architecture.md) · [Полный аудит](docs/15-repository-audit-20261021.md) · [План](docs/09-delivery-roadmap.md).
+**Свежая сверка:** проверены коммиты Ильи `43d9dd4` (20:47 МСК) и Саши `fe348a5` (20:46 МСК); их код ещё не в main. У Ильи — CSV-даты по МСК и свободный ввод вуза. У Саши — LangGraph/PostgreSQL, кабинет, защищённый CSV сессий и настраиваемый провайдер. Прежние замечания по этим пунктам сняты; остаются блокеры #32. Деплой пилота не подтверждён. [Архитектура](docs/architecture.md) · [Полный аудит](docs/15-repository-audit-20261021.md) · [План](docs/09-delivery-roadmap.md).
 
 ## Запуск ReformBoss (настоящая LLM)
 
@@ -57,7 +57,7 @@ python -m uvicorn backend.app:app --host 127.0.0.1 --port 8765
 
 | Кто | Что делает | Issue |
 | --- | --- | --- |
-| **Илья Соколов** (`f0ut324`) | Безопасный перенос 4ccefa8 и UX | [#31](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues/31), [#27](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues/27) |
+| **Илья Соколов** (`f0ut324`) | Безопасный перенос 43d9dd4 и UX | [#31](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues/31), [#27](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues/27) |
 | **Игорь** (`Ai-b0ss`) | Интеграция, граница данных, приёмка; #5 закрыта | [#9](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues/9), [#28](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues/28) |
 | **Александр Мирошниченко** (`r0shn1ch`) | Google Sheets и подготовка RAG-пилота | [#6](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues/6), [#32](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues/32) |
 | **Ева Шишкина** (`doubleskvish`) | Экспертная оценка на контрастных анкетах, UX-проверка | [#27](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues/27), материалы в закрытой #8 |

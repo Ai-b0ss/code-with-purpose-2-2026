@@ -89,5 +89,40 @@
     "privacy": 28,
     "sheets": 6,
     "expert_acceptance": 27
+  },
+  "late_update": {
+    "commits_msk": {
+      "ilya": "2026-10-21 20:47:04",
+      "sasha": "2026-10-21 20:46:30"
+    },
+    "refs": {
+      "ilya": "43d9dd4dbea9a673e375390d4b71adbdeede6b97",
+      "sasha": "fe348a5b40b03140e21ece1a3b0b1a92a1f417ca"
+    },
+    "tests": {
+      "ilya_unittest_pass": 16,
+      "sasha_pytest_pass": 62,
+      "sasha_live_skip": 1,
+      "sasha_subtests_pass": 37
+    },
+    "session_admin_csv": {
+      "http_status": 200,
+      "data_rows": 1,
+      "contains_session_id": true
+    },
+    "inclusive_false_matches_unique": 72,
+    "withdrawal_run_inputs_after": 1,
+    "public_session_result_without_auth": true,
+    "provider_configurable": true,
+    "fulltext_fallback": true,
+    "admin_routes_implemented": true,
+    "postgres_path_live_tested": false,
+    "rag_comparison_file": {
+      "conditions": 4,
+      "valid": 0,
+      "errors": [
+        "provider_network_error"
+      ]
+    }
   }
 }
