@@ -121,11 +121,29 @@ class EvaluatorTests(unittest.TestCase):
                 self.assertNotIn("application_id", sent)
                 self.assertIn("Не делай автоматический", request["system"])
                 self.assertIn("Первый курс", request["system"])
-                self.assertIn("10–18", request["system"])
+                self.assertNotIn("10–18", request["system"])
+                self.assertIn("1–2", request["system"])
                 self.assertIn("не обязательный минимум", request["system"])
                 if busy:
                     self.assertIn("график", result["possible_problems"][0])
                     self.assertIn("найма", result["fit_for_candidate"])
+
+    def test_interview_question_budget_deduplicates_without_leaking(self):
+        data = candidate()
+        answer = response(data)
+        answer["interview_questions"] = [
+            "Уточните постоянный график смен?",
+            "Какие задачи медиа вам интереснее?",
+            "Уточните постоянный график смен!",
+            *[f"Лишний вопрос {i}?" for i in range(8)],
+        ]
+        result = evaluate(data, adapter=FakeAdapter(json.dumps(answer, ensure_ascii=False)))
+        self.assertEqual(result["interview_questions"], [
+            "Уточните постоянный график смен?",
+            "Какие задачи медиа вам интереснее?",
+        ])
+        self.assertEqual(len(result["interview_questions"]), 2)
+        self.assertIsNone(result["score"])
 
     def test_demo_never_calls_model(self):
         adapter = FakeAdapter("broken")
