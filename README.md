@@ -74,3 +74,6 @@ python -m uvicorn backend.app:app --host 127.0.0.1 --port 8765
 - [Google Sheets-шаблон](https://docs.google.com/spreadsheets/d/1AJVzUTu8KJPfknSgQBem5InL3q_ynAQ3qSO2h8bDVSc/edit) · [Задачи](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues)
 
 **Критерий следующей большой готовности:** реальный LLM-результат, полезность которого подтвердила Ева, автоматически появляется в Google Sheets по итогам заполнения анкеты.
+
+
+**Исправление переносной сборки:** причина evaluator_invalid_model_json воспроизведена на настоящих ответах DeepSeek; исправлено представление точных числовых/boolean/list evidence с сохранением строгой проверки цитат. Переносной ZIP обновлён. [Протокол](docs/16-deepseek-evidence-fix-20261021.md).
