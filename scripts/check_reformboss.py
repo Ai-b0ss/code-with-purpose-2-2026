@@ -137,6 +137,9 @@ def probe_model(name: str, endpoint: str, key: str, json_mode: bool) -> bool:
         result = evaluate(sample_candidate(), adapter=adapter)
     except EvaluationError as exc:
         print(f"[FAIL] {name}: {exc.code}")
+        if exc.details:
+            print("Причины по полям (без текста анкеты и ответа модели):",
+                  "; ".join(exc.details[:12]))
         print("Причина/следующее действие:", explanation_for_failure(exc.code))
         return False
 
