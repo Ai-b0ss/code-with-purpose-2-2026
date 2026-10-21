@@ -214,6 +214,20 @@ class ScenariosVerificationTests(unittest.TestCase):
         self.assertEqual(cm.exception.status_code, 400)
         self.assertIn("согласие", cm.exception.detail)
 
+    def test_export_csv_semicolon_format(self):
+        from backend.app import export_csv
+        response = export_csv()
+        content = response.body.decode("utf-8")
+        lines = content.strip().splitlines()
+        header = lines[0]
+        self.assertIn(";", header)
+        columns = header.lstrip("\ufeff").split(";")
+        self.assertIn("Согласие ПД", columns)
+        self.assertIn("Дата рождения", columns)
+        self.assertIn("Научные интересы", columns)
+        self.assertIn("Хобби", columns)
+        self.assertEqual(len(columns), 32)
+
 
 if __name__ == "__main__":
     unittest.main()
