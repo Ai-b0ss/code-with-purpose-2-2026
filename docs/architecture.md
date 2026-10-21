@@ -1,6 +1,6 @@
 # Архитектура «Музейного компаса»
 
-Сверка 21.10.2026, 20:31–20:41 МСК. Рабочая база — `main@1e5b626`. Состояние веток и воспроизведённые дефекты — [аудит](15-repository-audit-20261021.md); порядок изменений — [план](09-delivery-roadmap.md). Здесь действующий код отделён от предлагаемой эволюции. Экспериментальная ветка не считается внедрённой.
+Сверка 21.10.2026: снимок 20:31 МСК и дополнение по коммитам 20:46–20:47 МСК. Рабочая база — `main@1e5b626`. Состояние веток и воспроизведённые дефекты — [аудит](15-repository-audit-20261021.md); порядок изменений — [план](09-delivery-roadmap.md). Здесь действующий код отделён от предлагаемой эволюции. Экспериментальная ветка не считается внедрённой.
 
 ## Действующая сборка main
 
@@ -46,30 +46,32 @@ flowchart TD
 - HTML скрывает аналитику, но API возвращает её в POST-ответе и открывает чтение заявок/CSV без авторизации. До внешнего размещения нужен серверный контроль доступа (#28).
 - health=llm отражает конфигурацию, а не новый успешный вызов провайдера. Последний фактический live-путь подтверждён в [протоколе DeepSeek](14-deepseek-timeout-20261021.md).
 
-## Эксперимент Саши: sanya_gpt_analysis@80ae28d
+## Эксперимент Саши: sanya_gpt_analysis@fe348a5
 
 ```mermaid
 flowchart TD
-    PF["Отдельная версия frontend"] --> S["FastAPI sessions: ответы и ревизии"]
-    S --> PII[("session-contacts.sqlite3")]
-    S --> DB[("sessions.sqlite3: answers, runs, snapshots")]
-    S --> B["BackgroundTasks в процессе FastAPI"]
-    B --> EG["Возраст по дате рождения и согласие"]
-    EG --> SC["scoring.py: шесть критериев"]
-    SC --> K["knowledge.py: HybridCypherRetriever"]
-    K --> N[("Neo4j: правила и 90 исторических анкет")]
-    K --> OE["OpenAI embeddings"]
-    SC --> OC["Жёстко заданный OpenAI chat endpoint"]
-    OC --> VAL["Проверка цитат и серверная формула"]
-    VAL --> DB
-    DB --> PR["sessions/result"]
+    PF["Форма кандидата"] --> S["FastAPI sessions: согласие, ответы, ревизии"]
+    S --> DB[("PostgreSQL или SQLite: sessions, runs, run_inputs")]
+    S --> PII[("Контакты: pii schema или отдельная SQLite")]
+    S --> B["BackgroundTasks внутри FastAPI"]
+    B --> LG["LangGraph: retrieve → assess → route"]
+    LG --> K["Neo4j: 90 train-анкет и правила"]
+    K --> R["OpenAI embeddings или full-text fallback"]
+    LG --> SC["Настраиваемый chat endpoint, шесть критериев"]
+    SC --> V["Валидация evidence и серверный расчёт"]
+    V --> D["decision.py: pilot-v1, порог 2, минимум 5 peers"]
+    D --> DB
+    DB --> PR["Публичный sessions/result"]
+    DB --> ADM["Авторизованный кабинет: review, analytics, CSV 18 колонок"]
 ```
 
-Полезные модули: eligibility.py (возраст отдельно от оценки), sessions.py (согласие, версии ответов, запуски), historical.py (нормализация/дедупликация до holdout), scoring.py (валидируемые критерии и детерминированный расчёт), knowledge.py (retrieval с источниками). Веса 25/20/20/15/10/10 — pilot-v1, пока без подтверждённой музейной калибровки. Рубрика целиком включается в запрос, не выбирается поиском.
+Коммит fe348a5 добавил LangGraph, PostgreSQL (GIM_DATABASE_URL), кабинет координатора и admin API, CSV сессий, настраиваемые GIM_LLM_ENDPOINT/GIM_LLM_API_KEY и full-text fallback при отсутствии embedding key. Legacy list/get/export тоже защищены. Замечания к 80ae28d об отсутствии admin-route, session-export и жёстком OpenAI chat **сняты**. Синтетическая сессия подтверждена в защищённом admin CSV: HTTP 200, одна строка с её ID.
 
-Это другая архитектура: новые dependencies/контракты, OpenAI API, Docker/Neo4j, отдельные базы и изменённый продуктовый вывод. Автотесты используют подставной retriever/adapter. Развёртывание этой версии на текущем ноутбуке не подтверждено: порты Neo4j закрыты. Описанный в её README ручной прогон графа с тестовым вектором не является live-проверкой модели/embeddings.
+Полезные модули: eligibility.py, sessions.py, historical.py, scoring.py, knowledge.py; agent_workflow.py и decision.py выделяют этапы и маршрутизацию. Веса 25/20/20/15/10/10, шкала 1–3 с шагом 0,25 и решение not_prioritized_for_interview при низкой оценке — пилотные правила, требующие утверждения. В main score=null, автоматического отказа нет.
 
-До интеграции нужны исправления #32: session → CSV, полное удаление snapshots при отзыве согласия, ложные inclusive-метки, единый provider/deadline, восстановление фоновых задач, серверная граница публичных данных. `_coordinator_auth` и ReviewInput есть, но admin-route отсутствует. Раздельный файл контактов сам по себе не даёт авторизации.
+Блокеры #32: 72 ложные inclusive-метки, run_inputs после отзыва согласия, полный evaluation в публичном session-result, общий deadline и восстановление BackgroundTasks после остановки процесса. LangGraph здесь не создаёт durable worker. Нужен mapping трёх CSV-контрактов: main 32, legacy 28, admin sessions 18 колонок, и источник для Sheets.
+
+Проверено 62 pytest PASS / 1 live SKIP / 37 subtests. Route-пробы используют синтетические данные, SQLite и fake assessment; PostgreSQL + Neo4j + настоящая модель совместно не проверены. В сохранённом local-rag-comparison.json все четыре условия завершились provider_network_error, valid=false. Это не подтверждает пользу RAG. Пуш ветки и описание запуска не подтверждают развёртывание; на ноутбуке во время проверки Neo4j недоступен. Подробности и исторический снимок — в [аудите](15-repository-audit-20261021.md).
 
 ## Предлагаемая эволюция
 
@@ -85,6 +87,6 @@ flowchart TD
 
 - API: [app.py](../backend/app.py), схема результата: [evaluator.py](../backend/evaluator.py).
 - Решения заказчика: [06-gim-stakeholder-answers.md](06-gim-stakeholder-answers.md).
-- [Пилот Саши на проверенном SHA](https://github.com/Ai-b0ss/code-with-purpose-2-2026/tree/80ae28d).
-- [Последний фикс Ильи 4ccefa8](https://github.com/Ai-b0ss/code-with-purpose-2-2026/commit/4ccefa8).
+- [Пилот Саши на проверенном SHA](https://github.com/Ai-b0ss/code-with-purpose-2-2026/tree/fe348a5).
+- [Последний фикс Ильи 43d9dd4](https://github.com/Ai-b0ss/code-with-purpose-2-2026/commit/43d9dd4).
 - Старый PR #10 и contracts/*.json — архивное предложение, не действующий API.
