@@ -4,6 +4,8 @@ from __future__ import annotations
 import json
 import math
 import os
+import ssl
+import socket
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
@@ -164,8 +166,29 @@ class ChatCompletionsAdapter:
             if not isinstance(content, str):
                 raise EvaluationError("invalid_provider_response")
             return content
-        except (TimeoutError, urllib.error.URLError, OSError):
-            raise EvaluationError("provider_unavailable") from None
+        except urllib.error.HTTPError as exc:
+            # HTTPError subclasses URLError; handle it first so authorization,
+            # rate limits and unsupported JSON modes are not masked as downtime.
+            # Never display provider response bodies, URLs, headers or tokens.
+            status = exc.code
+            if status in {400, 401, 403, 404, 405, 408, 409, 413, 422, 429, 500, 502, 503, 504}:
+                raise EvaluationError(f"provider_http_{status}") from None
+            raise EvaluationError("provider_http_error") from None
+        except urllib.error.URLError as exc:
+            reason = exc.reason
+            if isinstance(reason, ssl.SSLCertVerificationError):
+                raise EvaluationError("provider_tls_certificate") from None
+            if isinstance(reason, ssl.SSLError):
+                raise EvaluationError("provider_tls_error") from None
+            if isinstance(reason, socket.gaierror):
+                raise EvaluationError("provider_dns_error") from None
+            if isinstance(reason, TimeoutError):
+                raise EvaluationError("provider_timeout") from None
+            raise EvaluationError("provider_network_error") from None
+        except TimeoutError:
+            raise EvaluationError("provider_timeout") from None
+        except OSError:
+            raise EvaluationError("provider_network_error") from None
         except (ValueError, KeyError, IndexError, TypeError, AttributeError):
             raise EvaluationError("invalid_provider_response") from None
 

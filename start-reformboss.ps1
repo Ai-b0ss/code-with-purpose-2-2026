@@ -16,6 +16,14 @@ try {
     Write-Host "Endpoint: https://api.reformboss.com/v1/chat/completions"
     Write-Host "No key will be printed, written to disk or committed."
 
+    # No secret is requested or sent until Python can establish a valid
+    # HTTPS connection. HTTP 401 here is normal: the probe has no API key.
+    python -m scripts.check_reformboss --check-network
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "TLS/network preflight failed. API key was not requested."
+        return
+    }
+
     # Secure local terminal input; only the current PowerShell process and its
     # child uvicorn process receive the temporary environment variable.
     $secret = Read-Host "Enter ReformBoss API key (hidden)" -AsSecureString
@@ -47,7 +55,7 @@ try {
         if ($DisableJsonMode) { $probe += "--disable-json-mode" }
         python @probe
         if ($LASTEXITCODE -ne 0) {
-            Write-Warning "Live LLM probe failed. Server NOT started; check model ID, API allowance or try -DisableJsonMode."
+            Write-Warning "Live LLM probe failed. The safe error code above identifies TLS, HTTP, or response format. Server NOT started."
             return
         }
     }

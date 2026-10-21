@@ -1,12 +1,13 @@
 """Offline contract, policy prompt, failure and real HTTP transport tests."""
 import json
 import os
+import ssl
 import threading
 import unittest
 from io import BytesIO
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from unittest.mock import patch
-from urllib.error import URLError
+from urllib.error import URLError, HTTPError
 
 from backend.app import evaluate_demo
 from backend.evaluator import (
@@ -132,7 +133,7 @@ class EvaluatorTests(unittest.TestCase):
         with patch("urllib.request.OpenerDirector.open", side_effect=TimeoutError()):
             result = evaluate(candidate(), adapter=adapter, fallback_to_demo=True)
         self.assertEqual(result["evaluation_mode"], "rules_demo")
-        self.assertEqual(result["evaluation_error"], "provider_unavailable")
+        self.assertEqual(result["evaluation_error"], "provider_timeout")
 
     def test_configuration_and_secret_repr(self):
         env = {"GIM_LLM_ENDPOINT": "http://localhost:1234/v1/chat/completions",
@@ -156,11 +157,30 @@ class EvaluatorTests(unittest.TestCase):
 
     def test_transport_failures(self):
         adapter = ChatCompletionsAdapter("http://localhost:1234/v1/chat/completions", "local")
-        for error in (TimeoutError(), URLError("secret provider response")):
+        for error, expected in ((TimeoutError(), "provider_timeout"),
+                                (URLError("secret provider response"), "provider_network_error")):
             with patch("urllib.request.OpenerDirector.open", side_effect=error):
                 with self.assertRaises(EvaluationError) as ctx:
                     evaluate(candidate(), adapter=adapter)
-                self.assertEqual(str(ctx.exception), "provider_unavailable")
+                self.assertEqual(str(ctx.exception), expected)
+
+    def test_safe_http_and_tls_diagnostics(self):
+        adapter = ChatCompletionsAdapter("https://example.org/v1/chat/completions", "test",
+                                         api_key="do-not-print-secret")
+        for code in (400, 401, 403, 404, 422, 429, 500, 503):
+            with self.subTest(status=code):
+                error = HTTPError(adapter.endpoint, code, "private provider body", {}, None)
+                with patch("urllib.request.OpenerDirector.open", side_effect=error):
+                    with self.assertRaises(EvaluationError) as ctx:
+                        evaluate(candidate(), adapter=adapter)
+                self.assertEqual(ctx.exception.code, f"provider_http_{code}")
+                self.assertNotIn("secret", str(ctx.exception))
+                self.assertNotIn("private", str(ctx.exception))
+        error = URLError(ssl.SSLCertVerificationError("certificate verify failed"))
+        with patch("urllib.request.OpenerDirector.open", side_effect=error):
+            with self.assertRaises(EvaluationError) as ctx:
+                evaluate(candidate(), adapter=adapter)
+        self.assertEqual(ctx.exception.code, "provider_tls_certificate")
 
     def test_provider_envelopes_and_truncation(self):
         adapter = ChatCompletionsAdapter("http://localhost:1234/v1/chat/completions", "local")
