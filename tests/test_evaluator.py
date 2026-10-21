@@ -90,12 +90,15 @@ class EvaluatorTests(unittest.TestCase):
         data = candidate().model_copy(update={'availability_days': ['сб', 'вс'], 'followup_answers': {'x': 'да'}})
         answers = data.model_dump(exclude={'applicant_name', 'application_id'})
         original = response(data)
+        # This test replaces the complete evidence list to exercise typed exact quotes.
+        # Remove the unrelated rubric here; legacy import is explicit.
+        original.pop('scorecard')
         evidence = [{'question_id': k, 'reason': answers[k]} for k in ['availability_hours_month', 'age_over_18', 'availability_days', 'followup_answers']]
-        result = validate_response(json.dumps({**original, 'evidence': evidence}, ensure_ascii=False), answers)
+        result = validate_response(json.dumps({**original, 'evidence': evidence}, ensure_ascii=False), answers, allow_legacy=True)
         self.assertEqual([e['reason'] for e in result['evidence']], [json.dumps(answers[e['question_id']], ensure_ascii=False) for e in evidence])
         for key, quote in [('availability_hours_month', 999), ('age_over_18', 1), ('availability_hours_month', 24.0), ('availability_days', ['сб']), ('availability_days', [True, 'вс']), ('followup_answers', {'x': 'нет'}), ('motivation', ['invented']), ('missing_field', '')]:
             with self.subTest(key=key, quote=quote), self.assertRaises(EvaluationError):
-                validate_response(json.dumps({**original, 'evidence': [{'question_id': key, 'reason': quote}]}), answers)
+                validate_response(json.dumps({**original, 'evidence': [{'question_id': key, 'reason': quote}]}), answers, allow_legacy=True)
 
     def test_empty_sources_do_not_count_as_evidence_or_hide_schema_errors(self):
         data = candidate()
