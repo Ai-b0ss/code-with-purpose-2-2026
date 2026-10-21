@@ -8,6 +8,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import socket
+import ssl
 import sys
 import time
 import urllib.error
@@ -43,6 +45,67 @@ def sample_candidate() -> ApplicationInput:
     )
 
 
+def check_network(endpoint: str) -> bool:
+    """Check TLS/host connectivity WITHOUT sending the user's API key or answers.
+
+    HTTP 401 means the HTTPS connection worked; this is an unauthenticated check.
+    """
+    models_url = endpoint.rsplit("/chat/completions", 1)[0] + "/models"
+    request = urllib.request.Request(
+        models_url, headers={"User-Agent": "GIM-ReformBoss-Connectivity/1.0"}
+    )
+    print("Проверка TLS и доступности API без ключа...")
+    try:
+        with urllib.request.urlopen(request, timeout=12) as response:
+            print(f"[NETWORK OK] HTTPS работает, HTTP {response.status}")
+        return True
+    except urllib.error.HTTPError as exc:
+        print(f"[NETWORK OK] HTTPS работает, HTTP {exc.code} "
+              "(без ключа это может быть ожидаемая авторизация)")
+        return True
+    except urllib.error.URLError as exc:
+        reason = exc.reason
+        if isinstance(reason, ssl.SSLCertVerificationError):
+            print("[NETWORK FAIL] Ошибка доверия к TLS-сертификату. "
+                  "Проверь часы Windows, HTTPS-проверку VPN/прокси и доверенные "
+                  "корневые сертификаты. Не отключай проверку SSL.")
+        elif isinstance(reason, ssl.SSLError):
+            print("[NETWORK FAIL] Ошибка TLS-соединения.")
+        elif isinstance(reason, socket.gaierror):
+            print("[NETWORK FAIL] DNS не разрешает имя API.")
+        else:
+            print("[NETWORK FAIL] Ошибка сети:", type(reason).__name__)
+        return False
+    except TimeoutError:
+        print("[NETWORK FAIL] Превышено время ожидания.")
+        return False
+    except OSError as exc:
+        print("[NETWORK FAIL] Ошибка соединения:", type(exc).__name__)
+        return False
+
+
+def explanation_for_failure(code: str) -> str:
+    if code in {"provider_http_401", "provider_http_403"}:
+        return "Сервер отклонил доступ: проверь действительность ключа, право на API и лимиты аккаунта."
+    if code in {"provider_http_400", "provider_http_422"}:
+        return "Сервер отклонил формат запроса; попробуй повторный запуск с -DisableJsonMode."
+    if code == "provider_http_404":
+        return "Проверь точное имя модели и URL API: сервер вернул HTTP 404."
+    if code == "provider_http_429":
+        return "Достигнут лимит/частота запросов API (не путать с лимитом Telegram-бота)."
+    if code == "provider_tls_certificate":
+        return "Проблема с доверием к HTTPS-сертификату в Python. Не выключай SSL verification."
+    if code in {"provider_http_500", "provider_http_502", "provider_http_503", "provider_http_504"}:
+        return "Ошибка сервера провайдера: можно попробовать позже или другую модель."
+    if code.startswith("provider_http_"):
+        return "Провайдер вернул HTTP-ошибку; код выше, ответ сервера не логируется."
+    if code == "provider_timeout":
+        return "Таймаут; увеличь GIM_LLM_TIMEOUT при необходимости."
+    if code == "invalid_model_json":
+        return "Ответ модели не соответствует контракту/дословным цитатам, а не сбой сети."
+    return "Проверь доступность API и совместимость формата; секреты не выводятся."
+
+
 def list_models(api_key: str, endpoint: str) -> None:
     models_url = endpoint.rsplit("/chat/completions", 1)[0] + "/models"
     req = urllib.request.Request(
@@ -73,9 +136,8 @@ def probe_model(name: str, endpoint: str, key: str, json_mode: bool) -> bool:
     try:
         result = evaluate(sample_candidate(), adapter=adapter)
     except EvaluationError as exc:
-        print(f"[FAIL] {name}: {exc.code} "
-              "(если provider_unavailable: проверь ключ/доступ/лимиты; "
-              "если сервер не принимает response_format, выключи JSON mode)")
+        print(f"[FAIL] {name}: {exc.code}")
+        print("Причина/следующее действие:", explanation_for_failure(exc.code))
         return False
 
     seconds = time.monotonic() - started
@@ -101,10 +163,15 @@ def main() -> int:
     parser.add_argument("--compare", action="store_true",
                         help="One live synthetic candidate per model (3 API calls)")
     parser.add_argument("--list-models", action="store_true")
+    parser.add_argument("--check-network", action="store_true",
+                        help="Unauthenticated TLS/HTTP check; no key required")
     parser.add_argument("--disable-json-mode", action="store_true")
     parser.add_argument("--endpoint", default=ENDPOINT,
                         help="Full chat/completions URL (default ReformBoss)")
     args = parser.parse_args()
+
+    if args.check_network:
+        return 0 if check_network(args.endpoint) else 3
 
     key = os.environ.get("GIM_LLM_API_KEY", "")
     if not key:
