@@ -137,7 +137,7 @@ class EvaluatorTests(unittest.TestCase):
                 self.assertIn("Не делай автоматический", request["system"])
                 self.assertIn("Первый курс", request["system"])
                 self.assertNotIn("10–18", request["system"])
-                self.assertIn("1–2", request["system"])
+                self.assertIn("НЕ ГЕНЕРИРУЙ СПИСОК ВОПРОСОВ", request["system"])
                 self.assertIn("не обязательный минимум", request["system"])
                 if busy:
                     self.assertIn("график", result["possible_problems"][0])
@@ -173,7 +173,7 @@ class EvaluatorTests(unittest.TestCase):
         for key, value in [
             ("score", 3), ("score_status", "calibrated"),
             ("evaluation_mode", "rules_demo"), ("recommended_direction", "archive"),
-            ("summary", "  "), ("interview_questions", []), ("strengths", [""]),
+            ("summary", "  "), ("strengths", [""]),
             ("evidence", []),
             ("evidence", [{"question_id": "unknown", "reason": "foo"}]),
             ("evidence", [{"question_id": "experience", "reason": "10 лет в ГИМ"}]),
