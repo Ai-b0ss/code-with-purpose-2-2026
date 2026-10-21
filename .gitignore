@@ -6,3 +6,5 @@ venv/
 data/
 .env
 .pytest_cache/
+GEMINI.md
+~$*.xlsx
