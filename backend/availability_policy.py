@@ -17,6 +17,16 @@ def availability_risks(answers) -> list[str]:
     hours = getattr(answers, "availability_hours_month", None)
     days = getattr(answers, "availability_days", None) or []
     schedule = str(getattr(answers, "availability_schedule_type", "") or "").casefold()
+    followups = getattr(answers, "followup_answers", None) or {}
+    clarified_schedule = str(followups.get("ai_availability", "") or "").casefold().strip()
+    has_schedule_exception = (
+        len(clarified_schedule) >= 12
+        and not any(x in clarified_schedule for x in ("не знаю", "пока не", "не могу"))
+        and any(x in clarified_schedule for x in (
+            "суббот", "воскрес", "пятниц", "смен", "регуляр", "еженедель",
+            "кажд", "час", "понедель", "вторник", "сред", "четверг"
+        ))
+    )
     signals: list[str] = []
 
     is_first_year = bool(re.search(r"\b1[\s-]*(?:й|ый)?\s*курс\b|\bперв(?:ый|ом|ого|окурсник\w*)\s*курс", course))
@@ -64,13 +74,16 @@ def availability_risks(answers) -> list[str]:
             "Число 8 не является установленным музеем порогом отказа."
         )
 
-    if signals and isinstance(hours, int) and hours >= 16 and (
-        days or "выход" in obligations or "суббот" in obligations
-        or "вечер" in obligations or schedule == "regular"
-    ):
+    if signals and (has_schedule_exception or (
+        isinstance(hours, int) and hours >= 16 and (
+            days or "выход" in obligations or "суббот" in obligations
+            or "вечер" in obligations or schedule == "regular"
+        )
+    )):
         signals.append(
             "Смягчающее обстоятельство: кандидат заявил доступные часы "
-            "и конкретные дни/смены. Это может уменьшить риск, но "
+            "и конкретные дни/смены (в том числе в уточнении). "
+            "Это может уменьшить риск, но "
             "не является доказанной долгосрочной доступностью."
         )
     return signals

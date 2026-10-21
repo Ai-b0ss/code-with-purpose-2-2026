@@ -64,6 +64,8 @@ class AvailabilityPolicyTests(unittest.TestCase):
         mock = evaluate_demo(a)
         mock.update(
             evaluation_mode="llm",
+            preliminary_verdict="manual_review",
+            verdict_comment="Нужно сопоставить график и другие обязательства с требованиями музея.",
             fit_for_museum="Кандидат интересуется музейной работой.",
             fit_for_candidate="Есть совпадение интересов.",
             evidence=[{"question_id":"motivation", "reason":a.motivation},

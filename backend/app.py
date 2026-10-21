@@ -70,6 +70,7 @@ class ApplicationInput(BaseModel):
     other_volunteer_programs: str = Field(default="", max_length=1500)
     source: str = Field(default="", max_length=200)
     followup_answers: dict[str, str] = Field(default_factory=dict)
+    followup_questions: list[dict[str, str]] = Field(default_factory=list, max_length=3)
 
 
 @contextmanager
@@ -299,12 +300,18 @@ def health():
 
 @app.post("/api/v1/clarification")
 def clarification(data: ApplicationInput):
-    questions = clarifications_for(data)
-    legacy_question = clarification_for(data)
-    return {
-        "question": legacy_question,
-        "questions": questions,
-    }
+    if os.getenv("GIM_EVALUATION_MODE", "demo") == "llm" and not data.consent_personal_data:
+        raise HTTPException(status_code=422, detail="Согласие на обработку данных обязательно до анализа ИИ.")
+    # In live mode, ask the model to review five criteria BEFORE a final
+    # evaluation. Do not confuse questions asked now with interview notes.
+    from backend.clarification_agent import questions_before_verdict
+    from backend.evaluator import EvaluationError
+    try:
+        result = questions_before_verdict(data)
+    except EvaluationError as exc:
+        # Do not silently switch from LLM to heuristic questions in live mode.
+        raise HTTPException(status_code=503, detail=f"clarification_{exc.code}") from None
+    return {"question": None, **result}
 
 
 @app.post("/api/v1/preview")

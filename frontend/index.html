@@ -960,7 +960,7 @@
       <section class="step" data-step="3" hidden>
         <div class="step-header">
           <h2>4. Индивидуальные уточнения</h2>
-          <p>Система анализирует заполненную анкету и формирует контекстные вопросы для куратора.</p>
+          <p>ИИ проверяет пять критериев по всей анкете. Если для предварительного заключения не хватает важной информации, он задаст вам до двух уточняющих вопросов прямо сейчас. Если всё ясно, дополнительных вопросов не будет.</p>
         </div>
 
         <div id="clarificationsContainer">
@@ -1191,7 +1191,10 @@
       other_commitments: byId("other_commitments") ? byId("other_commitments").value.trim() : "",
       other_volunteer_programs: byId("other_volunteer_programs") ? byId("other_volunteer_programs").value.trim() : "",
       followup_answer: combinedFollowup,
-      followup_answers: followupAnswers
+      followup_answers: followupAnswers,
+      followup_questions: dynamicClarifications.map(q => ({
+        id: q.id, category: q.category || "", question: q.question, reason: q.reason || ""
+      }))
     };
   }
 
@@ -1242,6 +1245,15 @@
         showError("Пожалуйста, опишите вашу мотивацию подробнее (минимум 10 символов).");
         byId("motivation").focus();
         return false;
+      }
+    }
+
+    if (stepIdx === 3) {
+      for (const q of dynamicClarifications) {
+        if (!String(followupAnswers[q.id] || "").trim()) {
+          showError("Ответьте на уточнение перед итоговым анализом. Если не знаете, напишите «Пока не знаю».");
+          return false;
+        }
       }
     }
 
@@ -1298,10 +1310,10 @@
 
       const reason = document.createElement("div");
       reason.className = "clarification-reason";
-      reason.textContent = "Контекст вопроса: " + q.reason;
+      reason.textContent = "Зачем уточняем: " + q.reason;
 
       const textarea = document.createElement("textarea");
-      textarea.placeholder = "Ваш ответ куратору...";
+      textarea.placeholder = "Ваш ответ для уточнения оценки (если не знаете, так и напишите)...";
       textarea.value = followupAnswers[q.id] || "";
       textarea.addEventListener("input", (e) => {
         followupAnswers[q.id] = e.target.value.trim();
@@ -1419,8 +1431,17 @@
   });
 
   // Auto-save on form inputs
-  form.addEventListener("input", saveDraft);
-  form.addEventListener("change", saveDraft);
+  function onFormEdited() {
+    // An edit to the original questionnaire invalidates prior AI questions
+    // and the old answers. We must re-assess the changed profile.
+    if (currentStep < steps.length - 1) {
+      dynamicClarifications = [];
+      followupAnswers = {};
+    }
+    saveDraft();
+  }
+  form.addEventListener("input", onFormEdited);
+  form.addEventListener("change", onFormEdited);
 
   // --- API Call Helper ---
   async function api(path, data) {
@@ -1449,7 +1470,10 @@
     if (!validateStep(currentStep)) return;
 
     nextBtn.disabled = true;
+    const previousButtonText = nextBtn.textContent;
     try {
+      // Stage 1: analyze ALL completed form answers by five criteria, BEFORE verdict.
+      if (currentStep === 2) nextBtn.textContent = "ИИ изучает анкету...";
       // Transitioning to Step 4: request dynamic clarifications from API
       if (currentStep === 2) {
         const payload = buildPayload();
@@ -1457,13 +1481,8 @@
         dynamicClarifications = res.questions || [];
         renderClarifications(dynamicClarifications);
 
-        // Fallback for legacy question string if provided
-        if (res.question && (!dynamicClarifications || dynamicClarifications.length === 0)) {
-          byId("legacyFallbackBlock").hidden = false;
-          byId("fallbackQuestionLabel").textContent = res.question;
-        } else {
-          byId("legacyFallbackBlock").hidden = true;
-        }
+        // No obsolete "one more question" when AI found no uncertainty.
+        byId("legacyFallbackBlock").hidden = true;
       }
 
       currentStep += 1;
@@ -1471,6 +1490,7 @@
     } catch (e) {
       showError(e.message || "Не удалось загрузить уточнения. Проверьте соединение.");
     } finally {
+      nextBtn.textContent = previousButtonText;
       nextBtn.disabled = false;
     }
   });
@@ -1488,6 +1508,8 @@
     if (!validateStep(currentStep)) return;
 
     submitBtn.disabled = true;
+    const initialSubmitText = submitBtn.textContent;
+    submitBtn.textContent = "ИИ формирует итоговое заключение...";
     try {
       if (!applicationId) {
         applicationId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : "gim-" + Date.now();
@@ -1525,6 +1547,7 @@
     } catch (err) {
       showError(err.message || "Ошибка отправки анкеты. Попробуйте еще раз.");
     } finally {
+      submitBtn.textContent = initialSubmitText;
       submitBtn.disabled = false;
     }
   });

@@ -42,6 +42,8 @@ def build(db: Path, destination: Path, limit: int = 40) -> int:
             ("Рекомендованное направление", evaluation.get("recommended_direction_label", "?")),
             ("Выбранное кандидатом", answers.get("desired_direction", "?")),
             ("score / статус", str(evaluation.get("score"))+" / "+str(evaluation.get("score_status"))),
+            ("Предварительный вердикт (не решение о приёме)", evaluation.get("preliminary_verdict") or "нет"),
+            ("Почему этот вердикт", evaluation.get("verdict_comment") or "нет данных"),
             ("Саммари", evaluation.get("summary", "")),
             ("Соответствие музею", evaluation.get("fit_for_museum", "")),
             ("Соответствие кандидату", evaluation.get("fit_for_candidate", "")),
@@ -56,7 +58,11 @@ def build(db: Path, destination: Path, limit: int = 40) -> int:
                      obj(evaluation.get("possible_problems",[]))+
                      "</pre><h3>Пилотные оценки пяти критериев (не откалиброваны)</h3><pre>"+
                      obj(evaluation.get("scorecard",[]))+
-                     "</pre><h3>Вопросы для собеседования</h3><pre>"+
+                     "</pre><h3>Уточняющие вопросы и ответы ДО заключения</h3><pre>"+
+                     obj([{"question": q.get("question", ""),
+                           "answer": answers.get("followup_answers", {}).get(q.get("id", ""), "")}
+                          for q in answers.get("followup_questions", [])])+
+                     "</pre><h3>Оставшиеся вопросы к куратору, если есть</h3><pre>"+
                      obj(evaluation.get("interview_questions",[]))+
                      "</pre><h3>Доказательства (evidence)</h3><pre>"+
                      obj(evaluation.get("evidence",[]))+
