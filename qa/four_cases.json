@@ -1,0 +1,152 @@
+{
+  "source": "docs/08-synthetic-candidates.md (4 representative scenarios); names fictional; contact addresses invalid placeholders; qualitative expectations only",
+  "cases": [
+    {
+      "case_id": "CAND-01",
+      "goal": "Первый курс бакалавриата — риск, индивидуальный график и 32 ч/мес смягчают риск",
+      "expected_signals": [
+        "first_year_risk",
+        "availability_exception"
+      ],
+      "answers": {
+        "applicant_name": "Алексей Смирнов (синтетический)",
+        "age_over_18": true,
+        "consent_personal_data": true,
+        "status": "student",
+        "university": "НИУ ВШЭ",
+        "faculty": "История",
+        "course": "1 курс бакалавриата",
+        "scientific_interests": "История России XVII века, Смутное время",
+        "foreign_languages": [
+          "Английский B2"
+        ],
+        "hobbies": "Чтение исторических источников, настольные стратегические игры",
+        "motivation": "С детства посещаю ГИМ, хочу стать частью команды и помогать в проведении исторических мероприятий. Мотивация высокая, хочу применить знания на практике.",
+        "experience": "Участник школьных исторических чтений, волонтёр на Дне открытых дверей лицея",
+        "expectations": "Погрузиться в музейную атмосферу, научиться работать с аудиторией и помогать гостям выставок.",
+        "availability_hours_month": 32,
+        "availability_schedule_type": "regular",
+        "availability_days": [
+          "вт",
+          "чт",
+          "сб",
+          "вс"
+        ],
+        "other_commitments": "Индивидуальный учебный план, свободное посещение лекций во вторник и четверг; выходные свободны.",
+        "other_volunteer_programs": "",
+        "desired_direction": "project",
+        "source": "Сайт Исторического музея",
+        "email": "qa-cand01@example.invalid"
+      }
+    },
+    {
+      "case_id": "CAND-05",
+      "goal": "Работа 5/2 — риск, но конкретные выходные могут быть совместимы с организационным направлением",
+      "expected_signals": [
+        "fulltime_work_risk",
+        "availability_exception"
+      ],
+      "answers": {
+        "applicant_name": "Константин Мельников (синтетический)",
+        "age_over_18": true,
+        "consent_personal_data": true,
+        "status": "working",
+        "university": "МАИ",
+        "faculty": "Информационные технологии",
+        "course": "Окончил специалитет",
+        "scientific_interests": "Военная история России, фортификация",
+        "foreign_languages": [
+          "Английский B2"
+        ],
+        "hobbies": "Стендовый моделизм, бег, посещение исторических выставок",
+        "motivation": "Интересуюсь историей, в будни сижу за монитором, на выходных хочу живого общения с людьми и приносить пользу главному музею страны.",
+        "experience": "В студенческие годы был тимлидом волонтёров на городских марафонах и фестивалях.",
+        "expectations": "Помощь в координации потоков на выставках, навигация, дежурства на крупных фестивалях.",
+        "availability_hours_month": 24,
+        "availability_schedule_type": "regular",
+        "availability_days": [
+          "сб",
+          "вс"
+        ],
+        "other_commitments": "Работа в IT на полной ставке, график 5/2 с 9:00 до 18:00. Суббота, воскресенье и праздники свободны.",
+        "other_volunteer_programs": "",
+        "desired_direction": "organizational",
+        "source": "Социальные сети",
+        "email": "qa-cand05@example.invalid"
+      }
+    },
+    {
+      "case_id": "CAND-10",
+      "goal": "Несколько волонтёрств одновременно — риск перегрузки, требуются вопросы о приоритетах",
+      "expected_signals": [
+        "multiple_projects_risk"
+      ],
+      "answers": {
+        "applicant_name": "Виктория Белова (синтетическая)",
+        "age_over_18": true,
+        "consent_personal_data": true,
+        "status": "student",
+        "university": "РГГУ",
+        "faculty": "Культурология",
+        "course": "3 курс бакалавриата",
+        "scientific_interests": "История повседневности, музеология",
+        "foreign_languages": [
+          "Английский B2"
+        ],
+        "hobbies": "Посещение открытий выставок, театр",
+        "motivation": "Хочу расширить музейный кругозор и войти в сообщество волонтёров ГИМ.",
+        "experience": "Волонтёр Третьяковской галереи, волонтёр Музея Москвы, руководитель медиа-отдела студсовета РГГУ.",
+        "expectations": "Помощь на культурных событиях и выставках.",
+        "availability_hours_month": 16,
+        "availability_schedule_type": "regular",
+        "availability_days": [
+          "вс"
+        ],
+        "other_commitments": "Очная учёба; по субботам дежурства в Третьяковской галерее, по четвергам собрания студсовета.",
+        "other_volunteer_programs": "Два других волонтёрских проекта: Третьяковская галерея и Музей Москвы; дополнительно студсовет.",
+        "desired_direction": "organizational",
+        "source": "Рекомендации друзей",
+        "email": "qa-cand10@example.invalid"
+      }
+    },
+    {
+      "case_id": "CAND-06",
+      "goal": "Профильная магистратура, музейный опыт, регулярные 30 ч/мес — сильный кандидат; магистратуру не путать с первым курсом бакалавриата",
+      "expected_signals": [
+        "stable_availability",
+        "relevant_experience"
+      ],
+      "answers": {
+        "applicant_name": "Полина Смирнова (синтетическая)",
+        "age_over_18": true,
+        "consent_personal_data": true,
+        "status": "student",
+        "university": "РГГУ",
+        "faculty": "Музеология",
+        "course": "1 курс магистратуры",
+        "scientific_interests": "Музейная педагогика, история выставочной деятельности России XIX–XX веков",
+        "foreign_languages": [
+          "Английский C1",
+          "Французский B2"
+        ],
+        "hobbies": "Каллиграфия, чтение мемуаров, работа с архивами",
+        "motivation": "ГИМ — вершина музейного дела России. Хочу применить свои знания в музейной педагогике, разрабатывать интерактивы и помогать вовлекать подростковую аудиторию.",
+        "experience": "Волонтёр акции «Ночь музеев» в Музее Москвы (2024), разработка музейного квеста для школьников и ведение экскурсий.",
+        "expectations": "Участие в проектировании квестов и мастер-классов, обмен опытом с методистами ГИМ, долгосрочное волонтёрство.",
+        "availability_hours_month": 30,
+        "availability_schedule_type": "regular",
+        "availability_days": [
+          "пн",
+          "ср",
+          "сб",
+          "вс"
+        ],
+        "other_commitments": "Магистратура вечерняя, три учебных вечера в неделю; будни до вечера и выходные свободны.",
+        "other_volunteer_programs": "",
+        "desired_direction": "project",
+        "source": "Сайт Исторического музея",
+        "email": "qa-cand06@example.invalid"
+      }
+    }
+  ]
+}

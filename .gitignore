@@ -8,3 +8,9 @@ data/
 .pytest_cache/
 GEMINI.md
 ~$*.xlsx
+
+/.venv/
+
+/dist/
+
+/reports/
