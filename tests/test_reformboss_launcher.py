@@ -47,6 +47,15 @@ class ReformBossLauncherTests(unittest.TestCase):
         self.assertNotIn("SecureStringToBSTR(", launcher)
         self.assertIn("Remove-Item Env:GIM_LLM_API_KEY", launcher)
 
+    def test_launcher_avoids_killing_process_on_busy_port(self):
+        launcher = (ROOT / "start-reformboss.ps1").read_text(encoding="utf-8")
+        self.assertIn('[int]$Port = 8765', launcher)
+        self.assertIn('TcpListener', launcher)
+        self.assertIn('$selectedPort', launcher)
+        self.assertIn('Port $Port is busy', launcher)
+        self.assertIn('--port $selectedPort', launcher)
+        self.assertNotIn('taskkill', launcher.lower())
+
     def test_powershell_launcher_uses_module_execution(self):
         launcher = (ROOT / "start-reformboss.ps1").read_text(encoding="utf-8")
         self.assertIn(
