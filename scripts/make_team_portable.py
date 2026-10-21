@@ -4,7 +4,7 @@ import hashlib
 import zipfile
 
 ROOT = Path(__file__).resolve().parent.parent
-ZIP_NAME = "GIM_TEAM_QA_AGENT_20261022.zip"
+ZIP_NAME = "GIM_TEAM_QA_AGENT_FIXED_20261022.zip"
 PREFIX = "GIM_TEAM_QA/"
 FILES = (
     "START-TEAM.cmd", "team-start.ps1", "README-TEAM.md",
@@ -12,14 +12,17 @@ FILES = (
     "portable-start.ps1", "start-reformboss.ps1", "requirements.txt",
     "backend/__init__.py", "backend/app.py", "backend/evaluator.py",
     "backend/availability_policy.py", "backend/clarification_agent.py",
-    "backend/google_sheets.py", "frontend/index.html",
+    "backend/google_sheets.py", "backend/curator.py", "frontend/index.html",
+    "vk_bot/__init__.py", "vk_bot/bot.py", "run_vk_bot.bat", "requirements-vk.txt",
     "scripts/check_reformboss.py", "scripts/qa_four_live.py",
+    "scripts/qa_agent_live.py",
     "scripts/local_curator_report.py", "qa/four_cases.json",
     "docs/04-gim-requirements.md", "docs/06-gim-stakeholder-answers.md",
     "docs/09-delivery-roadmap.md", "docs/18-criteria-source-audit-20261021.md",
     "docs/19-sqlite-reservation-20261021.md",
     "docs/20-gim-scoring-pilot-20261022.md",
     "docs/21-ai-clarification-before-verdict-20261022.md",
+    "docs/23-agent-contract-and-vk-fix-20261022.md",
 )
 FORBIDDEN = {".git", ".venv", ".env", "data", "reports", "secret", "credentials"}
 

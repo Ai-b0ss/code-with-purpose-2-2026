@@ -22,6 +22,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 from backend import google_sheets
+from backend.curator import VERDICT_LABELS, followup_pairs, interview_topics
 
 ROOT = Path(__file__).resolve().parent.parent
 FRONTEND = ROOT / "frontend" / "index.html"
@@ -71,6 +72,7 @@ class ApplicationInput(BaseModel):
     source: str = Field(default="", max_length=200)
     followup_answers: dict[str, str] = Field(default_factory=dict)
     followup_questions: list[dict[str, str]] = Field(default_factory=list, max_length=3)
+    clarification_round: int = Field(default=0, ge=0, le=2)
 
 
 @contextmanager
@@ -503,6 +505,7 @@ def sheet_values(row) -> list:
     e = json.loads(row["evaluation"])
     clean = safe_csv
     joined = lambda key: ", ".join(entry.get(key, []))
+    ratings = {r["criterion"]: r.get("level") for r in e.get("scorecard", [])}
     return [
         clean(row["id"]), clean(row["created_at"]), clean(entry.get("applicant_name")),
         entry.get("age_over_18", False), entry.get("consent_personal_data", False),
@@ -517,7 +520,13 @@ def sheet_values(row) -> list:
         clean(entry.get("source")), clean(entry.get("followup_answer")), clean(e.get("score")),
         clean(e.get("summary")), clean("; ".join(e.get("possible_problems", []))),
         clean(e.get("recommended_direction_label")), clean(e.get("direction_reason")),
-        clean("; ".join(e.get("interview_questions", []))),
+        clean("; ".join(interview_topics(e))),
+        clean(VERDICT_LABELS.get(e.get("preliminary_verdict"), e.get("preliminary_verdict"))),
+        clean(e.get("verdict_comment")),
+        *(clean(ratings.get(k)) for k in ("motivation", "skills", "availability", "form_and_contact", "logistics")),
+        clean(json.dumps(followup_pairs(entry), ensure_ascii=False)),
+        clean(json.dumps(e.get("scorecard", []), ensure_ascii=False)),
+        clean(e.get("score_status")), clean(e.get("score_explanation")),
     ]
 
 
