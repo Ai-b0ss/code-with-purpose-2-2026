@@ -23,7 +23,8 @@ class TeamPackageTests(TestCase):
                 for forbidden in (".env", ".git/", ".venv", "data/", "reports/", "xlsx", "docx"):
                     self.assertNotIn(forbidden, names)
                 self.assertIn(b"application_reservations", z.read(PREFIX+"backend/app.py"))
-                self.assertIn(b"score: None", z.read(PREFIX+"backend/evaluator.py"))
+                self.assertIn(b"scorecard", z.read(PREFIX+"backend/evaluator.py"))
+                self.assertIn(b"pilot_unvalidated", z.read(PREFIX+"backend/evaluator.py"))
 
     def test_launch_safe(self):
         entry=(ROOT/"team-start.ps1").read_text(encoding="utf-8-sig")
