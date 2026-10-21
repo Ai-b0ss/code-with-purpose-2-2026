@@ -19,7 +19,10 @@ def availability_risks(answers) -> list[str]:
     schedule = str(getattr(answers, "availability_schedule_type", "") or "").casefold()
     signals: list[str] = []
 
-    if re.search(r"\b1[\s-]*(?:й|ый)?\s*курс\b|\bперв(?:ый|ом|ого|окурсник\w*)\s*курс", course):
+    is_first_year = bool(re.search(r"\b1[\s-]*(?:й|ый)?\s*курс\b|\bперв(?:ый|ом|ого|окурсник\w*)\s*курс", course))
+    is_graduate_course = bool(re.search(r"магистратур|аспирантур|ординатур", course))
+    # First-year *bachelor* workload risk does not apply to 1st-year masters.
+    if is_first_year and not is_graduate_course:
         signals.append(
             "Первый курс бакалавриата — неблагоприятный предварительный сигнал "
             "долгосрочной доступности и устойчивости участия. Это не запрет: "
