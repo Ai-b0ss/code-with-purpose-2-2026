@@ -10,7 +10,7 @@
 - Issues #4–#9, общая Issue #3.
 - [Черновой PR #10](https://github.com/Ai-b0ss/code-with-purpose-2-2026/pull/10) с [архитектурой](https://github.com/Ai-b0ss/code-with-purpose-2-2026/blob/proposal/gim-architecture-pitch-20261021/docs/07-architecture-proposal.md), [JSON-контрактом](https://github.com/Ai-b0ss/code-with-purpose-2-2026/blob/proposal/gim-architecture-pitch-20261021/contracts/application-v1.schema.json) и основой питча.
 - В `main` уже появился файл `docs/Критерии_отбора_ГИМ.xlsx`: прежде чем разрабатывать новую рубрику, сверить с ним работу Евы и команды.
-- **По состоянию на проверку** в `main` нет исполняемого frontend/backend. Рабочих Pull Request с кодом не найдено. Не выдавать документы за готовую реализацию.
+- **Обновление после запуска:** в `main` уже есть работающий каркас из PR #11: `frontend/index.html`, `backend/app.py`, SQLite, CSV-экспорт, `run.bat`, модульные и HTTP smoke-тесты. **Это демо без настоящего LLM и без записи в Google Sheets**, задачи #5 и #6 остаются открыты. Инструкция: [docs/10-first-run.md](10-first-run.md).
 
 ## Общая цель — один законченный сценарий
 
