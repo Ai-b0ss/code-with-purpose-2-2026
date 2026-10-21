@@ -12,7 +12,7 @@ py -3.12 -m venv .venv
 Copy-Item .env.example .env
 ```
 
-В `.env` задайте `GIM_COORDINATOR_TOKEN` для панели координатора и ключ модели оценки. Для OpenAI достаточно `OPENAI_API_KEY`; для другого совместимого Chat Completions API задайте `GIM_LLM_ENDPOINT`, `GIM_LLM_API_KEY`, `GIM_LLM_MODEL`. `OPENAI_API_KEY` дополнительно включает векторный поиск. Без него RAG использует полнотекстовый индекс Neo4j и связи графа, поэтому для запуска с другой моделью нужен только её ключ.
+В `.env` задайте `GIM_COORDINATOR_TOKEN` для панели координатора. Локальная модель использует официальный `/api/chat` Ollama из примера без ключа; этот API позволяет отключить длительное внутреннее рассуждение для оценки анкеты. Для продакшен-модели задайте её `GIM_LLM_ENDPOINT`, `GIM_LLM_API_KEY`, `GIM_LLM_MODEL`; для OpenAI укажите адрес Chat Completions и `OPENAI_API_KEY`. `OPENAI_API_KEY` дополнительно включает векторный поиск. Без него RAG использует полнотекстовый индекс Neo4j и связи графа.
 
 ```powershell
 .\start-scoring.ps1
@@ -22,7 +22,7 @@ Copy-Item .env.example .env
 
 Скрипт загружает факты, нормализует и дедуплицирует таблицы, отделяет тестовые анкеты, при наличии ключа строит эмбеддинги и запускает API. Сессии, контакты, ревизии и результаты сайт хранит в локальном PostgreSQL; контакты находятся в отдельной схеме `pii`. `-SkipProbe` пропускает пробную оценку. Без ключа модели можно проверить код и граф, но рабочая оценка не вызовется.
 
-Для локальной модели проект использует отдельный контейнер Ollama: `docker exec gim-graphrag-ollama ollama pull qwen3:4b-instruct`. Настройки совместимого API приведены в `.env.example`. Парное сравнение одной модели с GraphRAG и без него запускается командой `.\.venv\Scripts\python.exe -m evaluation.compare_local_rag` и записывает `evaluation/local-rag-comparison.json`. Это измерительный прогон; рабочая цепочка RAG остаётся на Neo4j GraphRAG и LangGraph.
+Для локальной модели проект использует отдельный контейнер Ollama с NVIDIA GPU: `docker exec gim-graphrag-ollama ollama pull qwen3:14b`. Настройки совместимого API приведены в `.env.example`. После запуска `docker exec gim-graphrag-ollama ollama ps` должен показывать `100% GPU`; 14B проверена на RTX 5070 Ti Laptop с контекстом 8192. Парное сравнение одной модели с GraphRAG и без него запускается командой `.\.venv\Scripts\python.exe -m evaluation.compare_local_rag` и записывает `evaluation/local-rag-comparison.json`. Это измерительный прогон; рабочая цепочка RAG остаётся на Neo4j GraphRAG и LangGraph.
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q

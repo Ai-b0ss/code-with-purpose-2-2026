@@ -108,11 +108,24 @@ def test_scoring_provider_can_use_separate_compatible_api(monkeypatch):
     assert captured["GIM_LLM_API_KEY"] == "provider-test-key"
 
 
-def test_invalid_quote_retries_once_then_errors():
+def test_invalid_quotes_never_produce_grades():
     adapter = Adapter([model_response(bad_quote=True)] * 2)
-    with pytest.raises(EvaluationError, match="invalid_scoring_response"):
-        assess(candidate(), adapter)
-    assert adapter.calls == 2
+    result = assess(candidate(), adapter)
+    assert result["score"] is None
+    assert all(item["grade"] is None and not item["evidence"] for item in result["criteria"])
+    assert adapter.calls == 1
+
+
+def test_single_analysis_items_are_normalized_to_lists():
+    response = json.loads(model_response())
+    response["analysis"]["strengths"] = "Есть пример организации выставки."
+    response["analysis"]["risks"] = "Необходимо согласовать доступный график с ролью."
+    adapter = Adapter([json.dumps(response, ensure_ascii=False)])
+    result = assess(candidate(), adapter)
+    assert result["score"] == 2.5
+    assert result["analysis"]["strengths"] == ["Есть пример организации выставки."]
+    assert result["analysis"]["risks"] == ["Необходимо согласовать доступный график с ролью."]
+    assert adapter.calls == 1
 
 
 def test_http_form_to_score_and_saved_result(monkeypatch, tmp_path):

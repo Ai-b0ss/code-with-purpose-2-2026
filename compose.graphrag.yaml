@@ -5,6 +5,15 @@ services:
     image: ollama/ollama:latest
     container_name: gim-graphrag-ollama
     restart: unless-stopped
+    environment:
+      OLLAMA_CONTEXT_LENGTH: 8192
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     ports:
       - "127.0.0.1:11434:11434"
     volumes:

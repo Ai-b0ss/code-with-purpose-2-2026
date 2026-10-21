@@ -252,6 +252,8 @@ def save_answer(session_id: str, data: AnswerInput):
         if data.question_id == "consent_personal_data" and data.text.strip().lower() != "true":
             con.execute("DELETE FROM answers WHERE session_id=?", (session_id,))
             con.execute("DELETE FROM pii.contacts WHERE session_id=?", (session_id,))
+            con.execute("DELETE FROM run_inputs WHERE run_id IN (SELECT run_id FROM session_runs WHERE session_id=?)",
+                        (session_id,))
             con.execute("DELETE FROM session_runs WHERE session_id=?", (session_id,))
             con.execute("DELETE FROM clarification_counts WHERE session_id=?", (session_id,))
             con.execute("DELETE FROM request_keys WHERE session_id=?", (session_id,))
@@ -459,7 +461,7 @@ def list_runs(authorization: str | None = Header(default=None)):
     _coordinator_auth(authorization)
     with _connection() as con:
         rows = con.execute("""SELECT r.*, s.active_run_id FROM session_runs r
-            JOIN sessions s ON s.id=r.session_id ORDER BY r.created_at DESC LIMIT 200""").fetchall()
+            JOIN sessions s ON s.id=r.session_id ORDER BY r.created_at DESC""").fetchall()
     return {"runs": [{
         "run_id": row["run_id"], "session_id": row["session_id"],
         "created_at": row["created_at"], "answer_revision": row["answer_revision"],
