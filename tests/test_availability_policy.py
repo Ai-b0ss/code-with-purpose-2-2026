@@ -66,7 +66,13 @@ class AvailabilityPolicyTests(unittest.TestCase):
             evaluation_mode="llm",
             fit_for_museum="Кандидат интересуется музейной работой.",
             fit_for_candidate="Есть совпадение интересов.",
-            evidence=[{"question_id":"motivation", "reason":a.motivation}],
+            evidence=[{"question_id":"motivation", "reason":a.motivation},
+                      {"question_id":"availability_hours_month", "reason":str(a.availability_hours_month)}],
+            scorecard=[
+                {"criterion": name, "level": 2, "rationale": "Сведения анкеты требуют проверки координатором.",
+                 "evidence_question_ids": ["motivation" if name != "availability" else "availability_hours_month"]}
+                for name in ("motivation", "skills", "availability", "form_and_contact", "logistics")
+            ],
         )
         import json
         class FakeAdapter:
@@ -79,7 +85,8 @@ class AvailabilityPolicyTests(unittest.TestCase):
         self.assertTrue(any("Первый курс" in x for x in result["possible_problems"]))
         self.assertIn("Первый курс", result["fit_for_museum"])
         self.assertEqual(result["evaluation_mode"], "llm")
-        self.assertIsNone(result["score"])
+        self.assertEqual(result["score"], 2)
+        self.assertEqual(result["score_status"], "pilot_unvalidated")
 
 
 if __name__ == "__main__":
