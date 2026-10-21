@@ -7,112 +7,183 @@
   <style>
     :root {
       color-scheme: light;
-      --navy: #12283a;
-      --navy-light: #1f3e58;
-      --blue: #177e97;
-      --blue-hover: #126377;
-      --gold: #b58c28;
-      --gold-bg: #fffbf0;
-      --gold-border: #e7d8aa;
-      --bg: #f3f6f7;
+      --gim-red: #8e181b;
+      --gim-red-hover: #731316;
+      --gim-red-active: #5c0f12;
+      --gim-red-light: rgba(142, 24, 27, 0.07);
+      --gim-red-border: #e6b9bb;
+      --bg: #fbf9f6;
       --card-bg: #ffffff;
-      --muted: #586e78;
-      --border: #cad9de;
-      --radius: 12px;
-      --shadow: 0 8px 24px rgba(18, 40, 58, 0.06);
+      --text: #1c1c1c;
+      --text-muted: #5e574f;
+      --border: #e7e2da;
+      --border-input: #dcd6cd;
+      --gold: #b99555;
+      --gold-dark: #8c6e38;
+      --gold-light: #fdfbf7;
+      --gold-border: #e4d8c5;
+      --radius: 6px;
+      --radius-card: 10px;
+      --shadow: 0 4px 24px rgba(28, 28, 28, 0.06);
+      --shadow-hover: 0 8px 30px rgba(28, 28, 28, 0.1);
     }
     * {box-sizing: border-box}
+    [hidden] {display: none !important;}
     body {
       margin: 0;
       background: var(--bg);
-      color: var(--navy);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      line-height: 1.5;
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
     }
+
+    /* Headings in academic GIM serif style */
+    h1, h2, h3, .serif {
+      font-family: 'Georgia', 'PT Serif', 'Times New Roman', serif;
+      color: var(--text);
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    /* Header styling matching shm.ru */
     header {
-      background: linear-gradient(135deg, #0e202f 0%, #17364e 100%);
-      color: white;
-      padding: 24px 20px 28px;
-      border-bottom: 3px solid var(--gold);
+      background: linear-gradient(180deg, #151515 0%, #1e191a 100%);
+      color: #ffffff;
+      padding: 24px 20px 26px;
+      border-bottom: 3px solid var(--gim-red);
+      position: relative;
+    }
+    header::after {
+      content: "";
+      position: absolute;
+      bottom: -4px;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: var(--gold);
+      opacity: 0.6;
     }
     .header-inner {
       max-width: 860px;
       margin: 0 auto;
     }
-    header small {
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .museum-tag {
       letter-spacing: 0.14em;
       text-transform: uppercase;
-      color: #9fe2ec;
+      color: var(--gold);
       font-weight: 700;
-      font-size: 12px;
-      display: block;
-      margin-bottom: 4px;
+      font-size: 11.5px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .museum-tag::before {
+      content: "";
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      background: var(--gim-red);
+      border-radius: 50%;
+    }
+    .museum-history {
+      font-size: 11.5px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #b0aba4;
+      font-weight: 500;
     }
     h1 {
-      font-size: clamp(26px, 4.5vw, 38px);
-      margin: 4px 0 10px;
-      font-weight: 800;
-      letter-spacing: -0.02em;
+      font-size: clamp(28px, 4.8vw, 40px);
+      margin: 6px 0 8px;
+      color: #ffffff;
+      font-weight: 700;
     }
     header p {
       margin: 0;
-      color: #e2f0f4;
+      color: #ded7ce;
       font-size: 15px;
-      max-width: 680px;
+      max-width: 700px;
+      line-height: 1.5;
     }
+
     main {
       max-width: 860px;
-      margin: 24px auto 40px;
+      margin: 28px auto 44px;
       padding: 0 16px;
     }
+
+    /* Cards */
     .card {
       background: var(--card-bg);
       border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 28px;
-      margin-bottom: 20px;
+      border-radius: var(--radius-card);
+      padding: 32px 30px;
+      margin-bottom: 22px;
       box-shadow: var(--shadow);
     }
+
+    /* Progress bar */
     .progress-container {
-      margin: 16px 0 24px;
+      margin: 4px 0 26px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid #f0eae1;
     }
     .progress-info {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
       font-size: 13px;
       font-weight: 600;
-      color: var(--muted);
+      color: var(--text-muted);
+    }
+    .step-badge {
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 12px;
+      color: var(--gim-red);
+      font-weight: 700;
     }
     .progress-bar-bg {
-      height: 8px;
+      height: 6px;
       border-radius: 99px;
-      background: #dbe7eb;
+      background: #eee8de;
       overflow: hidden;
     }
     .progress-bar {
       height: 100%;
-      background: linear-gradient(90deg, var(--blue), #2bb0cf);
+      background: var(--gim-red);
       width: 25%;
-      transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: width 0.3s ease;
     }
+
+    /* Step headers */
     .step-header {
-      margin-bottom: 22px;
-      border-bottom: 1px solid #eef3f5;
-      padding-bottom: 14px;
+      margin-bottom: 24px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #f3ece3;
     }
     .step-header h2 {
       margin: 0 0 6px;
-      font-size: 24px;
-      font-weight: 750;
-      color: var(--navy);
+      font-size: 25px;
+      color: var(--text);
     }
     .step-header p {
       margin: 0;
-      color: var(--muted);
-      font-size: 14px;
+      color: var(--text-muted);
+      font-size: 14.5px;
     }
+
+    /* Form Fields */
     .field {
       margin-bottom: 20px;
     }
@@ -123,19 +194,22 @@
       display: block;
       font-weight: 650;
       margin-bottom: 8px;
-      font-size: 15px;
-      color: var(--navy);
+      font-size: 14.5px;
+      color: var(--text);
     }
     label.title .req {
-      color: #cf222e;
-      margin-left: 2px;
+      color: var(--gim-red);
+      margin-left: 3px;
+      font-weight: 700;
     }
     .field-hint {
       font-size: 12.5px;
-      color: var(--muted);
+      color: var(--text-muted);
       margin-top: 5px;
       line-height: 1.4;
     }
+
+    /* Inputs */
     input[type=text],
     input[type=email],
     input[type=url],
@@ -146,63 +220,68 @@
       display: block;
       width: 100%;
       padding: 12px 14px;
-      border: 1px solid #aec2ca;
-      border-radius: 10px;
+      border: 1px solid var(--border-input);
+      border-radius: var(--radius);
       font: inherit;
-      background: white;
-      color: var(--navy);
+      font-size: 14.5px;
+      background: #ffffff;
+      color: var(--text);
       transition: border-color 0.15s, box-shadow 0.15s;
     }
     input:focus, select:focus, textarea:focus {
       outline: none;
-      border-color: var(--blue);
-      box-shadow: 0 0 0 3px rgba(23, 126, 151, 0.18);
+      border-color: var(--gim-red);
+      box-shadow: 0 0 0 3px rgba(142, 24, 27, 0.12);
     }
     textarea {
-      min-height: 94px;
+      min-height: 96px;
       resize: vertical;
     }
     .char-counter {
       text-align: right;
-      font-size: 11.5px;
-      color: var(--muted);
+      font-size: 12px;
+      color: var(--text-muted);
       margin-top: 4px;
     }
+
     .grid-2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 16px;
     }
-    .grid-3 {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-    }
+
+    /* Checkbox items */
     .checkbox-item {
       display: flex;
       align-items: flex-start;
       gap: 10px;
-      padding: 10px 12px;
-      background: #f7fafb;
-      border: 1px solid #dde6e9;
-      border-radius: 9px;
+      padding: 11px 13px;
+      background: #faf7f2;
+      border: 1px solid #e7dfd4;
+      border-radius: var(--radius);
       cursor: pointer;
       font-size: 14px;
       font-weight: 500;
       margin-bottom: 10px;
+      transition: background 0.15s;
     }
     .checkbox-item:hover {
-      background: #edf4f6;
+      background: #f4eee4;
     }
     .checkbox-item input {
       margin-top: 3px;
       width: 18px;
       height: 18px;
-      accent-color: var(--blue);
+      accent-color: var(--gim-red);
       cursor: pointer;
       flex-shrink: 0;
     }
-    /* Radio and Chip selectors */
+    .checkbox-item a {
+      color: var(--gim-red);
+      text-decoration: underline;
+    }
+
+    /* Chips & Tags */
     .chip-group {
       display: flex;
       flex-wrap: wrap;
@@ -211,31 +290,32 @@
     .chip {
       display: inline-flex;
       align-items: center;
-      padding: 8px 14px;
-      background: #f2f7f8;
-      border: 1px solid #cbdde2;
-      border-radius: 99px;
+      padding: 8px 15px;
+      background: #f5f1eb;
+      border: 1px solid #ded8ce;
+      border-radius: var(--radius);
       font-size: 13.5px;
-      font-weight: 550;
-      color: var(--navy);
+      font-weight: 600;
+      color: var(--text);
       cursor: pointer;
       user-select: none;
       transition: all 0.15s ease;
-      min-height: 38px;
+      min-height: 44px;
     }
     .chip:hover {
-      background: #e4edf0;
-      border-color: #b1ccd3;
+      background: #ede6dc;
+      border-color: #cbbfb1;
     }
     .chip input {
       display: none;
     }
     .chip.active,
     .chip:has(input:checked) {
-      background: #177e97;
-      color: white;
-      border-color: #177e97;
+      background: var(--gim-red);
+      color: #ffffff;
+      border-color: var(--gim-red);
     }
+
     /* Direction Cards */
     .direction-cards {
       display: grid;
@@ -243,10 +323,10 @@
       gap: 12px;
     }
     .dir-card {
-      border: 2px solid #dde7ea;
-      background: white;
-      border-radius: 12px;
-      padding: 14px;
+      border: 1.5px solid var(--border);
+      background: #ffffff;
+      border-radius: var(--radius);
+      padding: 15px 14px;
       cursor: pointer;
       transition: all 0.2s ease;
       position: relative;
@@ -254,9 +334,9 @@
       flex-direction: column;
     }
     .dir-card:hover {
-      border-color: #8fbcc7;
+      border-color: var(--gim-red-border);
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(23, 126, 151, 0.1);
+      box-shadow: 0 4px 14px rgba(142, 24, 27, 0.08);
     }
     .dir-card input {
       position: absolute;
@@ -265,38 +345,40 @@
     }
     .dir-card.selected,
     .dir-card:has(input:checked) {
-      border-color: var(--blue);
-      background: #f1f9fb;
-      box-shadow: 0 0 0 2px var(--blue);
+      border-color: var(--gim-red);
+      background: #fdf8f8;
+      box-shadow: 0 0 0 1.5px var(--gim-red);
     }
     .dir-card-header {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 9px;
       font-weight: 700;
       font-size: 15px;
       margin-bottom: 6px;
-      color: var(--navy);
+      color: var(--text);
+      font-family: 'Georgia', serif;
     }
     .dir-icon {
       width: 28px;
       height: 28px;
-      border-radius: 8px;
-      background: #e6f3f6;
+      border-radius: 4px;
+      background: #f8ebeb;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       font-size: 15px;
-      color: var(--blue);
+      color: var(--gim-red);
       flex-shrink: 0;
     }
     .dir-desc {
       font-size: 13px;
-      color: var(--muted);
-      line-height: 1.4;
+      color: var(--text-muted);
+      line-height: 1.45;
       flex-grow: 1;
     }
-    /* Day of week chips */
+
+    /* Days of week picker */
     .days-picker {
       display: flex;
       flex-wrap: wrap;
@@ -305,9 +387,9 @@
     .day-chip {
       width: 44px;
       height: 44px;
-      border-radius: 10px;
-      border: 1px solid #b8ccd3;
-      background: white;
+      border-radius: var(--radius);
+      border: 1px solid var(--border-input);
+      background: #ffffff;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -318,14 +400,15 @@
       transition: all 0.15s;
     }
     .day-chip:hover {
-      border-color: var(--blue);
-      background: #f1f8fa;
+      border-color: var(--gim-red);
+      background: #fbf5f5;
     }
     .day-chip.active {
-      background: var(--blue);
-      color: white;
-      border-color: var(--blue);
+      background: var(--gim-red);
+      color: #ffffff;
+      border-color: var(--gim-red);
     }
+
     /* Hours presets */
     .hours-row {
       display: flex;
@@ -335,21 +418,24 @@
     .hours-presets {
       display: flex;
       gap: 6px;
+      flex-wrap: wrap;
     }
     .preset-btn {
-      background: #e9f2f5;
-      border: 1px solid #c2d8df;
-      border-radius: 8px;
-      padding: 7px 12px;
+      background: #f5f1eb;
+      border: 1px solid #ded8ce;
+      border-radius: var(--radius);
+      padding: 9px 13px;
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
-      color: var(--navy);
+      color: var(--text);
+      min-height: 44px;
       transition: background 0.15s;
     }
     .preset-btn:hover {
-      background: #d6e8ed;
+      background: #eae2d6;
     }
+
     /* Dynamic Clarification Question Cards */
     .clarification-list {
       display: flex;
@@ -358,11 +444,11 @@
       margin-top: 16px;
     }
     .clarification-card {
-      background: #f9fbfb;
-      border: 1px solid #cbe0e5;
-      border-left: 4px solid var(--blue);
-      border-radius: 12px;
-      padding: 16px 18px;
+      background: #fdfcfb;
+      border: 1px solid #ded6c9;
+      border-left: 4px solid var(--gim-red);
+      border-radius: var(--radius);
+      padding: 18px 20px;
     }
     .clarification-meta {
       display: flex;
@@ -371,46 +457,64 @@
       margin-bottom: 8px;
     }
     .clarification-badge {
-      font-size: 11.5px;
+      font-size: 11px;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.08em;
       padding: 3px 8px;
       border-radius: 4px;
-      background: #e1f1f5;
-      color: #126377;
+      background: #f6e8e8;
+      color: var(--gim-red);
     }
     .clarification-question {
       font-weight: 700;
-      font-size: 15px;
-      color: var(--navy);
+      font-size: 15.5px;
+      color: var(--text);
       margin-bottom: 6px;
       line-height: 1.4;
+      font-family: 'Georgia', serif;
     }
     .clarification-reason {
       font-size: 13px;
-      color: var(--muted);
+      color: var(--text-muted);
       margin-bottom: 12px;
-      line-height: 1.4;
+      line-height: 1.45;
     }
     .empty-clarifications {
-      background: #f0f9f6;
-      border: 1px solid #bfe3d5;
-      border-radius: 12px;
-      padding: 20px;
+      background: #f5faf7;
+      border: 1px solid #c7e6d7;
+      border-radius: var(--radius);
+      padding: 22px;
       text-align: center;
-      color: #145943;
+      color: #175438;
       margin: 16px 0;
     }
     .empty-clarifications h3 {
       margin: 0 0 6px;
-      font-size: 17px;
+      font-size: 18px;
+      color: #175438;
     }
     .empty-clarifications p {
       margin: 0;
       font-size: 14px;
       color: #2b705a;
     }
+
+    /* Notice banner */
+    .museum-notice {
+      background: var(--gold-light);
+      border: 1px solid var(--gold-border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      margin-top: 22px;
+      font-size: 13.5px;
+      line-height: 1.5;
+      color: #53411e;
+    }
+    .museum-notice strong {
+      color: var(--gold-dark);
+    }
+
     /* Actions toolbar */
     .actions {
       display: flex;
@@ -418,8 +522,8 @@
       align-items: center;
       gap: 12px;
       margin-top: 28px;
-      padding-top: 18px;
-      border-top: 1px solid #eef2f4;
+      padding-top: 20px;
+      border-top: 1px solid #f0eae1;
       flex-wrap: wrap;
     }
     .btn {
@@ -429,42 +533,45 @@
       gap: 8px;
       min-height: 46px;
       padding: 12px 24px;
-      border-radius: 10px;
-      font-weight: 700;
+      border-radius: var(--radius);
+      font-weight: 650;
       font-size: 15px;
       cursor: pointer;
       text-decoration: none;
       transition: all 0.15s ease;
       border: 0;
+      font-family: inherit;
     }
     .btn-primary {
-      background: var(--blue);
-      color: white;
+      background: var(--gim-red);
+      color: #ffffff;
     }
     .btn-primary:hover {
-      background: var(--blue-hover);
+      background: var(--gim-red-hover);
     }
     .btn-secondary {
-      background: #e4edf0;
-      color: var(--navy);
+      background: #efebe4;
+      color: var(--text);
     }
     .btn-secondary:hover {
-      background: #d4e3e7;
+      background: #e3ded6;
     }
     .btn-success {
-      background: #198754;
-      color: white;
+      background: var(--gim-red);
+      color: #ffffff;
+      box-shadow: 0 2px 10px rgba(142, 24, 27, 0.25);
     }
     .btn-success:hover {
-      background: #146c43;
+      background: var(--gim-red-hover);
     }
     .btn:disabled {
-      opacity: 0.6;
+      opacity: 0.55;
       cursor: not-allowed;
     }
+
     .draft-badge {
       font-size: 12.5px;
-      color: var(--muted);
+      color: var(--text-muted);
       display: flex;
       align-items: center;
       gap: 8px;
@@ -472,69 +579,89 @@
     .clear-draft {
       background: transparent;
       border: none;
-      color: #9f4141;
+      color: var(--gim-red);
       text-decoration: underline;
       cursor: pointer;
       font-size: 12.5px;
       padding: 0;
     }
     .error-box {
-      background: #fdf2f2;
-      border: 1px solid #f8b4b4;
-      border-radius: 10px;
+      background: #fdf5f5;
+      border: 1px solid #f2c2c2;
+      border-radius: var(--radius);
       padding: 12px 16px;
-      color: #9b1c1c;
+      color: #901618;
       font-weight: 600;
       font-size: 14px;
       margin-top: 16px;
     }
-    /* Results screen */
-    #results .result-card {
-      background: #fdfefe;
-      border-radius: 12px;
-      border: 1px solid #d4e4e8;
-      padding: 20px;
-      margin: 16px 0;
+
+    /* Results Screen - Official Document / Certificate Aesthetic */
+    #results.card {
+      border: 2px solid var(--border);
+      border-top: 5px solid var(--gim-red);
+      position: relative;
     }
     .result-badge {
       display: inline-block;
-      background: #e1f4ec;
-      color: #0f6848;
-      padding: 5px 12px;
-      border-radius: 99px;
+      background: #f6e8e8;
+      color: var(--gim-red);
+      border: 1px solid var(--gim-red-border);
+      padding: 5px 14px;
+      border-radius: 4px;
       font-weight: 700;
-      font-size: 13px;
-      margin-bottom: 12px;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    #results h2 {
+      font-size: 26px;
+      margin: 0 0 12px;
+    }
+    #results .result-card {
+      background: #fcfbfa;
+      border-radius: var(--radius);
+      border: 1px solid #e8dfd2;
+      padding: 22px;
+      margin: 16px 0;
     }
     .result-direction {
-      font-size: 20px;
-      font-weight: 800;
-      color: var(--navy);
+      font-size: 21px;
+      font-weight: 700;
+      color: var(--gim-red);
       margin: 0 0 8px;
+      font-family: 'Georgia', serif;
     }
     ul.stylish-list {
       padding-left: 20px;
       margin: 8px 0;
     }
     ul.stylish-list li {
-      margin-bottom: 6px;
-      line-height: 1.45;
-    }
-    footer {
-      font-size: 13px;
-      color: var(--muted);
-      text-align: center;
-      padding: 20px 10px;
+      margin-bottom: 7px;
       line-height: 1.5;
     }
+
+    footer {
+      font-size: 13px;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 22px 10px;
+      line-height: 1.6;
+      border-top: 1px solid #eee7dc;
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
     @media (max-width: 640px) {
-      .card {padding: 18px 16px; border-radius: 12px;}
-      .grid-2, .grid-3 {grid-template-columns: 1fr;}
+      .card {padding: 22px 16px; border-radius: var(--radius);}
+      .grid-2 {grid-template-columns: 1fr;}
       .direction-cards {grid-template-columns: 1fr;}
       .actions {flex-direction: column-reverse; align-items: stretch;}
       .btn {width: 100%;}
       .hours-row {flex-direction: column; align-items: stretch;}
       header {padding: 20px 16px;}
+      .header-top {flex-direction: column; align-items: flex-start; gap: 4px;}
     }
   </style>
 </head>
@@ -542,9 +669,12 @@
 
 <header>
   <div class="header-inner">
-    <small>Государственный исторический музей · Волонтёрская программа</small>
+    <div class="header-top">
+      <div class="museum-tag">Государственный исторический музей</div>
+      <div class="museum-history">Основан в 1872 году · Красная площадь</div>
+    </div>
     <h1>Музейный компас</h1>
-    <p>Анкета кандидата в волонтёрскую команду ГИМ. Мы поможем подобрать направление, соответствующее вашим интересам, навыкам и свободному графику.</p>
+    <p>Анкета кандидата в волонтёрскую программу ГИМ. Мы поможем подобрать направление деятельности в главном историческом музее страны.</p>
   </div>
 </header>
 
@@ -553,7 +683,7 @@
   <section class="card" id="wizard">
     <div class="progress-container">
       <div class="progress-info">
-        <span>Шаг <span id="stepNumber">1</span> из 4: <strong id="stepTitle">Профиль и контакты</strong></span>
+        <span>Шаг <span id="stepNumber">1</span> из 4: <strong id="stepTitle" class="step-badge">Профиль и контакты</strong></span>
         <span class="draft-badge" id="draftInfo" hidden>
           Черновик сохранён <button type="button" class="clear-draft" id="clearDraftBtn">Очистить</button>
         </span>
@@ -584,7 +714,7 @@
           <div class="field">
             <label class="title" for="vk_url">Страница ВКонтакте <span class="req">*</span></label>
             <input type="url" id="vk_url" name="vk_url" required placeholder="https://vk.com/id..." pattern="https?://.*">
-            <div class="field-hint">Взаимодействие с волонтёрами ГИМ ведётся в сети ВКонтакте.</div>
+            <div class="field-hint">Взаимодействие с волонтёрами ГИМ ведётся на базе соцсети ВКонтакте.</div>
           </div>
         </div>
 
@@ -730,7 +860,7 @@
                 <span class="dir-icon">🏛️</span>
                 <span>Организационное</span>
               </div>
-              <div class="dir-desc">Помощь в организации масштабных культурно-массовых мероприятий, навигация, встреча гостей.</div>
+              <div class="dir-desc">Помощь в организации масштабных культурно-массовых мероприятий музея, навигация, встреча гостей.</div>
             </label>
 
             <label class="dir-card">
@@ -739,7 +869,7 @@
                 <span class="dir-icon">🎯</span>
                 <span>Проектное</span>
               </div>
-              <div class="dir-desc">Разработка и проведение тематических квестов, мастер-классов и просветительских программ.</div>
+              <div class="dir-desc">Разработка и проведение исторических квестов, мастер-классов и просветительских программ.</div>
             </label>
 
             <label class="dir-card">
@@ -766,7 +896,7 @@
                 <span class="dir-icon">📸</span>
                 <span>Медиа</span>
               </div>
-              <div class="dir-desc">Фото- и видеосъёмка мероприятий, монтаж, написание постов, дизайн материалов для соцсетей.</div>
+              <div class="dir-desc">Фото- и видеосъёмка музейных событий, монтаж, написание постов, дизайн материалов для соцсетей.</div>
             </label>
 
             <label class="dir-card">
@@ -846,8 +976,8 @@
           <textarea id="fallback_answer" name="followup_answer" placeholder="Ваш ответ (по желанию)"></textarea>
         </div>
 
-        <div style="background: var(--gold-bg); border: 1px solid var(--gold-border); border-radius: 10px; padding: 14px; margin-top: 20px; font-size: 13.5px; line-height: 1.45; color: #5d4615;">
-          <strong>Порядок рассмотрения:</strong> после отправки анкета сохраняется в базе координатора. Кураторы ГИМ сопоставляют профиль с актуальными задачами направлений и связываются для согласования собеседования.
+        <div class="museum-notice">
+          <strong>Порядок рассмотрения:</strong> после отправки анкета регистрируется в базе координатора. Кураторы ГИМ сопоставляют профиль с актуальными задачами направлений и связываются для согласования собеседования.
         </div>
       </section>
 
@@ -866,43 +996,43 @@
     </form>
   </section>
 
-  <!-- Results View -->
+  <!-- Results View (Museum Certificate style) -->
   <section class="card" id="results" hidden>
     <span class="result-badge">Заявка принята</span>
-    <h2 style="margin: 0 0 10px; font-size: 24px;">Предварительное резюме координатора</h2>
+    <h2 style="margin: 0 0 10px; font-size: 26px;">Ваша заявка успешно зарегистрирована!</h2>
+    <p style="color: var(--text-muted); font-size: 15px; line-height: 1.55; margin: 0 0 20px;">
+      Благодарим за интерес к волонтёрской программе Государственного исторического музея! Ваша анкета передана кураторам направлений. Мы свяжемся с вами во ВКонтакте или по электронной почте для согласования даты и формата собеседования.
+    </p>
+
     <div class="result-card">
+      <div style="font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--gold-dark); margin-bottom: 6px;">Выбранное направление</div>
       <div class="result-direction" id="resDirection"></div>
-      <p id="resReason" style="color: var(--muted); margin: 0 0 14px;"></p>
-      <p id="resSummary" style="line-height: 1.5;"></p>
-    </div>
+      <p id="resReason" style="color: var(--text-muted); margin: 0 0 14px; font-size: 14.5px;"></p>
 
-    <div class="grid-2">
-      <div class="result-card">
-        <h3 style="margin: 0 0 10px; font-size: 16px;">Сильные стороны кандидата</h3>
-        <ul class="stylish-list" id="resStrengths"></ul>
+      <div style="border-top: 1px solid #eee5d8; padding-top: 14px; margin-top: 14px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 14px;">
+        <div>
+          <span style="color: var(--text-muted); display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Готовность по времени:</span>
+          <strong id="resHoursConfirmed">16 часов в месяц</strong>
+        </div>
+        <div>
+          <span style="color: var(--text-muted); display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Контакты для связи:</span>
+          <strong id="resContactConfirmed">ВКонтакте / Email</strong>
+        </div>
       </div>
-      <div class="result-card">
-        <h3 style="margin: 0 0 10px; font-size: 16px;">Темы для уточнения</h3>
-        <ul class="stylish-list" id="resProblems"></ul>
-      </div>
+      <p class="field-hint" id="resApplicationId" style="margin-top: 14px; padding-top: 10px; border-top: 1px dashed #e4d8c5; font-size: 13px; font-weight: 600;"></p>
     </div>
 
-    <div class="result-card">
-      <h3 style="margin: 0 0 10px; font-size: 16px;">Вопросы для очного собеседования</h3>
-      <ul class="stylish-list" id="resInterview"></ul>
-    </div>
+    <!-- Внутренняя оценка алгоритма скрыта для соискателей -->
 
-    <p class="field-hint" id="resApplicationId" style="margin-top: 14px;"></p>
-
-    <div class="actions" style="margin-top: 20px;">
-      <a class="btn btn-secondary" href="/api/v1/export.csv" download>Скачать общую таблицу (CSV)</a>
+    <div class="actions" style="margin-top: 24px;">
       <button type="button" class="btn btn-primary" id="resetBtn">Заполнить новую анкету</button>
+      <a class="btn btn-secondary" href="https://shm.ru/" target="_blank" rel="noopener">Вернуться на сайт ГИМ</a>
     </div>
   </section>
 
   <footer>
-    Государственный исторический музей (ГИМ) · Хакатон «Код со смыслом 2» · 2026<br>
-    Система первичного анкетирования и распределения волонтёров
+    Государственный исторический музей (ГИМ) · Основан в 1872 году · Москва, Красная площадь, 1<br>
+    Система первичного анкетирования и распределения волонтёров «Музейный компас»
   </footer>
 </main>
 
@@ -952,9 +1082,14 @@
     stepTitle.textContent = stepTitles[currentStep];
     progressBar.style.width = ((currentStep + 1) / steps.length * 100) + "%";
 
+    const isLastStep = currentStep === steps.length - 1;
     prevBtn.hidden = currentStep === 0;
-    nextBtn.hidden = currentStep === steps.length - 1;
-    submitBtn.hidden = currentStep !== steps.length - 1;
+    nextBtn.hidden = isLastStep;
+    submitBtn.hidden = !isLastStep;
+
+    prevBtn.style.display = currentStep === 0 ? "none" : "";
+    nextBtn.style.display = isLastStep ? "none" : "";
+    submitBtn.style.display = isLastStep ? "" : "none";
 
     errorBox.hidden = true;
     window.scrollTo({top: 0, behavior: "smooth"});
@@ -1307,6 +1442,7 @@
 
   // --- Navigation Handlers ---
   nextBtn.addEventListener("click", async () => {
+    if (currentStep >= steps.length - 1) return;
     if (!validateStep(currentStep)) return;
 
     nextBtn.disabled = true;
@@ -1356,29 +1492,26 @@
 
       const payload = buildPayload();
       const res = await api("/api/v1/applications", payload);
-      const evalData = res.evaluation;
-
-      // Populate results view
-      byId("resDirection").textContent = "Рекомендованное направление: " + (evalData.recommended_direction_label || evalData.recommended_direction);
-      byId("resReason").textContent = evalData.direction_reason || "";
-      byId("resSummary").textContent = evalData.summary || "";
-
-      function renderList(id, items) {
-        const node = byId(id);
-        node.replaceChildren();
-        const arr = (items && items.length) ? items : ["Замечаний или вопросов нет."];
-        arr.forEach(it => {
-          const li = document.createElement("li");
-          li.textContent = it;
-          node.appendChild(li);
-        });
+      // Confirm the candidate's own choice; curator recommendations stay internal.
+      const selectedDirection = form.querySelector('input[name="desired_direction"]:checked');
+      if (byId("resDirection")) {
+        const label = selectedDirection?.closest(".dir-card")?.querySelector(".dir-card-header span:last-child");
+        byId("resDirection").textContent = label?.textContent || "Пока не определился";
       }
 
-      renderList("resStrengths", evalData.strengths);
-      renderList("resProblems", evalData.possible_problems);
-      renderList("resInterview", evalData.interview_questions);
+      const hoursVal = byId("availability_hours_month") ? byId("availability_hours_month").value : "16";
+      if (byId("resHoursConfirmed")) {
+        byId("resHoursConfirmed").textContent = hoursVal + " ч / месяц";
+      }
+      const emailVal = byId("email") ? byId("email").value.trim() : "";
+      const vkVal = byId("vk_url") ? byId("vk_url").value.trim() : "";
+      if (byId("resContactConfirmed")) {
+        byId("resContactConfirmed").textContent = emailVal + (emailVal && vkVal ? " · " : "") + vkVal;
+      }
 
-      byId("resApplicationId").textContent = "Идентификатор заявки: " + res.application_id + " (сохранено в локальной базе)";
+      if (byId("resApplicationId")) {
+        byId("resApplicationId").textContent = "Регистрационный номер заявки: " + res.application_id + " (сохранено в базе ГИМ)";
+      }
 
       // Clear draft on success
       localStorage.removeItem(STORAGE_KEY);
