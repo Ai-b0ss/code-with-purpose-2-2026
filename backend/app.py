@@ -355,8 +355,11 @@ def get_application(application_id: str):
 
 
 def safe_csv(value: object) -> str:
-    text = "" if value is None else str(value)
-    if text.lstrip().startswith(("=", "+", "-", "@")):
+    if value is None:
+        return ""
+    text = str(value).strip()
+    text = " ".join(text.splitlines())
+    if text.startswith(("=", "+", "-", "@")):
         return "'" + text
     return text
 
@@ -364,16 +367,16 @@ def safe_csv(value: object) -> str:
 @app.get("/api/v1/export.csv")
 def export_csv():
     columns = [
-        "ID заявки", "Дата", "Имя", "Возраст 18+", "Email", "VK",
-        "Статус", "ВУЗ", "Факультет", "Курс", "Языки",
-        "Мотивация", "Опыт", "Ожидания", "Часов/месяц", "Тип графика", "Дни",
-        "Другие обязательства", "Другие волонтерства", "Направление", "Источник",
+        "ID заявки", "Дата", "Имя", "Возраст 18+", "Согласие ПД", "Дата рождения",
+        "Email", "VK", "Статус", "ВУЗ", "Факультет", "Курс", "Научные интересы",
+        "Языки", "Мотивация", "Опыт", "Ожидания", "Хобби", "Часов/месяц", "Тип графика",
+        "Дни", "Другие обязательства", "Другие волонтерства", "Направление", "Источник",
         "Дополнительный ответ", "Оценка 0-3", "Саммари",
         "Возможные проблемы", "Рекомендуемое направление",
         "Почему направление", "Вопросы для собеседования",
     ]
     output = io.StringIO()
-    writer = csv.writer(output)
+    writer = csv.writer(output, delimiter=";", quoting=csv.QUOTE_MINIMAL)
     writer.writerow(columns)
     with db_connection() as con:
         records = con.execute(
@@ -384,23 +387,35 @@ def export_csv():
         entry = json.loads(row["payload"])
         e = json.loads(row["evaluation"])
         writer.writerow([
-            safe_csv(row["id"]), safe_csv(row["created_at"]),
-            safe_csv(entry.get("applicant_name", "")), entry.get("age_over_18", False),
-            safe_csv(entry.get("email", "")), safe_csv(entry.get("vk_url", "")),
+            safe_csv(row["id"]),
+            safe_csv(row["created_at"]),
+            safe_csv(entry.get("applicant_name", "")),
+            entry.get("age_over_18", False),
+            entry.get("consent_personal_data", False),
+            safe_csv(entry.get("birth_date", "")),
+            safe_csv(entry.get("email", "")),
+            safe_csv(entry.get("vk_url", "")),
             safe_csv(entry.get("status", "")),
             safe_csv(entry.get("university_other") or entry.get("university", "")),
-            safe_csv(entry.get("faculty", "")), safe_csv(entry.get("course", "")),
+            safe_csv(entry.get("faculty", "")),
+            safe_csv(entry.get("course", "")),
+            safe_csv(entry.get("scientific_interests", "")),
             safe_csv(", ".join(entry.get("foreign_languages", [])) if isinstance(entry.get("foreign_languages"), list) else str(entry.get("foreign_languages", ""))),
-            safe_csv(entry.get("motivation", "")), safe_csv(entry.get("experience", "")),
-            safe_csv(entry.get("expectations", "")), entry.get("availability_hours_month", 0),
+            safe_csv(entry.get("motivation", "")),
+            safe_csv(entry.get("experience", "")),
+            safe_csv(entry.get("expectations", "")),
+            safe_csv(entry.get("hobbies", "")),
+            entry.get("availability_hours_month", 0),
             safe_csv(entry.get("availability_schedule_type", "")),
             safe_csv(", ".join(entry.get("availability_days", [])) if isinstance(entry.get("availability_days"), list) else str(entry.get("availability_days", ""))),
             safe_csv(entry.get("other_commitments", "")),
             safe_csv(entry.get("other_volunteer_programs", "")),
             safe_csv(DIRECTIONS.get(entry.get("desired_direction", ""), entry.get("desired_direction", ""))),
             safe_csv(entry.get("source", "")),
-            safe_csv(entry.get("followup_answer", "")), safe_csv(e.get("score")),
-            safe_csv(e.get("summary", "")), safe_csv("; ".join(e.get("possible_problems", []))),
+            safe_csv(entry.get("followup_answer", "")),
+            safe_csv(e.get("score")),
+            safe_csv(e.get("summary", "")),
+            safe_csv("; ".join(e.get("possible_problems", []))),
             safe_csv(e.get("recommended_direction_label", "")),
             safe_csv(e.get("direction_reason", "")),
             safe_csv("; ".join(e.get("interview_questions", []))),

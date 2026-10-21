@@ -373,7 +373,7 @@ def run_integration_tests(tracker: TestTracker) -> bool:
             status, body, headers = http_request(base_url, "/api/v1/export.csv")
             has_bom = body.startswith(b"\xef\xbb\xbf")
             content = body.decode("utf-8-sig")
-            reader = list(csv.reader(io.StringIO(content)))
+            reader = list(csv.reader(io.StringIO(content), delimiter=";"))
             has_header = len(reader) > 0 and "ID заявки" in reader[0]
             has_row = any(sample_app["applicant_name"] in row and sample_app["application_id"] in row for row in reader)
 

@@ -196,6 +196,38 @@ class ScenariosVerificationTests(unittest.TestCase):
             self.assertEqual(entry["status"], "working")
             self.assertEqual(entry["other_volunteer_programs"], "Инклюзивный центр 'Тверская 15'")
 
+    def test_rejection_without_consent(self):
+        from fastapi import HTTPException
+        from backend.app import save_application
+        payload = {
+            "application_id": "test-no-consent-004",
+            "applicant_name": "Иван Безсогласия",
+            "age_over_18": True,
+            "consent_personal_data": False,
+            "motivation": "Хочу помогать музею на выставках и событиях.",
+            "desired_direction": "organizational",
+            "availability_hours_month": 16,
+        }
+        app_data = ApplicationInput(**payload)
+        with self.assertRaises(HTTPException) as cm:
+            save_application(app_data)
+        self.assertEqual(cm.exception.status_code, 422)
+        self.assertIn("согласие", cm.exception.detail)
+
+    def test_export_csv_semicolon_format(self):
+        from backend.app import export_csv
+        response = export_csv()
+        content = response.body.decode("utf-8")
+        lines = content.strip().splitlines()
+        header = lines[0]
+        self.assertIn(";", header)
+        columns = header.lstrip("\ufeff").split(";")
+        self.assertIn("Согласие ПД", columns)
+        self.assertIn("Дата рождения", columns)
+        self.assertIn("Научные интересы", columns)
+        self.assertIn("Хобби", columns)
+        self.assertEqual(len(columns), 32)
+
 
 if __name__ == "__main__":
     unittest.main()
