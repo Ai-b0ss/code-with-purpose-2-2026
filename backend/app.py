@@ -300,6 +300,8 @@ def health():
 
 @app.post("/api/v1/clarification")
 def clarification(data: ApplicationInput):
+    if os.getenv("GIM_EVALUATION_MODE", "demo") == "llm" and not data.consent_personal_data:
+        raise HTTPException(status_code=422, detail="Согласие на обработку данных обязательно до анализа ИИ.")
     # In live mode, ask the model to review five criteria BEFORE a final
     # evaluation. Do not confuse questions asked now with interview notes.
     from backend.clarification_agent import questions_before_verdict
