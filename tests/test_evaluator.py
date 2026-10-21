@@ -41,6 +41,13 @@ def response(data):
                   {"question_id": "availability_hours_month",
                    "reason": str(data.availability_hours_month)}],
     )
+    result["scorecard"] = [
+        {"criterion": "motivation", "level": 2, "rationale": "Есть конкретный заявленный интерес к музейной деятельности.", "evidence_question_ids": ["motivation"]},
+        {"criterion": "skills", "level": 2, "rationale": "Интерес и опыт подлежат уточнению на интервью.", "evidence_question_ids": ["motivation"]},
+        {"criterion": "availability", "level": 0 if data.availability_hours_month < 4 else 1, "rationale": "График требует дополнительного согласования.", "evidence_question_ids": ["availability_hours_month"]},
+        {"criterion": "form_and_contact", "level": 2, "rationale": "Мотивация изложена в обязательном поле формы.", "evidence_question_ids": ["motivation"]},
+        {"criterion": "logistics", "level": 1, "rationale": "Известны заявленные часы, но не возможность поездок.", "evidence_question_ids": ["availability_hours_month"]},
+    ]
     if data.desired_direction == "collections":
         result.update(
             summary="Кандидат интересуется коллекциями; доступен только по воскресеньям.",
@@ -73,7 +80,7 @@ class EvaluatorTests(unittest.TestCase):
             with self.subTest(case=name):
                 answers = ApplicationInput(**cases[name]).model_dump(exclude={'applicant_name', 'application_id'})
                 raw = (root/'tests/fixtures/evaluator'/f'{name}-native-evidence.json').read_text(encoding='utf-8')
-                result = validate_response(raw, answers)
+                result = validate_response(raw, answers, allow_legacy=True)
                 self.assertEqual(result['evaluation_mode'], 'llm')
                 self.assertIsNone(result['score'])
                 self.assertTrue(result['evidence'])
@@ -109,7 +116,9 @@ class EvaluatorTests(unittest.TestCase):
                 adapter = FakeAdapter(json.dumps(response(data), ensure_ascii=False))
                 result = evaluate(data, adapter=adapter)
                 self.assertTrue(set(evaluate_demo(data)) <= set(result))
-                self.assertIsNone(result["score"])
+                self.assertIsInstance(result["score"], int)
+                self.assertEqual(result["score_status"], "pilot_unvalidated")
+                self.assertEqual(len(result["scorecard"]), 5)
                 self.assertEqual(result["evaluation_mode"], "llm")
                 self.assertTrue(result["fit_for_museum"])
                 self.assertTrue(result["fit_for_candidate"])
@@ -143,7 +152,7 @@ class EvaluatorTests(unittest.TestCase):
             "Какие задачи медиа вам интереснее?",
         ])
         self.assertEqual(len(result["interview_questions"]), 2)
-        self.assertIsNone(result["score"])
+        self.assertIsInstance(result["score"], int)
 
     def test_demo_never_calls_model(self):
         adapter = FakeAdapter("broken")
@@ -202,7 +211,7 @@ class EvaluatorTests(unittest.TestCase):
         fenced = tick + "json\n" + raw + "\n" + tick
         result = validate_response(fenced, answers)
         self.assertEqual(result["evaluation_mode"], "llm")
-        self.assertIsNone(result["score"])
+        self.assertIsInstance(result["score"], int)
 
     def test_label_is_derived_locally(self):
         value = response(candidate())
@@ -329,7 +338,7 @@ class LiveEvaluatorTests(unittest.TestCase):
         # Explicit opt-in only. No fallback: unavailable/invalid model must fail.
         result = evaluate(candidate(), mode="llm", fallback_to_demo=False)
         self.assertEqual(result["evaluation_mode"], "llm")
-        self.assertIsNone(result["score"])
+        self.assertIsInstance(result["score"], int)
         self.assertTrue(result["evidence"])
 
 
