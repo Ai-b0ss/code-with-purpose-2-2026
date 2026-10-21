@@ -1,0 +1,73 @@
+{
+  "created_at": "2026-10-21T17:45:09.884695+00:00",
+  "method": "paired same-model same-rubric same-answers; only Neo4j context differs",
+  "model": "gpt-4.1-mini",
+  "cases": [
+    {
+      "case_id": "working_project",
+      "condition": "without_rag",
+      "model": "gpt-4.1-mini",
+      "retrieved_doc_ids": [],
+      "expected_doc_ids": [
+        "case:admission-flow",
+        "condition:employment"
+      ],
+      "valid": false,
+      "error": "provider_network_error"
+    },
+    {
+      "case_id": "working_project",
+      "condition": "with_rag",
+      "model": "gpt-4.1-mini",
+      "retrieved_doc_ids": [
+        "role:project",
+        "program:gim",
+        "case:admission-flow",
+        "condition:employment",
+        "task:quest",
+        "criterion:availability",
+        "case:clarification-purpose",
+        "skill:communication"
+      ],
+      "expected_doc_ids": [
+        "case:admission-flow",
+        "condition:employment"
+      ],
+      "valid": false,
+      "error": "provider_network_error"
+    },
+    {
+      "case_id": "student_collections",
+      "condition": "without_rag",
+      "model": "gpt-4.1-mini",
+      "retrieved_doc_ids": [],
+      "expected_doc_ids": [
+        "case:admission-flow",
+        "program:gim"
+      ],
+      "valid": false,
+      "error": "provider_network_error"
+    },
+    {
+      "case_id": "student_collections",
+      "condition": "with_rag",
+      "model": "gpt-4.1-mini",
+      "retrieved_doc_ids": [
+        "role:collections",
+        "program:gim",
+        "case:admission-flow",
+        "condition:employment",
+        "case:fund-work",
+        "criterion:availability",
+        "case:clarification-purpose",
+        "skill:communication"
+      ],
+      "expected_doc_ids": [
+        "case:admission-flow",
+        "program:gim"
+      ],
+      "valid": false,
+      "error": "provider_network_error"
+    }
+  ]
+}

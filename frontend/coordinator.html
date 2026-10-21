@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ГИМ — проверка анкет</title>
+  <style>
+    :root {font-family: system-ui, sans-serif; color:#142d3c; background:#f3f6f7}
+    * {box-sizing:border-box}
+    body {margin:0}
+    header {background:#17364e; color:white; padding:22px max(20px,calc((100vw - 1100px)/2))}
+    h1 {margin:0; font-size:26px}
+    main {max-width:1100px; margin:28px auto; padding:0 20px}
+    .card {background:white; border:1px solid #cedbe0; border-radius:12px; padding:20px; margin-bottom:18px}
+    .row {display:flex; gap:12px; align-items:end; flex-wrap:wrap}
+    label {display:block; font-weight:600; margin-bottom:5px}
+    input, textarea, select {font:inherit; padding:9px; border:1px solid #aebfc7; border-radius:7px; width:100%}
+    textarea {min-height:65px}
+    button {font:inherit; border:0; border-radius:7px; padding:10px 15px; background:#177e97; color:white; cursor:pointer}
+    button:disabled {opacity:.5; cursor:wait}
+    .secondary {background:#315269}
+    .muted {color:#5b707a}
+    .error {color:#a03232}
+    .stats {display:flex; gap:10px; flex-wrap:wrap}
+    .stat {background:#e8f0f3; padding:12px 16px; border-radius:8px; min-width:125px}
+    .stat strong {font-size:24px; display:block}
+    table {border-collapse:collapse; width:100%}
+    th, td {border-bottom:1px solid #d9e3e7; text-align:left; padding:10px 8px}
+    tr:hover {background:#f2f8fa}
+    .tablewrap {overflow:auto}
+    .criterion {border:1px solid #d9e3e7; border-radius:8px; padding:12px; margin:10px 0}
+    .criterion .grid {display:grid; grid-template-columns:100px 1fr 1fr; gap:10px}
+    @media(max-width:700px) {.criterion .grid {grid-template-columns:1fr}}
+    pre {white-space:pre-wrap; overflow-wrap:anywhere; background:#f3f6f7; padding:12px; border-radius:8px}
+  </style>
+</head>
+<body>
+<header><h1>Анкеты волонтёров ГИМ</h1><div>Вход куратора · пилотная рубрика</div><nav><a href="/student" style="color:#fff">Анкета студента</a></nav></header>
+<main>
+  <section class="card">
+    <div class="row">
+      <div style="flex:1; min-width:260px"><label for="token">Ключ координатора</label><input id="token" type="password" autocomplete="off" placeholder="GIM_COORDINATOR_TOKEN"></div>
+      <button id="load">Загрузить оценки</button>
+      <button id="download" class="secondary">Скачать CSV</button>
+    </div>
+    <p class="muted">Ключ используется только для текущего запроса и не сохраняется в браузере.</p>
+    <p id="message" role="status"></p>
+  </section>
+  <section class="card" id="overview" hidden>
+    <h2>Текущие заявки</h2>
+    <div class="stats" id="stats"></div>
+    <div class="tablewrap"><table><thead><tr><th>Заявка</th><th>Дата</th><th>Статус</th><th>Балл</th><th></th></tr></thead><tbody id="runs"></tbody></table></div>
+  </section>
+  <section class="card" id="cohort" hidden>
+    <h2>Макроанализ заявок</h2>
+    <p class="muted">Только текущие анкеты с действующим согласием. Средние баллы рассчитаны по анкетам с полной оценкой.</p>
+    <div class="stats" id="cohortStats"></div>
+    <div id="cohortBreakdown"></div>
+  </section>
+  <section class="card" id="detail" hidden>
+    <h2>Проверка оценки <span id="runId"></span></h2>
+    <p id="runInfo" class="muted"></p>
+    <h3>Ответы студента</h3><pre id="answers"></pre>
+    <h3>Микроанализ, рекомендация и вопросы</h3><pre id="analysis"></pre>
+    <div id="criteria"></div>
+    <label for="reason">Причина исправления</label>
+    <textarea id="reason" placeholder="Опишите, почему оценка изменена"></textarea>
+    <p><button id="save">Сохранить новую версию оценки</button></p>
+  </section>
+</main>
+<script>
+(() => {
+  const el = id => document.getElementById(id);
+  let selected;
+  const auth = () => ({Authorization: `Bearer ${el("token").value}`});
+  function message(value, error=false) {el("message").textContent=value; el("message").className=error?"error":"muted";}
+  async function request(path, options={}) {
+    const response = await fetch(path, {...options, headers:{...auth(), ...(options.headers||{})}});
+    if (!response.ok) {
+      const detail = await response.json().catch(()=>({detail:response.statusText}));
+      throw new Error(typeof detail.detail === "string" ? detail.detail : JSON.stringify(detail.detail));
+    }
+    return response;
+  }
+  async function load() {
+    try {
+      const data = await (await request("/api/v1/admin/runs")).json();
+      const cohort = await (await request("/api/v1/admin/analytics")).json();
+      const active = data.runs.filter(run => run.active);
+      const counts = {};
+      active.forEach(run => {counts[run.status]=(counts[run.status]||0)+1;});
+      el("stats").replaceChildren();
+      Object.entries({Всего:active.length,...counts}).forEach(([label,count]) => {
+        const block=document.createElement("div"); block.className="stat";
+        const strong=document.createElement("strong"); strong.textContent=count;
+        block.append(strong,document.createTextNode(label)); el("stats").append(block);
+      });
+      el("runs").replaceChildren();
+      active.forEach(run => {
+        const tr=document.createElement("tr");
+        [run.session_id.slice(0,12),new Date(run.created_at).toLocaleString("ru-RU"),run.status,run.score==null?"—":String(run.score)].forEach(value=>{
+          const td=document.createElement("td"); td.textContent=value; tr.append(td);
+        });
+        const td=document.createElement("td"), button=document.createElement("button");
+        button.textContent="Открыть"; button.addEventListener("click",()=>openRun(run.run_id));
+        td.append(button); tr.append(td); el("runs").append(tr);
+      });
+      el("overview").hidden=false; message(`Загружено текущих заявок: ${active.length}`);
+      el("cohortStats").replaceChildren();
+      [["Всего",cohort.total],["Оценены",cohort.scored],["Средний балл",cohort.mean_score ?? "—"]].forEach(([label,value])=>{
+        const block=document.createElement("div"); block.className="stat";
+        const strong=document.createElement("strong"); strong.textContent=value;
+        block.append(strong,document.createTextNode(label)); el("cohortStats").append(block);
+      });
+      el("cohortBreakdown").textContent=[
+        ["Статусы",cohort.by_status],["Направления",cohort.by_direction],
+        ["Рекомендации",cohort.by_decision],["Средние оценки критериев",cohort.mean_criteria]
+      ].map(([label,values])=>`${label}: ${Object.entries(values).map(([key,value])=>`${key} — ${value}`).join("; ")||"нет данных"}`).join("\n");
+      el("cohortBreakdown").style.whiteSpace="pre-wrap";
+      el("cohort").hidden=false;
+    } catch(error) {message(error.message,true);}
+  }
+  async function openRun(runId) {
+    try {
+      selected=await (await request(`/api/v1/admin/runs/${runId}`)).json();
+      el("runId").textContent=runId.slice(0,12);
+      el("runInfo").textContent=`Статус: ${selected.status}; ревизия ответов: ${selected.answer_revision}; исходный запуск: ${selected.parent_run_id||"нет"}${selected.error ? "; код ошибки: " + selected.error : ""}`;
+      el("answers").textContent=selected.submitted_answers
+        ? Object.entries(selected.submitted_answers).map(([id,value])=>`${id}: ${value}`).join("\n")
+        : Object.entries(selected.answers).map(([id,value])=>`${selected.question_ids[id]||id}: ${value}`).join("\n");
+      const evaluation=selected.evaluation||{};
+      const analysis=evaluation.analysis||{};
+      el("analysis").textContent=[
+        `Балл: ${evaluation.score ?? "не выставлен"}; рекомендация: ${evaluation.decision?.status||"нет"}`,
+        evaluation.decision?.reason, evaluation.summary, evaluation.fit_for_candidate,
+        analysis.candidate_summary, analysis.program_fit, analysis.program_information,
+        `Сильные стороны: ${(analysis.strengths||[]).join("; ")||"не указаны"}`,
+        `Риски: ${(analysis.risks||[]).join("; ")||"не указаны"}`,
+        `Дополнительные вопросы: ${(evaluation.additional_questions||analysis.interview_questions||[]).join("; ")||"не требуются"}`,
+        `Основания в базе знаний: ${(analysis.source_doc_ids||[]).join(", ")||"нет"}`
+      ].filter(Boolean).join("\n\n");
+      el("criteria").replaceChildren();
+      const criteria=evaluation.criteria||[];
+      const fallback=["motivation","role_fit","skills","availability","task_understanding","responsibility"];
+      fallback.forEach((id,index)=>{
+        const item=criteria.find(c=>c.id===id)||{id,grade:null,answer_id:"",evidence:"",rationale:""};
+        const box=document.createElement("div"); box.className="criterion"; box.dataset.id=id;
+        const heading=document.createElement("h4"); heading.textContent=`${item.label||id} · ${item.weight_percent||[25,20,20,15,10,10][index]}%`;
+        const grid=document.createElement("div"); grid.className="grid";
+        const grade=document.createElement("select"); grade.className="grade";
+        [["","Нет оценки"],["1","1"],["2","2"],["3","3"]].forEach(([v,t])=>{const option=document.createElement("option");option.value=v;option.textContent=t;grade.append(option);});
+        grade.value=item.grade==null?"":String(item.grade);
+        const answer=document.createElement("input"); answer.className="answer"; answer.placeholder="answer_id"; answer.value=item.answer_id||"";
+        const evidence=document.createElement("input"); evidence.className="evidence"; evidence.placeholder="Точная цитата из ответа"; evidence.value=item.evidence||"";
+        grid.append(grade,answer,evidence);
+        const rationale=document.createElement("textarea"); rationale.className="rationale"; rationale.placeholder="Основание"; rationale.value=item.rationale||"";
+        box.append(heading,grid,rationale); el("criteria").append(box);
+      });
+      el("reason").value=""; el("detail").hidden=false; el("detail").scrollIntoView({behavior:"smooth"});
+    } catch(error) {message(error.message,true);}
+  }
+  el("save").addEventListener("click",async()=>{
+    if (!selected) return;
+    const criteria=[...el("criteria").querySelectorAll(".criterion")].map(box=>({
+      id:box.dataset.id,grade:box.querySelector(".grade").value?Number(box.querySelector(".grade").value):null,
+      answer_id:box.querySelector(".answer").value.trim(),evidence:box.querySelector(".evidence").value.trim(),
+      rationale:box.querySelector(".rationale").value.trim()
+    }));
+    try {
+      const response=await (await request(`/api/v1/admin/runs/${selected.run_id}`,{method:"PATCH",
+        headers:{"Content-Type":"application/json"},body:JSON.stringify({reason:el("reason").value,criteria})})).json();
+      message(`Создана новая версия оценки ${response.run_id.slice(0,12)}. Исходная сохранена.`);
+      await load(); await openRun(response.run_id);
+    } catch(error) {message(error.message,true);}
+  });
+  el("download").addEventListener("click",async()=>{
+    try {
+      const blob=await (await request("/api/v1/admin/export.csv")).blob();
+      const url=URL.createObjectURL(blob), a=document.createElement("a");
+      a.href=url; a.download="gim-session-results.csv"; a.click(); URL.revokeObjectURL(url);
+    } catch(error) {message(error.message,true);}
+  });
+  el("load").addEventListener("click",load);
+})();
+</script>
+</body>
+</html>

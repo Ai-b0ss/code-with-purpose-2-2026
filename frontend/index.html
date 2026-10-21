@@ -545,6 +545,7 @@
     <small>Государственный исторический музей · Волонтёрская программа</small>
     <h1>Музейный компас</h1>
     <p>Анкета кандидата в волонтёрскую команду ГИМ. Мы поможем подобрать направление, соответствующее вашим интересам, навыкам и свободному графику.</p>
+    <nav aria-label="Режим входа"><a href="/student" style="color:#fff">Вход студента · анкета</a> &nbsp; <a href="/coordinator" style="color:#fff">Вход куратора</a></nav>
   </div>
 </header>
 
@@ -887,6 +888,12 @@
       <p id="resReason" style="color: var(--muted); margin: 0 0 14px;"></p>
       <p id="resSummary" style="line-height: 1.5;"></p>
     </div>
+    <div class="result-card">
+      <h3 style="margin: 0 0 8px;">Рекомендация по следующему шагу</h3>
+      <p id="resDecision"></p>
+      <p id="resProgramInfo" class="field-hint"></p>
+      <button type="button" class="btn btn-primary" id="answerAdditionalBtn" hidden>Ответить на дополнительные вопросы</button>
+    </div>
 
     <div class="grid-2">
       <div class="result-card">
@@ -907,7 +914,6 @@
     <p class="field-hint" id="resApplicationId" style="margin-top: 14px;"></p>
 
     <div class="actions" style="margin-top: 20px;">
-      <a class="btn btn-secondary" href="/api/v1/export.csv" download>Скачать общую таблицу (CSV)</a>
       <button type="button" class="btn btn-primary" id="resetBtn">Заполнить новую анкету</button>
     </div>
   </section>
@@ -1140,6 +1146,10 @@
     if (stepIdx === steps.length - 1 && !byId("case_response").value.trim()) {
       showError("Ответьте на ситуационный вопрос.");
       byId("case_response").focus();
+      return false;
+    }
+    if (stepIdx === steps.length - 1 && dynamicClarifications.some(q => q.id.startsWith("assessment_followup_") && !followupAnswers[q.id])) {
+      showError("Ответьте на дополнительные вопросы перед повторной оценкой.");
       return false;
     }
     return true;
@@ -1413,15 +1423,28 @@
       const submitted = await api(`/api/v1/sessions/${id}/submit`, {
         idempotency_key: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : `submit-${Date.now()}`
       });
-      if (!submitted.run_id) throw new Error(`Анкета неполная: ${submitted.next_question || "уточните ответы"}`);
+      if (!submitted.run_id) {
+        const missing = submitted.next_question;
+        const at = ["consent_personal_data", "applicant_name", "email", "vk_url", "birth_date", "status", "university", "university_other", "faculty", "course", "scientific_interests", "foreign_languages", "source"].includes(missing) ? 0
+          : ["experience", "hobbies", "motivation", "expectations"].includes(missing) ? 1
+          : ["desired_direction", "availability_hours_month", "availability_schedule_type", "other_commitments"].includes(missing) ? 2 : 3;
+        currentStep = at;
+        renderStep();
+        const field = byId(missing);
+        const label = field && field.closest(".field") && field.closest(".field").querySelector("label.title");
+        showError(`Дополните обязательный ответ: ${label ? label.textContent : missing}. Если опыта или интересов нет, напишите «нет».`);
+        if (field) field.focus();
+        return;
+      }
       let finished;
       for (let attempt = 0; attempt < 60; attempt++) {
         const response = await fetch(`/api/v1/sessions/${id}/result`);
         if (!response.ok) throw new Error("Не удалось получить результат оценки.");
         finished = await response.json();
-        if (["SCORED", "NEEDS_REVIEW", "INELIGIBLE", "ERROR"].includes(finished.status)) break;
+        if (["SCORED", "FOLLOWUP_REQUIRED", "NEEDS_REVIEW", "INELIGIBLE", "ERROR"].includes(finished.status)) break;
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
+      if (finished && finished.status === "ERROR") throw new Error("Автоматическая оценка временно недоступна. Анкета сохранена для проверки координатором.");
       if (!finished || !finished.evaluation) throw new Error("Оценка ещё не готова. Повторите запрос позднее.");
       const evalData = finished.evaluation;
       const res = {application_id: id};
@@ -1430,6 +1453,10 @@
       byId("resDirection").textContent = "Рекомендованное направление: " + (evalData.recommended_direction_label || evalData.recommended_direction);
       byId("resReason").textContent = evalData.direction_reason || "";
       byId("resSummary").textContent = evalData.summary || "";
+      byId("resDecision").textContent = (evalData.decision && evalData.decision.reason) || "Решение ожидает проверки координатором.";
+      byId("resProgramInfo").textContent = evalData.candidate_information || "";
+      byId("answerAdditionalBtn").hidden = !(evalData.decision && evalData.decision.needs_additional_questions && evalData.additional_questions && evalData.additional_questions.length);
+      byId("answerAdditionalBtn").dataset.questions = JSON.stringify(evalData.additional_questions || []);
       const scoreCard = byId("scoreCard");
       scoreCard.hidden = !Array.isArray(evalData.criteria);
       if (!scoreCard.hidden) {
@@ -1471,6 +1498,22 @@
     } finally {
       submitBtn.disabled = false;
     }
+  });
+
+  byId("answerAdditionalBtn").addEventListener("click", () => {
+    const questions = JSON.parse(byId("answerAdditionalBtn").dataset.questions || "[]");
+    dynamicClarifications = questions.map((question, index) => ({
+      id: `assessment_followup_${index}`,
+      category: "Дополнительное уточнение",
+      question,
+      reason: "Ответ поможет координатору проверить сильную сторону или неясный критерий."
+    }));
+    renderClarifications(dynamicClarifications);
+    currentStep = 3;
+    results.hidden = true;
+    wizard.hidden = false;
+    renderStep();
+    window.scrollTo({top: 0, behavior: "smooth"});
   });
 
   // --- Reset to fill another ---

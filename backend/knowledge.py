@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -12,7 +13,7 @@ from neo4j_graphrag.indexes import create_vector_index
 from neo4j_graphrag.retrievers import HybridCypherRetriever
 from neo4j_graphrag.types import RetrieverResultItem
 
-KB_VERSION = "gim-graph-v2"
+KB_VERSION = "gim-graph-v3"
 URI = "bolt://127.0.0.1:17687"
 PASSWORD = "gim-local-graph-2026"
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
@@ -80,11 +81,79 @@ def embed_facts() -> int:
     return total
 
 
+def _fulltext_query(question: str) -> str:
+    """Turn candidate wording into safe Lucene prefix terms for Neo4j indexes."""
+    words = re.findall(r"[\w]{4,}", question.lower(), flags=re.UNICODE)
+    return " OR ".join(f"{word[:24]}*" for word in dict.fromkeys(words[:24])) or "музей*"
+
+
+def _core_facts(driver) -> list[dict]:
+    """Program context needed for every candidate analysis, independent of ranking."""
+    records, _, _ = driver.execute_query(
+        """MATCH (n:Fact) WHERE n.id IN $ids
+        RETURN n.id AS doc_id, n.version_id AS version_id,
+               n.source_path AS source_path, n.quote AS quote,
+               n.title + ': ' + n.text AS text""",
+        {"ids": ["program:gim", "case:admission-flow", "condition:employment"]},
+        database_="neo4j",
+    )
+    return [{**dict(row), "links": []} for row in records]
+
+
+def retrieve_fulltext(role: str, question: str, *, top_k: int = 8) -> list[dict]:
+    """Native Neo4j full-text GraphRAG when no embedding provider is configured."""
+    query = _fulltext_query(question)
+    with _driver() as driver:
+        facts, _, _ = driver.execute_query(
+            "CALL db.index.fulltext.queryNodes('gim_fact_text', $query, {limit: $limit}) "
+            "YIELD node, score " + GRAPH_QUERY + " ORDER BY score DESC LIMIT $top_k",
+            {"query": query, "limit": top_k * 8, "role": role, "top_k": top_k}, database_="neo4j",
+        )
+        examples, _, _ = driver.execute_query(
+            "CALL db.index.fulltext.queryNodes('gim_historical_text', $query, {limit: $limit}) "
+            "YIELD node, score " + HISTORICAL_QUERY + " ORDER BY score DESC LIMIT 2",
+            {"query": query, "limit": top_k * 4, "role": role}, database_="neo4j",
+        )
+        core = _core_facts(driver)
+        role_records, _, _ = driver.execute_query(
+            """MATCH (role:Role {id: $role_id})
+            OPTIONAL MATCH (role)-[edge]-(fact:Fact)
+            WHERE fact.roles IS NULL OR $role IN fact.roles
+            WITH role, collect(DISTINCT {id: fact.id, title: fact.title,
+                 text: fact.text, source_path: fact.source_path, quote: fact.quote,
+                 version_id: fact.version_id, relation: type(edge)}) AS neighbors
+            RETURN role.id AS id, role.title AS title, role.text AS text,
+                   role.source_path AS source_path, role.quote AS quote,
+                   role.version_id AS version_id, neighbors""",
+            {"role_id": "role:" + role, "role": role}, database_="neo4j",
+        )
+    chunks = [*core, *[{"doc_id": row["metadata"]["doc_id"],
+               "version_id": row["metadata"]["version_id"],
+               "source_path": row["metadata"]["source_path"],
+               "quote": row["metadata"]["quote"],
+               "text": row["content"], "links": row["metadata"]["links"]}
+              for row in facts]]
+    chunks.extend({"doc_id": row["metadata"]["doc_id"],
+                   "version_id": row["metadata"]["version_id"],
+                   "source_path": row["metadata"]["source_path"],
+                   "quote": row["metadata"]["quote"],
+                   "text": row["content"], "links": row["metadata"]["links"],
+                   "kind": "historical_training_example"}
+                  for row in examples[:2])
+    if role_records:
+        role_fact = role_records[0]
+        chunks.insert(0, {"doc_id": role_fact["id"], "version_id": role_fact["version_id"],
+                          "source_path": role_fact["source_path"], "quote": role_fact["quote"],
+                          "text": role_fact["title"] + ": " + role_fact["text"],
+                          "links": role_fact["neighbors"]})
+    return list({chunk["doc_id"]: chunk for chunk in chunks}.values())
+
+
 def retrieve(role: str, question: str, *, top_k: int = 8) -> list[dict]:
-    """Official Neo4j hybrid retriever expands matching facts along graph edges."""
+    """Use official hybrid retrieval with embeddings, otherwise native Neo4j full-text."""
     key = os.getenv("OPENAI_API_KEY", "")
     if not key or key.startswith("replace-"):
-        raise RuntimeError("OPENAI_API_KEY is required for hybrid GraphRAG retrieval")
+        return retrieve_fulltext(role, question, top_k=top_k)
     with _driver() as driver:
         create_vector_index(driver, "gim_fact_vector", "Fact", "embedding", 1536, "cosine")
         create_vector_index(driver, "gim_historical_vector", "HistoricalApplication", "embedding", 1536, "cosine")
@@ -119,12 +188,13 @@ def retrieve(role: str, question: str, *, top_k: int = 8) -> list[dict]:
                    role.version_id AS version_id, neighbors""",
             {"role_id": "role:" + role, "role": role}, database_="neo4j",
         )
-    chunks = [{"doc_id": item.metadata["doc_id"],
+        core = _core_facts(driver)
+    chunks = [*core, *[{"doc_id": item.metadata["doc_id"],
              "version_id": item.metadata["version_id"],
              "source_path": item.metadata["source_path"],
              "quote": item.metadata["quote"],
              "text": item.content,
-             "links": item.metadata["links"]} for item in result.items]
+             "links": item.metadata["links"]} for item in result.items]]
     chunks.extend({"doc_id": item.metadata["doc_id"],
                    "version_id": item.metadata["version_id"],
                    "source_path": item.metadata["source_path"],

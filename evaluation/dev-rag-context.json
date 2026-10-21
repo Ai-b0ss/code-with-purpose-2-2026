@@ -1,0 +1,74 @@
+[
+  {
+    "doc_id": "task:quest",
+    "title": "Квесты и образовательные форматы",
+    "text": "Выбрать конкретный формат: мастер-класс, квест, экскурсия, образовательная игра.",
+    "source_path": "docs/volunteer-questionnaire.docx",
+    "quote": "Какие форматы вам ближе: мастер-классы, квесты, экскурсии, образовательные игры?",
+    "version_id": "gim-graph-v3",
+    "links": [
+      {
+        "id": "criterion:role_fit",
+        "type": "ASSESSED_BY"
+      },
+      {
+        "id": "skill:transferable",
+        "type": "USES_SKILL"
+      },
+      {
+        "id": "role:project",
+        "type": "HAS_TASK"
+      }
+    ]
+  },
+  {
+    "doc_id": "case:admission-flow",
+    "title": "Путь кандидата",
+    "text": "Кандидат заполняет анкету, ожидает открытия набора, затем может получить приглашение на собеседование. Окончательный приём происходит после собеседования.",
+    "source_path": "docs/case.txt",
+    "quote": "сначала заполнить анкету на сайте, затем подождать, пока откроется набор, его приглашают на собеседование, и на собеседовании уже проходит прием",
+    "version_id": "gim-graph-v3",
+    "links": [
+      {
+        "id": "program:gim",
+        "type": "HAS_PROCESS"
+      }
+    ]
+  },
+  {
+    "doc_id": "role:project",
+    "title": "Проектное направление",
+    "text": "Разработка квестов и мастер-классов для культурно-массовых мероприятий.",
+    "source_path": "docs/volunteer-questionnaire.docx",
+    "quote": "Проектное направление (разработка квестов/мастер-классов для культурно-массовых мероприятий)",
+    "version_id": "gim-graph-v3",
+    "links": [
+      {
+        "id": "program:gim",
+        "type": "HAS_ROLE"
+      },
+      {
+        "id": "task:quest",
+        "type": "HAS_TASK"
+      },
+      {
+        "id": "condition:availability",
+        "type": "REQUIRES"
+      }
+    ]
+  },
+  {
+    "doc_id": "condition:employment",
+    "title": "Совмещение работы и волонтёрства",
+    "text": "Куратор относит текущую работу и учёбу к возможной нагрузке. Следует спросить о конкретном совмещении и доступных сменах. Сам статус работающего не является безусловным отказом или автоматическим штрафом.",
+    "source_path": "docs/volunteer-questionnaire.docx",
+    "quote": "Загруженность: Совмещение волонтерства с текущей работой и учебой",
+    "version_id": "gim-graph-v3",
+    "links": [
+      {
+        "id": "criterion:availability",
+        "type": "ASSESSED_BY"
+      }
+    ]
+  }
+]

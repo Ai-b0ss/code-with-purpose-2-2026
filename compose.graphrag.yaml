@@ -1,6 +1,31 @@
 name: gim-graphrag
 
 services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: gim-graphrag-ollama
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - gim_ollama_data:/root/.ollama
+  postgres:
+    image: postgres:16-alpine
+    container_name: gim-graphrag-postgres
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:15432:5432"
+    environment:
+      POSTGRES_DB: gim
+      POSTGRES_USER: gim
+      POSTGRES_PASSWORD: gim-local-db-2026
+    volumes:
+      - gim_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gim -d gim"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
   neo4j:
     image: neo4j:5.26-community
     container_name: gim-graphrag-neo4j
@@ -21,4 +46,6 @@ services:
       retries: 20
 
 volumes:
+  gim_ollama_data:
   gim_neo4j_data:
+  gim_postgres_data:

@@ -1,0 +1,38 @@
+{
+  "type": "object",
+  "properties": {
+    "rubric_version": {"type": "string"},
+    "criteria": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string"},
+          "grade": {"type": ["integer", "null"]},
+          "answer_id": {"type": "string"},
+          "evidence": {"type": "string"},
+          "rationale": {"type": "string"}
+        },
+        "required": ["id", "grade", "answer_id", "evidence", "rationale"],
+        "additionalProperties": false
+      }
+    },
+    "flags": {"type": "array", "items": {"type": "string"}},
+    "analysis": {
+      "type": "object",
+      "properties": {
+        "candidate_summary": {"type": "string"},
+        "program_fit": {"type": "string"},
+        "program_information": {"type": "string"},
+        "strengths": {"type": "array", "items": {"type": "string"}},
+        "risks": {"type": "array", "items": {"type": "string"}},
+        "interview_questions": {"type": "array", "items": {"type": "string"}},
+        "source_doc_ids": {"type": "array", "items": {"type": "string"}}
+      },
+      "required": ["candidate_summary", "program_fit", "program_information", "strengths", "risks", "interview_questions", "source_doc_ids"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["rubric_version", "criteria", "flags", "analysis"],
+  "additionalProperties": false
+}
