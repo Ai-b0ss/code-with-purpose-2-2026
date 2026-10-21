@@ -49,6 +49,7 @@ class Evaluation(BaseModel):
     fit_for_candidate: str = Field(min_length=1, max_length=4000)
     interview_questions: list[str] = Field(min_length=1, max_length=12)
     evidence: list[Evidence] = Field(min_length=1, max_length=30)
+    scorecard: list[dict] = Field(default_factory=list, max_length=5)
 
 
 # Eva's five groups: docs/Критерии_отбора_ГИМ.xlsx, B5:G9.
