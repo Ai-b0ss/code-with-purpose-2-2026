@@ -1191,7 +1191,10 @@
       other_commitments: byId("other_commitments") ? byId("other_commitments").value.trim() : "",
       other_volunteer_programs: byId("other_volunteer_programs") ? byId("other_volunteer_programs").value.trim() : "",
       followup_answer: combinedFollowup,
-      followup_answers: followupAnswers
+      followup_answers: followupAnswers,
+      followup_questions: dynamicClarifications.map(q => ({
+        id: q.id, category: q.category || "", question: q.question, reason: q.reason || ""
+      }))
     };
   }
 
@@ -1428,8 +1431,17 @@
   });
 
   // Auto-save on form inputs
-  form.addEventListener("input", saveDraft);
-  form.addEventListener("change", saveDraft);
+  function onFormEdited() {
+    // An edit to the original questionnaire invalidates prior AI questions
+    // and the old answers. We must re-assess the changed profile.
+    if (currentStep < steps.length - 1) {
+      dynamicClarifications = [];
+      followupAnswers = {};
+    }
+    saveDraft();
+  }
+  form.addEventListener("input", onFormEdited);
+  form.addEventListener("change", onFormEdited);
 
   // --- API Call Helper ---
   async function api(path, data) {
