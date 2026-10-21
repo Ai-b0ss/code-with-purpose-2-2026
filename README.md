@@ -12,17 +12,17 @@ py -3.12 -m venv .venv
 Copy-Item .env.example .env
 ```
 
-В `.env` задайте `GIM_COORDINATOR_TOKEN` для панели координатора. Локальная модель использует официальный `/api/chat` Ollama из примера без ключа; этот API позволяет отключить длительное внутреннее рассуждение для оценки анкеты. Для продакшен-модели задайте её `GIM_LLM_ENDPOINT`, `GIM_LLM_API_KEY`, `GIM_LLM_MODEL`; для OpenAI укажите адрес Chat Completions и `OPENAI_API_KEY`. `OPENAI_API_KEY` дополнительно включает векторный поиск. Без него RAG использует полнотекстовый индекс Neo4j и связи графа.
+Настройки модели находятся в [`.env`](.env) в корне проекта. Текущий профиль сайта использует ReformBoss: `GIM_LLM_ENDPOINT=https://api.reformboss.com/v1/chat/completions`, `GIM_LLM_MODEL=deepseek-v4.1-flash`, `GIM_LLM_API_KEY` содержит серверный ключ. Запуск `.\start-scoring.ps1` использует эти настройки. Чтобы запустить тот же сайт с локальной Qwen3 14B на GPU, остановите сервер и выполните `.\start-scoring.ps1 -Local`; облачные значения в `.env` сохранятся. После смены модели сервер нужно перезапустить. Ключ не вводится на сайте и не хранится в браузере. `OPENAI_API_KEY` относится только к необязательным эмбеддингам OpenAI; ключ ReformBoss туда помещать не нужно. Без эмбеддингов GraphRAG использует полнотекстовый индекс Neo4j и связи графа. Примеры настроек провайдеров есть в [`.env.example`](.env.example).
 
 ```powershell
 .\start-scoring.ps1
 ```
 
-Сайт и вход студента: `http://127.0.0.1:8765/student`; вход куратора: `http://127.0.0.1:8765/coordinator`. Главная страница также ведёт к обоим входам. Куратор вводит токен и видит ответы текущей анкеты, контакты, балл, рекомендации, микроанализ кандидата и макроанализ потока заявок. Сводка строится по текущим анкетам с действующим согласием.
+Сайт и вход студента: `http://127.0.0.1:8765/student`; вход куратора: `http://127.0.0.1:8765/coordinator`. Главная страница также ведёт к обоим входам. Оба портала требуют отдельного логина и пароля. Куратор видит ответы текущей анкеты, контакты, балл, рекомендации, микроанализ кандидата и макроанализ потока заявок. Сводка строится по текущим анкетам с действующим согласием.
 
 Скрипт загружает факты, нормализует и дедуплицирует таблицы, отделяет тестовые анкеты, при наличии ключа строит эмбеддинги и запускает API. Сессии, контакты, ревизии и результаты сайт хранит в локальном PostgreSQL; контакты находятся в отдельной схеме `pii`. `-SkipProbe` пропускает пробную оценку. Без ключа модели можно проверить код и граф, но рабочая оценка не вызовется.
 
-Для локальной модели проект использует отдельный контейнер Ollama с NVIDIA GPU: `docker exec gim-graphrag-ollama ollama pull qwen3:14b`. Настройки совместимого API приведены в `.env.example`. После запуска `docker exec gim-graphrag-ollama ollama ps` должен показывать `100% GPU`; 14B проверена на RTX 5070 Ti Laptop с контекстом 8192. Парное сравнение одной модели с GraphRAG и без него запускается командой `.\.venv\Scripts\python.exe -m evaluation.compare_local_rag` и записывает `evaluation/local-rag-comparison.json`. Это измерительный прогон; рабочая цепочка RAG остаётся на Neo4j GraphRAG и LangGraph.
+Для локальной модели проект использует отдельный контейнер Ollama с NVIDIA GPU: `docker exec gim-graphrag-ollama ollama pull qwen3:14b`. Адрес официального API и модель приведены в `.env.example`. После запуска `docker exec gim-graphrag-ollama ollama ps` должен показывать `100% GPU`; 9B и 14B проверены на RTX 5070 Ti Laptop с контекстом 8192. Парное сравнение одной модели с GraphRAG и без него запускается командой `.\.venv\Scripts\python.exe -m evaluation.compare_local_rag` и записывает `evaluation/local-rag-comparison.json`. Расширенный прогон запускается `.\.venv\Scripts\python.exe -m evaluation.stress_rag`; его результаты находятся в `evaluation/stress-rag-qwen3-14b.json` и `evaluation/stress-rag-qwen3-5-9b.json`. Рабочая цепочка RAG использует Neo4j GraphRAG и LangGraph.
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q

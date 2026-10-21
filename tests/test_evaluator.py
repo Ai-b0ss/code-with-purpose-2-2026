@@ -202,7 +202,8 @@ class EvaluatorTests(unittest.TestCase):
         for code in (400, 401, 403, 404, 422, 429, 500, 503):
             with self.subTest(status=code):
                 error = HTTPError(adapter.endpoint, code, "private provider body", {}, None)
-                with patch("urllib.request.OpenerDirector.open", side_effect=error):
+                with patch("urllib.request.OpenerDirector.open", side_effect=error), \
+                     patch("backend.evaluator.time.sleep"):
                     with self.assertRaises(EvaluationError) as ctx:
                         evaluate(candidate(), adapter=adapter)
                 self.assertEqual(ctx.exception.code, f"provider_http_{code}")
@@ -263,7 +264,8 @@ class EvaluatorTests(unittest.TestCase):
         self.assertEqual(captured[0]["response_format"], {"type": "json_object"})
 
     def test_ollama_native_adapter_disables_thinking(self):
-        adapter = ChatCompletionsAdapter("http://localhost:11434/api/chat", "qwen3.5:9b")
+        adapter = ChatCompletionsAdapter("http://localhost:11434/api/chat", "qwen3.5:9b",
+                                         api_key="local-no-key")
         envelope = b'{"done_reason":"stop","message":{"content":"{\\"ok\\":true}"}}'
         with patch("urllib.request.OpenerDirector.open", return_value=BytesIO(envelope)) as opened:
             result = adapter.complete(system="system", user="user", schema={})
@@ -273,6 +275,20 @@ class EvaluatorTests(unittest.TestCase):
         self.assertEqual(body["stream"], False)
         self.assertEqual(body["format"], "json")
         self.assertNotIn("response_format", body)
+        self.assertNotIn("Authorization", opened.call_args.args[0].headers)
+
+    def test_cloud_adapter_retries_transient_rate_limit(self):
+        adapter = ChatCompletionsAdapter("https://provider.example/v1/chat/completions",
+                                         "cloud", api_key="test-key")
+        limited = HTTPError(adapter.endpoint, 429, "rate limit", {"Retry-After": "2"}, None)
+        envelope = b'{"choices":[{"finish_reason":"stop","message":{"content":"{\\"ok\\":true}"}}]}'
+        with patch("urllib.request.OpenerDirector.open",
+                   side_effect=[limited, BytesIO(envelope)]) as opened, \
+             patch("backend.evaluator.time.sleep") as slept:
+            result = adapter.complete(system="system", user="user", schema={})
+        self.assertEqual(result, '{"ok":true}')
+        self.assertEqual(opened.call_count, 2)
+        slept.assert_called_once_with(2.0)
 
 
 class LiveEvaluatorTests(unittest.TestCase):

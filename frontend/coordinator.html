@@ -39,17 +39,19 @@
 <main>
   <section class="card">
     <div class="row">
-      <div style="flex:1; min-width:260px"><label for="token">Ключ координатора</label><input id="token" type="password" autocomplete="off" placeholder="GIM_COORDINATOR_TOKEN"></div>
-      <button id="load">Загрузить оценки</button>
+      <div style="flex:1; min-width:180px"><label for="username">Логин куратора</label><input id="username" type="text" autocomplete="username"></div>
+      <div style="flex:1; min-width:260px"><label for="token">Пароль</label><input id="token" type="password" autocomplete="current-password"></div>
+      <button id="load">Войти и открыть анкеты</button>
+      <button id="logout" class="secondary">Выйти</button>
       <button id="download" class="secondary">Скачать CSV</button>
     </div>
-    <p class="muted">Ключ используется только для текущего запроса и не сохраняется в браузере.</p>
+    <p class="muted">Вход действует до закрытия вкладки. Пароль не сохраняется в браузере.</p>
     <p id="message" role="status"></p>
   </section>
   <section class="card" id="overview" hidden>
     <h2>Текущие заявки</h2>
     <div class="stats" id="stats"></div>
-    <div class="tablewrap"><table><thead><tr><th>Заявка</th><th>Дата</th><th>Статус</th><th>Балл</th><th></th></tr></thead><tbody id="runs"></tbody></table></div>
+    <div class="tablewrap"><table><thead><tr><th>Заявка</th><th>Дата</th><th>Статус</th><th>Балл</th><th>Вердикт</th><th></th></tr></thead><tbody id="runs"></tbody></table></div>
   </section>
   <section class="card" id="cohort" hidden>
     <h2>Макроанализ заявок</h2>
@@ -72,7 +74,8 @@
 (() => {
   const el = id => document.getElementById(id);
   let selected;
-  const auth = () => ({Authorization: `Bearer ${el("token").value}`});
+  let coordinatorToken = sessionStorage.getItem("gim_coordinator_token") || "";
+  const auth = () => ({Authorization: `Bearer ${coordinatorToken}`});
   function message(value, error=false) {el("message").textContent=value; el("message").className=error?"error":"muted";}
   async function request(path, options={}) {
     const response = await fetch(path, {...options, headers:{...auth(), ...(options.headers||{})}});
@@ -84,6 +87,17 @@
   }
   async function load() {
     try {
+      if (!coordinatorToken) {
+        const response = await fetch("/api/v1/auth/login", {method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({username:el("username").value.trim(),password:el("token").value})});
+        if (!response.ok) throw new Error("Неверный логин или пароль куратора.");
+        const login = await response.json();
+        if (login.role !== "coordinator") throw new Error("Требуется аккаунт куратора.");
+        coordinatorToken = login.access_token;
+        sessionStorage.setItem("gim_coordinator_token",coordinatorToken);
+        el("token").value = "";
+      }
       const data = await (await request("/api/v1/admin/runs")).json();
       const cohort = await (await request("/api/v1/admin/analytics")).json();
       const active = data.runs.filter(run => run.active);
@@ -98,7 +112,7 @@
       el("runs").replaceChildren();
       active.forEach(run => {
         const tr=document.createElement("tr");
-        [run.session_id.slice(0,12),new Date(run.created_at).toLocaleString("ru-RU"),run.status,run.score==null?"—":String(run.score)].forEach(value=>{
+        [run.session_id.slice(0,12),new Date(run.created_at).toLocaleString("ru-RU"),run.status,run.score==null?"—":String(run.score),run.verdict||"—"].forEach(value=>{
           const td=document.createElement("td"); td.textContent=value; tr.append(td);
         });
         const td=document.createElement("td"), button=document.createElement("button");
@@ -120,6 +134,12 @@
       el("cohort").hidden=false;
     } catch(error) {message(error.message,true);}
   }
+  el("logout").addEventListener("click", async () => {
+    if (coordinatorToken) await fetch("/api/v1/auth/logout",{method:"POST",headers:auth()}).catch(()=>{});
+    coordinatorToken=""; sessionStorage.removeItem("gim_coordinator_token");
+    el("overview").hidden=true; el("cohort").hidden=true; el("detail").hidden=true;
+    message("Вы вышли из аккаунта.");
+  });
   async function openRun(runId) {
     try {
       selected=await (await request(`/api/v1/admin/runs/${runId}`)).json();
@@ -131,7 +151,7 @@
       const evaluation=selected.evaluation||{};
       const analysis=evaluation.analysis||{};
       el("analysis").textContent=[
-        `Балл: ${evaluation.score ?? "не выставлен"}; рекомендация: ${evaluation.decision?.status||"нет"}`,
+        `Балл: ${evaluation.score ?? "не выставлен"}; вердикт: ${evaluation.decision?.verdict||"нет"}; рекомендация: ${evaluation.decision?.status||"нет"}`,
         evaluation.decision?.reason, evaluation.summary, evaluation.fit_for_candidate,
         analysis.candidate_summary, analysis.program_fit, analysis.program_information,
         `Сильные стороны: ${(analysis.strengths||[]).join("; ")||"не указаны"}`,

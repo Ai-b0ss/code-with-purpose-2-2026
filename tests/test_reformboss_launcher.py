@@ -18,6 +18,7 @@ class ReformBossLauncherTests(unittest.TestCase):
     def test_probe_module_imports_backend_from_repo_root(self):
         env = os.environ.copy()
         env.pop("GIM_LLM_API_KEY", None)
+        env["PYTHON_DOTENV_DISABLED"] = "1"
         completed = subprocess.run(
             [sys.executable, "-m", "scripts.check_reformboss"],
             cwd=ROOT,

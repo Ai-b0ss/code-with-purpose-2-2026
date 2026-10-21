@@ -137,6 +137,7 @@
       line-height: 1.4;
     }
     input[type=text],
+    input[type=password],
     input[type=email],
     input[type=url],
     input[type=date],
@@ -550,8 +551,25 @@
 </header>
 
 <main>
+  <section class="card" id="accountLogin">
+    <div class="step-header"><h2>Вход волонтёра</h2><p>Войдите в аккаунт, чтобы отправить анкету и получить результат.</p></div>
+    <form id="loginForm">
+      <div class="grid-2">
+        <div class="field"><label class="title" for="loginName">Логин</label><input id="loginName" type="text" autocomplete="username" required></div>
+        <div class="field"><label class="title" for="loginPassword">Пароль</label><input id="loginPassword" type="password" autocomplete="current-password" required></div>
+      </div>
+      <button class="btn btn-success" type="submit">Войти</button>
+      <p id="loginError" role="alert"></p>
+    </form>
+  </section>
+  <section class="card" id="accountInfo" hidden>
+    <strong id="accountName"></strong> · аккаунт волонтёра
+    <button class="btn" type="button" id="logoutBtn">Выйти</button>
+    <p id="accountApplications" class="field-hint"></p>
+    <div id="pastApplications"></div>
+  </section>
   <!-- Wizard Card -->
-  <section class="card" id="wizard">
+  <section class="card" id="wizard" hidden>
     <div class="progress-container">
       <div class="progress-info">
         <span>Шаг <span id="stepNumber">1</span> из 4: <strong id="stepTitle">Профиль и контакты</strong></span>
@@ -927,6 +945,8 @@
 <script>
 (function() {
   const STORAGE_KEY = "gim_volunteer_form_draft_v1";
+  const TOKEN_KEY = "gim_student_token";
+  let authToken = sessionStorage.getItem(TOKEN_KEY) || "";
 
   const form = document.getElementById("volunteerForm");
   const steps = [...document.querySelectorAll(".step")];
@@ -959,6 +979,65 @@
   let followupAnswers = {};
 
   const byId = id => document.getElementById(id);
+
+  async function activateAccount() {
+    const response = await fetch("/api/v1/auth/me", {headers:{Authorization:`Bearer ${authToken}`}});
+    if (!response.ok) throw new Error("Сессия входа истекла. Войдите снова.");
+    const account = await response.json();
+    if (account.role !== "student") throw new Error("Этот аккаунт предназначен для куратора.");
+    byId("accountName").textContent = account.username;
+    byId("accountApplications").textContent = (account.sessions || []).length
+      ? `Ваши заявки: ${account.sessions.map(s=>`${s.id.slice(0,8)} — ${s.state}`).join("; ")}`
+      : "У вас пока нет отправленных заявок.";
+    byId("pastApplications").replaceChildren();
+    for (const session of account.sessions || []) {
+      if (!session.active_run_id) continue;
+      const button = document.createElement("button");
+      button.className = "btn";
+      button.type = "button";
+      button.textContent = `Открыть результат ${session.id.slice(0,8)}`;
+      const detail = document.createElement("p");
+      detail.className = "field-hint";
+      button.addEventListener("click", async () => {
+        try {
+          const response = await fetch(`/api/v1/sessions/${session.id}/result`,
+            {headers:{Authorization:`Bearer ${authToken}`}});
+          if (!response.ok) throw new Error("Не удалось открыть результат.");
+          const run = await response.json();
+          const evaluation = run.evaluation || {};
+          const decision = evaluation.decision || {};
+          detail.textContent = run.status === "EVALUATING"
+            ? "Анкета находится в очереди на оценку. Обновите результат через несколько секунд."
+            : `Статус: ${run.status}. Балл: ${evaluation.score ?? "—"}. Вердикт: ${decision.verdict || "ожидается"}. ${decision.reason || ""} ${(evaluation.additional_questions || []).join("; ")}`;
+        } catch (error) { detail.textContent = error.message; }
+      });
+      byId("pastApplications").append(button, detail);
+    }
+    byId("accountLogin").hidden = true;
+    byId("accountInfo").hidden = false;
+    wizard.hidden = false;
+  }
+  byId("loginForm").addEventListener("submit", async event => {
+    event.preventDefault();
+    byId("loginError").textContent = "";
+    try {
+      const response = await fetch("/api/v1/auth/login", {method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({username:byId("loginName").value.trim(),password:byId("loginPassword").value})});
+      if (!response.ok) throw new Error("Неверный логин или пароль.");
+      const account = await response.json();
+      authToken = account.access_token;
+      sessionStorage.setItem(TOKEN_KEY, authToken);
+      byId("loginPassword").value = "";
+      await activateAccount();
+    } catch (error) {byId("loginError").textContent = error.message;}
+  });
+  byId("logoutBtn").addEventListener("click", async () => {
+    await fetch("/api/v1/auth/logout", {method:"POST",headers:{Authorization:`Bearer ${authToken}`}}).catch(()=>{});
+    authToken = ""; sessionStorage.removeItem(TOKEN_KEY);
+    byId("accountLogin").hidden = false; byId("accountInfo").hidden = true;
+    wizard.hidden = true; results.hidden = true;
+  });
 
   // --- Step Rendering ---
   function renderStep() {
@@ -1329,7 +1408,7 @@
   async function api(path, data) {
     const res = await fetch(path, {
       method: "POST",
-      headers: {"Content-Type": "application/json"},
+      headers: {"Content-Type": "application/json", Authorization: `Bearer ${authToken}`},
       body: JSON.stringify(data)
     });
     if (!res.ok) {
@@ -1437,8 +1516,9 @@
         return;
       }
       let finished;
-      for (let attempt = 0; attempt < 60; attempt++) {
-        const response = await fetch(`/api/v1/sessions/${id}/result`);
+      for (let attempt = 0; attempt < 300; attempt++) {
+        const response = await fetch(`/api/v1/sessions/${id}/result`,
+          {headers:{Authorization:`Bearer ${authToken}`}});
         if (!response.ok) throw new Error("Не удалось получить результат оценки.");
         finished = await response.json();
         if (["SCORED", "FOLLOWUP_REQUIRED", "NEEDS_REVIEW", "INELIGIBLE", "ERROR"].includes(finished.status)) break;
@@ -1453,7 +1533,9 @@
       byId("resDirection").textContent = "Рекомендованное направление: " + (evalData.recommended_direction_label || evalData.recommended_direction);
       byId("resReason").textContent = evalData.direction_reason || "";
       byId("resSummary").textContent = evalData.summary || "";
-      byId("resDecision").textContent = (evalData.decision && evalData.decision.reason) || "Решение ожидает проверки координатором.";
+      byId("resDecision").textContent = evalData.decision
+        ? `Вердикт для отбора: ${evalData.decision.verdict || "сомнительно"}. ${evalData.decision.reason || ""}`
+        : "Решение ожидает проверки координатором.";
       byId("resProgramInfo").textContent = evalData.candidate_information || "";
       byId("answerAdditionalBtn").hidden = !(evalData.decision && evalData.decision.needs_additional_questions && evalData.additional_questions && evalData.additional_questions.length);
       byId("answerAdditionalBtn").dataset.questions = JSON.stringify(evalData.additional_questions || []);
@@ -1532,6 +1614,9 @@
   // Initial load
   restoreDraft();
   renderStep();
+  if (authToken) activateAccount().catch(() => {
+    authToken = ""; sessionStorage.removeItem(TOKEN_KEY);
+  });
 })();
 </script>
 </body>
