@@ -1,0 +1,72 @@
+{
+  "schema_version": "1.0",
+  "application_id": "demo-001",
+  "created_at": "2026-10-21T13:30:00+03:00",
+  "status": "scored",
+  "desired_direction": "media",
+  "availability": {
+    "hours_per_month": 16,
+    "schedule": "Гибкий график, 2 вечера в неделю",
+    "other_programs": "Нет",
+    "needs_clarification": false
+  },
+  "answers": [
+    {
+      "question_id": "motivation",
+      "question": "Почему вы хотите стать волонтёром Исторического музея?",
+      "answer": "Интересна популяризация истории через короткие видео."
+    },
+    {
+      "question_id": "experience",
+      "question": "Что вы уже делали в этом направлении?",
+      "answer": "Монтировал студенческие видеоролики."
+    },
+    {
+      "question_id": "availability",
+      "question": "Сколько часов в месяц готовы уделять программе?",
+      "answer": 16
+    },
+    {
+      "question_id": "media_details",
+      "question": "Что именно вам интереснее: фото, видео, тексты или дизайн?",
+      "answer": "Монтаж коротких исторических роликов",
+      "is_followup": true
+    }
+  ],
+  "evaluation": {
+    "score": null,
+    "score_status": "not_calibrated",
+    "summary": "У кандидата есть мотивация к медиа-направлению и опыт видеомонтажа.",
+    "strengths": [
+      "Конкретный интерес к музею",
+      "Опыт монтажа"
+    ],
+    "possible_problems": [
+      "Требует проверки соответствия графика мероприятиям"
+    ],
+    "recommended_direction": "media",
+    "direction_reason": "Опыт и ожидания близки задачам медиа-команды.",
+    "fit_for_candidate": "Медиа-волонтёрство может соответствовать желанию создавать исторический видеоконтент.",
+    "interview_questions": [
+      "Покажите пример монтажа и расскажите о своей роли."
+    ],
+    "evidence": [
+      {
+        "question_id": "experience",
+        "reason": "Кандидат указал, что монтировал студенческие ролики."
+      }
+    ],
+    "rubric_version": "draft-0.1",
+    "model_version": "mock"
+  },
+  "export": {
+    "status": "not_requested",
+    "external_row_id": null,
+    "destination": "none"
+  },
+  "curator": {
+    "decision": "на рассмотрении",
+    "score": null,
+    "comment": ""
+  }
+}
