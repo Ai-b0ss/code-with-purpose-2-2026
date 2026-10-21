@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Музейный компас · ГИМ</title>
+  <style>
+    :root {color-scheme:light;--navy:#172f42;--blue:#177e97;--bg:#f4f7f7;--muted:#5b7079}
+    * {box-sizing:border-box}
+    body {margin:0;background:var(--bg);color:var(--navy);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+    header {background:var(--navy);color:white;padding:25px max(20px,calc((100vw - 880px)/2))}
+    header small {letter-spacing:.12em;text-transform:uppercase;color:#a2d8df}
+    h1 {font-size:clamp(29px,5vw,44px);margin:5px 0}
+    h2 {margin:0 0 9px;font-size:23px}
+    main {max-width:880px;margin:28px auto;padding:0 16px 40px}
+    .card {background:white;border:1px solid #dbe5e6;border-radius:15px;padding:26px;margin-bottom:18px;box-shadow:0 8px 24px #1b435408}
+    .intro {color:var(--muted);line-height:1.5;margin:0 0 17px}
+    .progress {height:7px;border-radius:10px;background:#d7e6e8;overflow:hidden;margin:10px 0 24px}
+    .bar {background:var(--blue);width:25%;height:100%;transition:width .2s}
+    .step[hidden], [hidden] {display:none!important}
+    label {display:block;font-weight:650;margin:17px 0 8px}
+    input:not([type=checkbox]),select,textarea {display:block;width:100%;padding:12px 14px;border:1px solid #aec2ca;border-radius:8px;font:inherit;background:white;color:var(--navy)}
+    textarea {min-height:96px;resize:vertical}
+    .check {display:flex;gap:9px;align-items:center;line-height:1.4;font-weight:500}
+    .check input {width:18px;height:18px}
+    .actions {display:flex;gap:10px;margin-top:22px;flex-wrap:wrap}
+    button,.linkbtn {background:var(--blue);border:0;border-radius:9px;color:white;padding:12px 21px;cursor:pointer;font:inherit;font-weight:650}
+    button.secondary,.linkbtn.secondary {background:#dfebed;color:var(--navy)}
+    button:disabled {opacity:.55;cursor:wait}
+    .tag {display:inline-block;background:#dbf0ec;border-radius:99px;font-size:13px;padding:5px 12px;font-weight:650;color:#1a6258}
+    .notice {background:#f2edd8;border-radius:8px;padding:12px 14px;line-height:1.45;color:#654f1a;margin-top:14px}
+    .error {color:#a91f24;font-weight:650;margin-top:13px}
+    #results {line-height:1.55}
+    #results ul {padding-left:20px}
+    .hint {color:var(--muted);font-size:13px}
+    footer {font-size:13px;color:var(--muted);margin-top:18px}
+    @media(max-width:540px){.card{padding:18px}header{padding:22px 17px}}
+  </style>
+</head>
+<body>
+<header>
+  <small>Государственный исторический музей · демоверсия команды</small>
+  <h1>Музейный компас</h1>
+  <div>Расскажите, чем вам интересно волонтёрство. Мы поможем подготовить заявку для координатора.</div>
+</header>
+<main>
+  <section class="card" id="wizard">
+    <span class="tag">Прототип · шаг <span id="stepNo">1</span> из 4</span>
+    <div class="progress"><div class="bar" id="bar"></div></div>
+    <form id="form">
+      <section class="step" data-step="0">
+        <h2>Знакомство</h2>
+        <p class="intro">Ответы помогут координатору оценить подходящее направление. На заполнение ориентировочно 5–7 минут.</p>
+        <label for="name">Как вас зовут?</label>
+        <input id="name" name="applicant_name" required placeholder="Пример: Тестовый кандидат" minlength="2">
+        <label class="check"><input id="adult" type="checkbox" required> Мне исполнилось 18 лет</label>
+        <label class="check"><input id="consent" type="checkbox" required> Я согласен(-на) отправить ответы на рассмотрение</label>
+      </section>
+      <section class="step" data-step="1" hidden>
+        <h2>Мотивация и интересы</h2>
+        <p class="intro">Здесь важны ваши собственные слова, а не идеальный текст.</p>
+        <label for="motivation">Почему именно Исторический музей?</label>
+        <textarea id="motivation" name="motivation" minlength="10" required placeholder="Что хотите попробовать, чему научиться и как помочь?"></textarea>
+        <label for="experience">Какой у вас есть опыт или полезные навыки?</label>
+        <textarea id="experience" name="experience" placeholder="Можно рассказать о проектах, работе, хобби или учёбе."></textarea>
+        <label for="expectations">Что вы ожидаете от участия?</label>
+        <textarea id="expectations" name="expectations" placeholder="Что для вас будет хорошим результатом?"></textarea>
+      </section>
+      <section class="step" data-step="2" hidden>
+        <h2>Направление и время</h2>
+        <p class="intro">Нам важно понять вашу реальную доступность, а не формальный статус занятости.</p>
+        <label for="direction">Что вам интереснее?</label>
+        <select id="direction" name="desired_direction" required>
+          <option value="">Выберите направление</option>
+          <option value="organizational">Организация мероприятий</option>
+          <option value="project">Квесты и мастер-классы</option>
+          <option value="collections">Работа с музейными фондами</option>
+          <option value="inclusive">Инклюзивные инициативы</option>
+          <option value="media">Фото, видео и медиапроекты</option>
+          <option value="undecided">Пока не знаю — помогите выбрать</option>
+        </select>
+        <label for="hours">Сколько часов в месяц вы реально можете участвовать?</label>
+        <input id="hours" name="availability_hours_month" type="number" min="0" max="400" value="12" required>
+        <label for="commitments">Какие ещё обязательства могут влиять на график?</label>
+        <textarea id="commitments" name="other_commitments" placeholder="Учёба, работа, другие программы — можно указать, как вы их совмещаете."></textarea>
+      </section>
+      <section class="step" data-step="3" hidden>
+        <h2>Последнее уточнение</h2>
+        <p class="intro">Если ваши ответы достаточно полные, мы не будем задавать лишний вопрос.</p>
+        <div id="followupBlock" hidden>
+          <label for="followup" id="followupLabel">Уточняющий вопрос</label>
+          <textarea id="followup" name="followup_answer" placeholder="Ваш ответ (по желанию)"></textarea>
+        </div>
+        <p id="noFollowup" class="hint" hidden>Уточнений пока не требуется — можно отправлять.</p>
+        <p class="notice">Это первая техническая версия: пока оценивает демонстрационный алгоритм. Кураторская шкала и модель ИИ будут подключены отдельно.</p>
+      </section>
+      <div id="error" class="error" role="alert" hidden></div>
+      <div class="actions">
+        <button id="back" type="button" class="secondary" hidden>Назад</button>
+        <button id="next" type="button">Продолжить</button>
+        <button id="submit" type="submit" hidden>Отправить анкету</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card" id="results" hidden>
+    <span class="tag">Результат сохранён</span>
+    <h2>Рекомендация для координатора</h2>
+    <p id="summary"></p>
+    <h3>Предлагаемое направление</h3>
+    <p id="recommendation"></p>
+    <h3>Что нужно уточнить</h3><ul id="problems"></ul>
+    <h3>Вопросы для собеседования</h3><ul id="interview"></ul>
+    <p class="hint" id="recordid"></p>
+    <div class="actions"><a class="linkbtn secondary" href="/api/v1/export.csv">Выгрузить общую таблицу (CSV)</a><button class="secondary" id="reset" type="button">Заполнить ещё одну</button></div>
+  </section>
+  <footer>ГИМ · прототип команды «Код со смыслом 2». Текущий оценщик — правила демонстрации, не финальная нейросеть.</footer>
+</main>
+<script>
+(function () {
+  const form = document.getElementById("form");
+  const steps = [...document.querySelectorAll(".step")];
+  const back = document.getElementById("back");
+  const next = document.getElementById("next");
+  const send = document.getElementById("submit");
+  const error = document.getElementById("error");
+  const wizard = document.getElementById("wizard");
+  const results = document.getElementById("results");
+  let step = 0;
+  let applicationId = null;
+  const byId = id => document.getElementById(id);
+  const val = id => byId(id).value.trim();
+  function render() {
+    steps.forEach((node, i) => node.hidden = i !== step);
+    back.hidden = step === 0;
+    next.hidden = step === steps.length - 1;
+    send.hidden = step !== steps.length - 1;
+    byId("stepNo").textContent = step + 1;
+    byId("bar").style.width = ((step + 1) / steps.length * 100) + "%";
+    error.hidden = true;
+  }
+  function payload() {
+    return {
+      application_id: applicationId,
+      applicant_name: val("name"),
+      age_over_18: byId("adult").checked,
+      motivation: val("motivation"),
+      experience: val("experience"),
+      expectations: val("expectations"),
+      availability_hours_month: Number(byId("hours").value),
+      other_commitments: val("commitments"),
+      desired_direction: byId("direction").value,
+      followup_answer: val("followup")
+    };
+  }
+  function validateStep() {
+    const controls = [...steps[step].querySelectorAll("input, textarea, select")];
+    for (const control of controls) {
+      if (!control.checkValidity()) { control.reportValidity(); return false; }
+    }
+    return true;
+  }
+  async function api(path, data) {
+    const response = await fetch(path, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+      let detail = "Сервер временно недоступен";
+      try { detail = JSON.stringify((await response.json()).detail || detail); } catch (_) {}
+      throw new Error(detail);
+    }
+    return response.json();
+  }
+  function showError(e) { error.hidden = false; error.textContent = String(e.message || e); }
+  next.addEventListener("click", async () => {
+    if (!validateStep()) return;
+    next.disabled = true;
+    try {
+      if (step === 2) {
+        const response = await api("/api/v1/clarification", payload());
+        byId("followupBlock").hidden = !response.question;
+        byId("noFollowup").hidden = Boolean(response.question);
+        if (response.question) byId("followupLabel").textContent = response.question;
+      }
+      step += 1;
+      render();
+    } catch (e) { showError(e); }
+    finally { next.disabled = false; }
+  });
+  back.addEventListener("click", () => { if (step > 0) { step -= 1; render(); } });
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!validateStep()) return;
+    send.disabled = true;
+    try {
+      if (!applicationId) applicationId = window.crypto && crypto.randomUUID
+        ? crypto.randomUUID() : "demo-" + Date.now();
+      const res = await api("/api/v1/applications", payload());
+      const e = res.evaluation;
+      byId("summary").textContent = e.summary + " (демонстрационная оценка, балл 0–3 пока не вычисляется)";
+      byId("recommendation").textContent = e.recommended_direction_label + ". " + e.direction_reason;
+      function list(id, values) {
+        const node = byId(id);
+        node.replaceChildren();
+        (values.length ? values : ["Дополнительных замечаний нет."]).forEach(v => {
+          const li = document.createElement("li");
+          li.textContent = v;
+          node.appendChild(li);
+        });
+      }
+      list("problems", e.possible_problems);
+      list("interview", e.interview_questions);
+      byId("recordid").textContent = "ID заявки: " + res.application_id;
+      wizard.hidden = true;
+      results.hidden = false;
+      window.scrollTo({top:0, behavior:"smooth"});
+    } catch (e) { showError(e); }
+    finally { send.disabled = false; }
+  });
+  byId("reset").addEventListener("click", () => {
+    applicationId = null; step = 0; form.reset(); wizard.hidden = false;
+    results.hidden = true; render(); window.scrollTo(0,0);
+  });
+  render();
+})();
+</script>
+</body>
+</html>
