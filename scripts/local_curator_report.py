@@ -58,6 +58,10 @@ def build(db: Path, destination: Path, limit: int = 40) -> int:
                      obj(evaluation.get("possible_problems",[]))+
                      "</pre><h3>Пилотные оценки пяти критериев (не откалиброваны)</h3><pre>"+
                      obj(evaluation.get("scorecard",[]))+
+                     "</pre><h3>Уточняющие вопросы и ответы ДО заключения</h3><pre>"+
+                     obj([{"question": q.get("question", ""),
+                           "answer": answers.get("followup_answers", {}).get(q.get("id", ""), "")}
+                          for q in answers.get("followup_questions", [])])+
                      "</pre><h3>Оставшиеся вопросы к куратору, если есть</h3><pre>"+
                      obj(evaluation.get("interview_questions",[]))+
                      "</pre><h3>Доказательства (evidence)</h3><pre>"+
