@@ -451,6 +451,11 @@ def evaluate(data: ApplicationInput | dict, *, mode: str | None = None,
     adapter = adapter if adapter is not None else adapter_from_env()
     answers = data.model_dump(exclude={"applicant_name", "application_id"})
     schema = Evaluation.model_json_schema()
+    # Legacy fixtures accept omitted scorecards, but NEW model output must
+    # contain the five-group rubric. Make that explicit in the passed schema.
+    schema.setdefault("required", [])
+    if "scorecard" not in schema["required"]:
+        schema["required"].append("scorecard")
     user = json.dumps({"answers": answers, "output_schema": schema}, ensure_ascii=False)
     try:
         result = validate_response(adapter.complete(system=SYSTEM_PROMPT, user=user, schema=schema), answers)
