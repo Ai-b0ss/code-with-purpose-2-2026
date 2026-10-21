@@ -31,6 +31,18 @@ DIRECTIONS = {
     "media": "Медиа",
     "undecided": "Пока не определился",
 }
+SCHEDULE_TYPES = {
+    "flexible": "Гибкий",
+    "regular": "Регулярный",
+    "Гибкий": "Гибкий",
+    "Регулярный": "Регулярный",
+}
+LEGACY_STATUSES = {
+    "student": "Студент",
+    "working": "Работаю",
+    "unemployed": "В поиске работы",
+    "other": "Другое",
+}
 Direction = Literal[
     "organizational", "project", "collections",
     "inclusive", "media", "undecided",
@@ -403,7 +415,7 @@ def export_csv():
             safe_csv(format_birth_date(entry.get("birth_date", ""))),
             safe_csv(entry.get("email", "")),
             safe_csv(entry.get("vk_url", "")),
-            safe_csv(entry.get("status", "")),
+            safe_csv(LEGACY_STATUSES.get(entry.get("status", ""), entry.get("status", ""))),
             safe_csv(entry.get("university_other") or entry.get("university", "")),
             safe_csv(entry.get("faculty", "")),
             safe_csv(entry.get("course", "")),
@@ -414,12 +426,12 @@ def export_csv():
             safe_csv(entry.get("expectations", "")),
             safe_csv(entry.get("hobbies", "")),
             entry.get("availability_hours_month", 0),
-            safe_csv(entry.get("availability_schedule_type", "")),
+            safe_csv(SCHEDULE_TYPES.get(entry.get("availability_schedule_type", ""), entry.get("availability_schedule_type", ""))),
             safe_csv(", ".join(entry.get("availability_days", [])) if isinstance(entry.get("availability_days"), list) else str(entry.get("availability_days", ""))),
             safe_csv(entry.get("other_commitments", "")),
             safe_csv(entry.get("other_volunteer_programs", "")),
             safe_csv(DIRECTIONS.get(entry.get("desired_direction", ""), entry.get("desired_direction", ""))),
-            safe_csv(entry.get("source", "")),
+            safe_csv({"vk_bot": "ВКонтакте, чат-бот ГИМ"}.get(entry.get("source", ""), entry.get("source", ""))),
             safe_csv(entry.get("followup_answer", "")),
             safe_csv(e.get("score")),
             safe_csv(e.get("summary", "")),
