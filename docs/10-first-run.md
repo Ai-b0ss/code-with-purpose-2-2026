@@ -20,7 +20,7 @@ python -m uvicorn backend.app:app --host 127.0.0.1 --port 8765
 | POST | `/api/v1/applications` | Сохранение заявки + результат оценщика (201); без явного согласия HTTP 422 |
 | GET | `/api/v1/applications` | Список заявок |
 | GET | `/api/v1/applications/{application_id}` | Ответы и результат по одной заявке |
-| GET | `/api/v1/export.csv` | Выгрузка сохранённых анкет и рекомендаций |
+| GET | `/api/v1/export.csv` | Выгрузка координатору: 32 колонки, разделитель `;`, UTF-8 BOM |
 
 Повторная отправка того же `application_id` не создаёт строку повторно и **не обращается заново к LLM**. SQLite лежит в `data/gim.sqlite3`; для изолированного теста задать `GIM_DB_PATH`.
 
@@ -39,7 +39,9 @@ python -m uvicorn backend.app:app --host 127.0.0.1 --port 8765
 
 Если `GIM_LLM_FALLBACK_TO_DEMO` не включён, ошибка/некорректный JSON модели возвращает HTTP 503 и **не выдаёт демо за ответ ИИ**. Если fallback включён, ответ содержит `evaluation_mode: rules_demo` и `evaluation_error`.
 
-**Важно:** OpenAI-compatible HTTP-маршрут был проверен на тестовом сервере, а настоящая бесплатная модель на подключённом компьютере ещё не настроена. `score` всегда `null` до калибровки, не выдумывать оценки куратора.
+**Live-проверка:** отдельный ReformBoss DeepSeek-probe ранее PASS; контрольный POST на сервер 8766 21.10 вернул `503 / evaluator_provider_timeout` через 61,1 с. `health=llm` подтверждает конфигурацию, но не успешное обращение к провайдеру. `score=null` до калибровки.
+
+Публичный экран показывает подтверждение и выбор кандидата. API пока возвращает подробную оценку и не требует авторизации при чтении заявок/CSV. До внешнего размещения выполнить [#28](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues/28).
 
 ## Проверка
 
@@ -48,6 +50,6 @@ python -m unittest discover -s tests -v
 .\run-tests.bat
 ```
 
-Проверено на Windows: 31 unit-тест, 30 PASS / 1 live SKIP; локальный runner: 49 PASS / 1 SKIP / 0 FAIL. Сервер для HTTP-проверок запускается в отдельном процессе со **временной SQLite**; GitHub Actions не нужны.
+Проверено на Windows после интеграции Ильи: **42 unit-теста: 41 PASS / 1 live SKIP**; локальный runner **60 PASS / 1 SKIP / 0 FAIL**. HTTP-проверки используют временную SQLite; рабочая база не изменяется. Chrome: полная форма → подтверждение → SQLite, без обнаруженных JS-ошибок.
 
 [Настройка LLM](11-llm-evaluator.md) · [Чек-лист приёмки](12-acceptance-20261021.md).
