@@ -44,7 +44,7 @@ python -m uvicorn backend.app:app --host 127.0.0.1 --port 8765
 | --- | --- | --- |
 | Илья Соколов | Полная диалоговая анкета, UX 5–7 минут | [#4](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues/4), `frontend/index.html` |
 | Игорь | LLM, рубрика кураторов, качество рекомендаций | [#5](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues/5), `backend/app.py` |
-| Александр Мирошниченко (`r0shn1ch`) | Backend, Google Sheets и экспорт; приглашение в репозиторий отправлено, **Issue пока не назначена** | [#6](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues/6) — общая задача без assignee; `backend/app.py` |
+| Александр Мирошниченко (`r0shn1ch`) | Backend, Google Sheets и экспорт; доступ **Write подтверждён**, **Issue пока не назначена** | [#6](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues/6) — общая задача без assignee; `backend/app.py` |
 | Ева Шишкина | Критерии, сценарии, замеры, проверка результатов | [#8](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues/8), `docs/Критерии_отбора_ГИМ.xlsx` |
 | Команда, ведёт Игорь | Интеграция, тесты и защита | [#9](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues/9) |
 
