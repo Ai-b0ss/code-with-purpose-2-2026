@@ -1434,6 +1434,9 @@
       try {
         const err = await res.json();
         detail = err.detail ? (typeof err.detail === "string" ? err.detail : JSON.stringify(err.detail)) : detail;
+        if (detail === "evaluator_invalid_model_json") {
+          detail = "Не удалось проверить ответ ИИ. Ваш черновик сохранён. Повторите отправку; если ошибка повторится, сообщите координатору код evaluator_invalid_model_json.";
+        }
       } catch (_) {}
       throw new Error(detail);
     }
