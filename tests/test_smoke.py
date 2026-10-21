@@ -4,9 +4,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from fastapi import HTTPException
 from backend.app import (
     ApplicationInput, clarification_for, clarifications_for, db_connection, evaluate_demo,
-    safe_csv,
+    safe_csv, save_application,
 )
 
 
@@ -14,6 +15,7 @@ def applicant(**changes):
     obj = {
         "applicant_name": "Тестовый кандидат",
         "age_over_18": True,
+        "consent_personal_data": True,
         "motivation": "Меня интересуют музейные образовательные проекты и исторические медиа.",
         "experience": "Монтаж видео для университетского исторического проекта.",
         "expectations": "Развивать навыки и быть полезным музею.",
@@ -63,6 +65,13 @@ class BasicTests(unittest.TestCase):
                     os.environ.pop("GIM_DB_PATH", None)
                 else:
                     os.environ["GIM_DB_PATH"] = old
+
+    def test_save_application_requires_consent(self):
+        data = applicant(consent_personal_data=False)
+        with self.assertRaises(HTTPException) as cm:
+            save_application(data)
+        self.assertEqual(cm.exception.status_code, 400)
+        self.assertIn("согласие", cm.exception.detail)
 
     def test_extended_application_fields(self):
         app = applicant(

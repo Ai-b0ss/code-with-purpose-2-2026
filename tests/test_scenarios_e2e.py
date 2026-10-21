@@ -196,6 +196,24 @@ class ScenariosVerificationTests(unittest.TestCase):
             self.assertEqual(entry["status"], "working")
             self.assertEqual(entry["other_volunteer_programs"], "Инклюзивный центр 'Тверская 15'")
 
+    def test_rejection_without_consent(self):
+        from fastapi import HTTPException
+        from backend.app import save_application
+        payload = {
+            "application_id": "test-no-consent-004",
+            "applicant_name": "Иван Безсогласия",
+            "age_over_18": True,
+            "consent_personal_data": False,
+            "motivation": "Хочу помогать музею на выставках и событиях.",
+            "desired_direction": "organizational",
+            "availability_hours_month": 16,
+        }
+        app_data = ApplicationInput(**payload)
+        with self.assertRaises(HTTPException) as cm:
+            save_application(app_data)
+        self.assertEqual(cm.exception.status_code, 400)
+        self.assertIn("согласие", cm.exception.detail)
+
 
 if __name__ == "__main__":
     unittest.main()

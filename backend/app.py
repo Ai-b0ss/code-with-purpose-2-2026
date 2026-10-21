@@ -53,7 +53,7 @@ class ApplicationInput(BaseModel):
     email: str = Field(default="", max_length=200)
     vk_url: str = Field(default="", max_length=200)
     birth_date: str = Field(default="", max_length=30)
-    consent_personal_data: bool = Field(default=True)
+    consent_personal_data: bool = Field(default=False)
     status: str = Field(default="student", max_length=50)
     university: str = Field(default="", max_length=200)
     university_other: str = Field(default="", max_length=200)
@@ -261,6 +261,8 @@ def preview(data: ApplicationInput):
 
 @app.post("/api/v1/applications", status_code=201)
 def save_application(data: ApplicationInput):
+    if not data.consent_personal_data:
+        raise HTTPException(status_code=400, detail="Требуется согласие на обработку персональных данных")
     application_id = data.application_id or uuid.uuid4().hex
     created_at = datetime.now(timezone.utc).isoformat()
     evaluation = evaluate_demo(data)
