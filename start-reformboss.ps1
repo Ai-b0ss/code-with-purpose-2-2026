@@ -80,7 +80,9 @@ try {
     }
     Write-Host "Live GIM server: http://127.0.0.1:$selectedPort"
     Write-Host "Ctrl+C stops this server. This script clears the key from its process environment on exit."
-    python -m uvicorn backend.app:app --host 127.0.0.1 --port $selectedPort
+    $serverEnvArgs = @()
+    if (Test-Path -LiteralPath (Join-Path $PSScriptRoot ".env")) { $serverEnvArgs = @("--env-file", ".env") }
+    python -m uvicorn backend.app:app --host 127.0.0.1 --port $selectedPort @serverEnvArgs
 } finally {
     Remove-Item Env:GIM_LLM_API_KEY -ErrorAction SilentlyContinue
     Remove-Item Env:GIM_LLM_ENDPOINT -ErrorAction SilentlyContinue
