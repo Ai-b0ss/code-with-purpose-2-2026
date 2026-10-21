@@ -42,7 +42,7 @@ try {
 
     if (-not $SkipProbe) {
         Write-Host "Checking actual model response with synthetic candidate..."
-        $probe = @("scripts/check_reformboss.py", "--model", $Model)
+        $probe = @("-m", "scripts.check_reformboss", "--model", $Model)
         if ($Compare) { $probe += "--compare" }
         if ($DisableJsonMode) { $probe += "--disable-json-mode" }
         python @probe
