@@ -38,6 +38,7 @@ def run_smoke(base_url: str = BASE) -> None:
         "application_id": app_id,
         "applicant_name": "Тестовый кандидат",
         "age_over_18": True,
+        "consent_personal_data": True,
         "motivation": "Мне интересно создавать исторический медиаконтент и помогать музею.",
         "experience": "Делал видео для университетского кружка.",
         "expectations": "Хочу научиться работать с архивными историями",

@@ -53,7 +53,7 @@ class ApplicationInput(BaseModel):
     email: str = Field(default="", max_length=200)
     vk_url: str = Field(default="", max_length=200)
     birth_date: str = Field(default="", max_length=30)
-    consent_personal_data: bool = Field(default=True)
+    consent_personal_data: bool = Field(default=False)
     status: str = Field(default="student", max_length=50)
     university: str = Field(default="", max_length=200)
     university_other: str = Field(default="", max_length=200)
@@ -231,6 +231,22 @@ def evaluate_demo(data: ApplicationInput) -> dict:
     }
 
 
+def evaluate_application(data: ApplicationInput) -> dict:
+    """Use the standalone evaluator in actual API flows, configured by environment.
+
+    Default demo is explicit. Live LLM is opt-in via GIM_EVALUATION_MODE=llm.
+    Provider failures are surfaced instead of passing simulated AI as real.
+    """
+    from backend.evaluator import EvaluationError, evaluate
+    try:
+        return evaluate(
+            data,
+            fallback_to_demo=os.getenv("GIM_LLM_FALLBACK_TO_DEMO", "0") == "1",
+        )
+    except EvaluationError as exc:
+        raise HTTPException(status_code=503, detail=f"evaluator_{exc.code}") from None
+
+
 app = FastAPI(title="ГИМ — Музейный компас", version="0.1.0")
 
 
@@ -241,7 +257,12 @@ def home():
 
 @app.get("/api/v1/health")
 def health():
-    return {"status": "ok", "version": "0.1.0", "evaluation_mode": "rules_demo"}
+    mode = os.getenv("GIM_EVALUATION_MODE", "demo")
+    return {
+        "status": "ok", "version": "0.1.0",
+        "evaluation_mode": "llm" if mode == "llm" else "rules_demo",
+        "fallback_to_demo": os.getenv("GIM_LLM_FALLBACK_TO_DEMO", "0") == "1",
+    }
 
 
 @app.post("/api/v1/clarification")
@@ -256,14 +277,15 @@ def clarification(data: ApplicationInput):
 
 @app.post("/api/v1/preview")
 def preview(data: ApplicationInput):
-    return {"evaluation": evaluate_demo(data)}
+    return {"evaluation": evaluate_application(data)}
 
 
 @app.post("/api/v1/applications", status_code=201)
 def save_application(data: ApplicationInput):
     application_id = data.application_id or uuid.uuid4().hex
+    if not data.consent_personal_data:
+        raise HTTPException(status_code=422, detail="Необходимо явное согласие на обработку персональных данных.")
     created_at = datetime.now(timezone.utc).isoformat()
-    evaluation = evaluate_demo(data)
     with db_connection() as con:
         previous = con.execute(
             "SELECT payload, evaluation, created_at FROM applications WHERE id = ?",
@@ -276,6 +298,9 @@ def save_application(data: ApplicationInput):
                 "evaluation": json.loads(previous["evaluation"]),
                 "created": False,
             }
+        # Evaluate only new applications. A retry with the same ID must not
+        # re-call a paid/slow/unavailable model or overwrite the original result.
+        evaluation = evaluate_application(data)
         con.execute(
             "INSERT INTO applications(id, created_at, applicant_name, payload, evaluation) "
             "VALUES(?, ?, ?, ?, ?)",
