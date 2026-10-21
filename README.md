@@ -24,7 +24,7 @@
 
 ## Запуск ReformBoss (настоящая LLM)
 
-Добавлен [`start-reformboss.ps1`](start-reformboss.ps1): по умолчанию проверяет `deepseek-v4.1-flash-1017` через `https://api.reformboss.com/v1/chat/completions` на вымышленном кандидате, затем поднимает приложение в режиме `llm`. Ключ запрашивается **скрытым вводом** и не записывается на диск.
+Добавлен [`start-reformboss.ps1`](start-reformboss.ps1): по умолчанию проверяет `deepseek-v4.1-flash` через `https://api.reformboss.com/v1/chat/completions` на вымышленном кандидате, затем поднимает приложение в режиме `llm`. Ключ запрашивается **видимым вводом** (не показывайте экран во время ввода) и не записывается на диск.
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\start-reformboss.ps1
