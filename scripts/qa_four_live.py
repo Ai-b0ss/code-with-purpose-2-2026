@@ -134,8 +134,10 @@ def main() -> int:
             passed = (status == 201 and output.get("created") is True
                       and isinstance(result, dict)
                       and result.get("evaluation_mode") == "llm"
-                      and result.get("score") is None
-                      and result.get("score_status") == "not_calibrated"
+                      and isinstance(result.get("score"), int)
+                      and 0 <= result["score"] <= 3
+                      and result.get("score_status") == "pilot_unvalidated"
+                      and len(result.get("scorecard") or []) == 5
                       and len(result.get("evidence") or []) > 0)
             duplicate_status = "not_checked"
             if passed:
@@ -170,7 +172,7 @@ def main() -> int:
     REPORTS.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_utc")
     payload = {"created_at_utc": stamp, "base_url": args.base_url, "cases": rows,
-               "note": "Expert evaluation not performed; no numeric scores calibrated"}
+               "note": "Provisional numeric score only; expert evaluation and statistical calibration not performed"}
     json_path = REPORTS / f"issue27_{stamp}.json"
     html_path = REPORTS / f"issue27_{stamp}.html"
     json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
