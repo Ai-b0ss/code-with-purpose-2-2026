@@ -1160,7 +1160,10 @@
   }
 
   function buildPayload() {
-    const combinedFollowup = Object.entries(followupAnswers)
+    const answers = (followupAnswers && typeof followupAnswers === "object" && !Array.isArray(followupAnswers))
+      ? followupAnswers
+      : {};
+    const combinedFollowup = Object.entries(answers)
       .map(([k, v]) => `${k}: ${v}`)
       .join("\n") || (byId("fallback_answer") ? byId("fallback_answer").value.trim() : "");
 
@@ -1191,7 +1194,7 @@
       other_commitments: byId("other_commitments") ? byId("other_commitments").value.trim() : "",
       other_volunteer_programs: byId("other_volunteer_programs") ? byId("other_volunteer_programs").value.trim() : "",
       followup_answer: combinedFollowup,
-      followup_answers: followupAnswers
+      followup_answers: answers
     };
   }
 
@@ -1399,8 +1402,13 @@
       if (data.other_commitments && byId("other_commitments")) byId("other_commitments").value = data.other_commitments;
       if (data.other_volunteer_programs && byId("other_volunteer_programs")) byId("other_volunteer_programs").value = data.other_volunteer_programs;
 
-      if (data.followup_answers) {
-        followupAnswers = data.followup_answers;
+      if (data.followup_answers && typeof data.followup_answers === "object" && !Array.isArray(data.followup_answers)) {
+        followupAnswers = Object.fromEntries(
+          Object.entries(data.followup_answers)
+            .filter(([, value]) => typeof value === "string")
+        );
+      } else {
+        followupAnswers = {};
       }
 
       draftInfo.hidden = false;
@@ -1482,6 +1490,10 @@
   // --- Form Submission ---
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
+    if (currentStep !== steps.length - 1) {
+      showError("Сначала пройдите все шаги анкеты.");
+      return;
+    }
     if (!validateStep(currentStep)) return;
 
     submitBtn.disabled = true;

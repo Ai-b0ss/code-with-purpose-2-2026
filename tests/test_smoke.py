@@ -74,6 +74,41 @@ class BasicTests(unittest.TestCase):
         self.assertEqual(cm.exception.status_code, 400)
         self.assertIn("согласие", cm.exception.detail)
 
+    def test_save_application_requires_explicit_consent_when_omitted(self):
+        data = ApplicationInput(
+            applicant_name="Кандидат без согласия",
+            age_over_18=True,
+            motivation="Хочу помогать музею на выставках и событиях.",
+            availability_hours_month=16,
+            desired_direction="organizational",
+        )
+        self.assertFalse(data.consent_personal_data)
+        with self.assertRaises(HTTPException) as cm:
+            save_application(data)
+        self.assertEqual(cm.exception.status_code, 400)
+
+    def test_save_application_is_idempotent_for_repeated_application_id(self):
+        with tempfile.TemporaryDirectory() as directory:
+            old = os.environ.get("GIM_DB_PATH")
+            os.environ["GIM_DB_PATH"] = str(Path(directory) / "store.sqlite3")
+            try:
+                first = save_application(applicant(application_id="repeatable-001"))
+                second = save_application(applicant(
+                    application_id="repeatable-001",
+                    applicant_name="Изменённое имя при повторной отправке",
+                ))
+                self.assertTrue(first["created"])
+                self.assertFalse(second["created"])
+                self.assertEqual(first["created_at"], second["created_at"])
+                with db_connection() as con:
+                    count = con.execute("SELECT COUNT(*) FROM applications").fetchone()[0]
+                self.assertEqual(count, 1)
+            finally:
+                if old is None:
+                    os.environ.pop("GIM_DB_PATH", None)
+                else:
+                    os.environ["GIM_DB_PATH"] = old
+
     def test_extended_application_fields(self):
         app = applicant(
             email="volunteer@shm.ru",

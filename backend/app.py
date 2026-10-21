@@ -267,25 +267,27 @@ def save_application(data: ApplicationInput):
     created_at = datetime.now(timezone.utc).isoformat()
     evaluation = evaluate_demo(data)
     with db_connection() as con:
-        previous = con.execute(
-            "SELECT payload, evaluation, created_at FROM applications WHERE id = ?",
-            (application_id,),
-        ).fetchone()
-        if previous is not None:
-            return {
-                "application_id": application_id,
-                "created_at": previous["created_at"],
-                "evaluation": json.loads(previous["evaluation"]),
-                "created": False,
-            }
-        con.execute(
-            "INSERT INTO applications(id, created_at, applicant_name, payload, evaluation) "
+        cursor = con.execute(
+            "INSERT OR IGNORE INTO applications(id, created_at, applicant_name, payload, evaluation) "
             "VALUES(?, ?, ?, ?, ?)",
             (
                 application_id, created_at, data.applicant_name,
                 data.model_dump_json(), json.dumps(evaluation, ensure_ascii=False),
             ),
         )
+        if cursor.rowcount == 0:
+            previous = con.execute(
+                "SELECT payload, evaluation, created_at FROM applications WHERE id = ?",
+                (application_id,),
+            ).fetchone()
+            if previous is None:
+                raise HTTPException(status_code=409, detail="Не удалось подтвердить идемпотентность заявки")
+            return {
+                "application_id": application_id,
+                "created_at": previous["created_at"],
+                "evaluation": json.loads(previous["evaluation"]),
+                "created": False,
+            }
     return {
         "application_id": application_id,
         "created_at": created_at,

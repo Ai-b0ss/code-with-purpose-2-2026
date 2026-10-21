@@ -1,4 +1,6 @@
 """End-to-End verification script for 3 GIM candidate scenarios and API integration."""
+import csv
+import io
 import json
 import os
 import tempfile
@@ -216,17 +218,42 @@ class ScenariosVerificationTests(unittest.TestCase):
 
     def test_export_csv_semicolon_format(self):
         from backend.app import export_csv
+        app_data = ApplicationInput(
+            application_id="csv-fixture-001",
+            applicant_name="=HYPERLINK(1)",
+            age_over_18=True,
+            consent_personal_data=True,
+            motivation="Первая строка\nВторая строка",
+            desired_direction="media",
+            availability_hours_month=16,
+        )
+        evaluation = evaluate_demo(app_data)
+        with db_connection() as con:
+            con.execute(
+                "INSERT INTO applications(id, created_at, applicant_name, payload, evaluation) "
+                "VALUES(?, datetime('now'), ?, ?, ?)",
+                (
+                    app_data.application_id,
+                    app_data.applicant_name,
+                    app_data.model_dump_json(),
+                    json.dumps(evaluation, ensure_ascii=False),
+                ),
+            )
+
         response = export_csv()
         content = response.body.decode("utf-8")
-        lines = content.strip().splitlines()
-        header = lines[0]
-        self.assertIn(";", header)
-        columns = header.lstrip("\ufeff").split(";")
+        rows = list(csv.reader(io.StringIO(content), delimiter=";"))
+        header = rows[0]
+        columns = [header[0].lstrip("\ufeff")] + header[1:]
         self.assertIn("Согласие ПД", columns)
         self.assertIn("Дата рождения", columns)
         self.assertIn("Научные интересы", columns)
         self.assertIn("Хобби", columns)
         self.assertEqual(len(columns), 32)
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(len(rows[1]), len(columns))
+        self.assertEqual(rows[1][2], "'=HYPERLINK(1)")
+        self.assertEqual(rows[1][14], "Первая строка Вторая строка")
 
 
 if __name__ == "__main__":
