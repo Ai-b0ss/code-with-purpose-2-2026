@@ -71,6 +71,41 @@ class PilotRubricTests(unittest.TestCase):
             with self.subTest(changes=changes), self.assertRaises(EvaluationError):
                 validate_response(json.dumps({**original, **changes}), answers)
 
+    def test_scored_result_is_persisted_and_visible_to_curator(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+        import os
+        from backend.app import export_csv, save_application
+        from scripts.local_curator_report import build
+
+        data = candidate().model_copy(update={
+            "application_id": "synthetic-rubric-001",
+            "consent_personal_data": True,
+        })
+        with TemporaryDirectory() as directory:
+            db = Path(directory) / "test.sqlite3"
+            report = Path(directory) / "curator.html"
+            adapter = FakeAdapter(json.dumps(response(data), ensure_ascii=False))
+            with patch.dict(os.environ, {"GIM_DB_PATH": str(db)}), patch(
+                "backend.app.evaluate_application",
+                side_effect=lambda value: evaluate(value, adapter=adapter),
+            ):
+                first = save_application(data)
+                repeat = save_application(data)
+                csv_text = export_csv().body.decode("utf-8-sig")
+                count = build(db, report)
+            self.assertTrue(first["created"])
+            self.assertFalse(repeat["created"])
+            self.assertEqual(len(adapter.calls), 1)
+            self.assertEqual(first["evaluation"]["score"], 2)
+            self.assertIn("Оценка 0-3", csv_text)
+            self.assertIn(";2;", csv_text)
+            self.assertEqual(count, 1)
+            html = report.read_text(encoding="utf-8")
+            self.assertIn("pilot_unvalidated", html)
+            self.assertIn("Пилотные оценки пяти критериев", html)
+
     def test_legacy_fixture_requires_explicit_opt_in(self):
         data = candidate()
         answers = data.model_dump(exclude={"applicant_name", "application_id"})
