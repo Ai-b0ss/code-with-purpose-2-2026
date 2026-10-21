@@ -15,11 +15,13 @@
 | FastAPI, SQLite, получение и сохранение заявок | Работают |
 | Повторная отправка с тем же ID без дубля | Реализована и проверена |
 | Экспорт CSV | Работает; формат требует сверки с Google Sheets |
-| Полноценный LLM-оценщик и калиброванный балл 0–3 | **В разработке** — текущая функция `evaluate_demo` не является моделью музея |
+| Отдельный LLM-оценщик | **PR [#13](https://github.com/Ai-b0ss/code-with-purpose-2-2026/pull/13) открыт**: модуль, контракт, offline-тесты. **В `main` ещё не подключён** |
+| Калиброванный балл 0–3 | **Нет**: до калибровки возвращается `null` |
 | Автоматическая запись в Google Sheets | **Не подключена**; [таблица-шаблон](https://docs.google.com/spreadsheets/d/1AJVzUTu8KJPfknSgQBem5InL3q_ynAQ3qSO2h8bDVSc/edit) создана |
+| Локальный тестировщик без GitHub Actions | **PR [#14](https://github.com/Ai-b0ss/code-with-purpose-2-2026/pull/14) открыт**; `run-tests.bat` пока не в `main` |
 | Интеграция с VK | Не начата, не блокирует основной сценарий |
 
-Первый каркас слит через [PR #11](https://github.com/Ai-b0ss/code-with-purpose-2-2026/pull/11). Пять модульных тестов и локальная HTTP-проверка прошли на Windows 21 октября. Реальный пользовательский прогон на ноутбуке команды ещё предстоит.
+Первый каркас слит через [PR #11](https://github.com/Ai-b0ss/code-with-purpose-2-2026/pull/11). В `main` остаётся рабочий режим `rules_demo`; первые 5 unit-тестов и HTTP smoke были пройдены. По отчётам исполнителей, PR #13 прошёл 16 тестов (1 live-тест пропущен), PR #14 — 24 локальные проверки. **Оба PR требуют согласования перед слиянием:** ветка #14 содержит также старые копии файлов оценщика из #13. Не считать это уже объединённым продуктом.
 
 ## Запуск на любом ноутбуке
 
@@ -42,7 +44,7 @@ python -m uvicorn backend.app:app --host 127.0.0.1 --port 8765
 | --- | --- | --- |
 | Илья Соколов | Полная диалоговая анкета, UX 5–7 минут | [#4](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues/4), `frontend/index.html` |
 | Игорь | LLM, рубрика кураторов, качество рекомендаций | [#5](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues/5), `backend/app.py` |
-| Александр Мирошниченко | API, SQLite, запись в Google Sheets, экспорт | [#6](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues/6), `backend/app.py` |
+| Александр Мирошниченко (`r0shn1ch`) | Backend, Google Sheets и экспорт; приглашение в репозиторий отправлено, **Issue пока не назначена** | [#6](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues/6) — общая задача без assignee; `backend/app.py` |
 | Ева Шишкина | Критерии, сценарии, замеры, проверка результатов | [#8](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues/8), `docs/Критерии_отбора_ГИМ.xlsx` |
 | Команда, ведёт Игорь | Интеграция, тесты и защита | [#9](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues/9) |
 
@@ -54,6 +56,8 @@ python -m uvicorn backend.app:app --host 127.0.0.1 --port 8765
 - [Что ответил заказчик](docs/06-gim-stakeholder-answers.md)
 - [План разработки до защиты](docs/09-delivery-roadmap.md)
 - [Запуск и текущее API](docs/10-first-run.md)
+- [ИИ-оценщик: инструкция в PR #13](https://github.com/Ai-b0ss/code-with-purpose-2-2026/blob/feat/llm-evaluator/docs/11-llm-evaluator.md)
+- [Локальные тесты: PR #14](https://github.com/Ai-b0ss/code-with-purpose-2-2026/pull/14)
 - [Критерии отбора](docs/Критерии_отбора_ГИМ.xlsx)
 - [Оригинальные файлы ГИМ](materials/gim/)
 - [Таблица для координатора](https://docs.google.com/spreadsheets/d/1AJVzUTu8KJPfknSgQBem5InL3q_ynAQ3qSO2h8bDVSc/edit)
