@@ -9,12 +9,31 @@ import subprocess
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class ReformBossLauncherTests(unittest.TestCase):
+    def test_probe_uses_the_same_timeout_as_server_environment(self):
+        from scripts import check_reformboss
+        for configured, arguments, expected in (
+            (None, [], 180.0),
+            ("120", [], 120.0),
+            ("120", ["--timeout", "240"], 240.0),
+        ):
+            with self.subTest(configured=configured, arguments=arguments):
+                with patch.dict(os.environ, {"GIM_LLM_API_KEY": "test-only"}):
+                    os.environ.pop("GIM_LLM_TIMEOUT", None)
+                    if configured is not None:
+                        os.environ["GIM_LLM_TIMEOUT"] = configured
+                    with patch("sys.argv", ["probe", *arguments]), patch.object(
+                        check_reformboss, "probe_model", return_value=True
+                    ) as probe:
+                        self.assertEqual(check_reformboss.main(), 0)
+                    self.assertEqual(probe.call_args.args[-1], expected)
+
     def test_probe_module_imports_backend_from_repo_root(self):
         env = os.environ.copy()
         env.pop("GIM_LLM_API_KEY", None)

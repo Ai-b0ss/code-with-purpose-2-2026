@@ -127,10 +127,11 @@ def list_models(api_key: str, endpoint: str) -> None:
         print("Не удалось получить /models:", type(exc).__name__)
 
 
-def probe_model(name: str, endpoint: str, key: str, json_mode: bool) -> bool:
+def probe_model(name: str, endpoint: str, key: str, json_mode: bool,
+                timeout: float = 180.0) -> bool:
     adapter = ChatCompletionsAdapter(
         endpoint=endpoint, model=name, api_key=key,
-        timeout=60.0, json_mode=json_mode,
+        timeout=timeout, json_mode=json_mode,
     )
     started = time.monotonic()
     try:
@@ -169,9 +170,14 @@ def main() -> int:
     parser.add_argument("--check-network", action="store_true",
                         help="Unauthenticated TLS/HTTP check; no key required")
     parser.add_argument("--disable-json-mode", action="store_true")
+    parser.add_argument("--timeout", type=float,
+                        default=os.environ.get("GIM_LLM_TIMEOUT", "180"),
+                        help="Provider timeout in seconds (1–300; env GIM_LLM_TIMEOUT)")
     parser.add_argument("--endpoint", default=ENDPOINT,
                         help="Full chat/completions URL (default ReformBoss)")
     args = parser.parse_args()
+    if not 1 <= args.timeout <= 300:
+        parser.error("--timeout must be between 1 and 300 seconds")
 
     if args.check_network:
         return 0 if check_network(args.endpoint) else 3
@@ -185,7 +191,7 @@ def main() -> int:
     chosen = MODELS if args.compare else (args.model,)
     print(f"Проверяем {len(chosen)} реальный API-запрос(ов) на ВЫМЫШЛЕННОЙ анкете.")
     results = [
-        probe_model(name, args.endpoint, key, not args.disable_json_mode)
+        probe_model(name, args.endpoint, key, not args.disable_json_mode, args.timeout)
         for name in chosen
     ]
     return 0 if all(results) else 1

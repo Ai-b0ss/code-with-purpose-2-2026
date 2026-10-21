@@ -39,7 +39,7 @@ python -m uvicorn backend.app:app --host 127.0.0.1 --port 8765
 
 Если `GIM_LLM_FALLBACK_TO_DEMO` не включён, ошибка/некорректный JSON модели возвращает HTTP 503 и **не выдаёт демо за ответ ИИ**. Если fallback включён, ответ содержит `evaluation_mode: rules_demo` и `evaluation_error`.
 
-**Live-проверка:** отдельный ReformBoss DeepSeek-probe ранее PASS; контрольный POST на сервер 8766 21.10 вернул `503 / evaluator_provider_timeout` через 61,1 с. `health=llm` подтверждает конфигурацию, но не успешное обращение к провайдеру. `score=null` до калибровки.
+**Live-проверка:** после перезапуска сервера 8766 настоящий API → DeepSeek → SQLite PASS за 50,5 с; повтор ID без дубля за 0,03 с. Прежний 503 вызван клиентским таймаутом 60 с: прямой полный запрос занял 93 с и прошёл schema/evidence. Для ReformBoss используйте `start-reformboss.ps1 -TimeoutSeconds 180` (по умолчанию 180). Пробник использует тот же GIM_LLM_TIMEOUT; `--timeout` явно переопределяет его. Универсальный адаптер без переменной окружения сохраняет собственный default 30 с. `score=null` до калибровки. [Протокол](14-deepseek-timeout-20261021.md).
 
 Публичный экран показывает подтверждение и выбор кандидата. API пока возвращает подробную оценку и не требует авторизации при чтении заявок/CSV. До внешнего размещения выполнить [#28](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues/28).
 
@@ -50,6 +50,6 @@ python -m unittest discover -s tests -v
 .\run-tests.bat
 ```
 
-Проверено на Windows после интеграции Ильи: **42 unit-теста: 41 PASS / 1 live SKIP**; локальный runner **60 PASS / 1 SKIP / 0 FAIL**. HTTP-проверки используют временную SQLite; рабочая база не изменяется. Chrome: полная форма → подтверждение → SQLite, без обнаруженных JS-ошибок.
+Проверено на Windows после интеграции Ильи: **43 unit-теста: 42 PASS / 1 live SKIP**; локальный runner **61 PASS / 1 SKIP / 0 FAIL**. HTTP-проверки используют временную SQLite; рабочая база не изменяется. Chrome: полная форма → подтверждение → SQLite, без обнаруженных JS-ошибок.
 
 [Настройка LLM](11-llm-evaluator.md) · [Чек-лист приёмки](12-acceptance-20261021.md).
