@@ -1,6 +1,7 @@
 """Offline contract, policy prompt, failure and real HTTP transport tests."""
 import json
 import os
+from pathlib import Path
 import ssl
 import threading
 import unittest
@@ -9,7 +10,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from unittest.mock import patch
 from urllib.error import URLError, HTTPError
 
-from backend.app import evaluate_demo
+from backend.app import ApplicationInput, evaluate_demo
 from backend.evaluator import (
     ChatCompletionsAdapter, EvaluationError, adapter_from_env, evaluate, validate_response,
 )
@@ -65,6 +66,42 @@ class FakeAdapter:
 
 
 class EvaluatorTests(unittest.TestCase):
+    def test_real_deepseek_native_value_regressions(self):
+        root = Path(__file__).resolve().parents[1]
+        cases = {c['case_id']: c['answers'] for c in json.loads((root/'qa/four_cases.json').read_text(encoding='utf-8'))['cases']}
+        for name in ['CAND-01', 'CAND-06']:
+            with self.subTest(case=name):
+                answers = ApplicationInput(**cases[name]).model_dump(exclude={'applicant_name', 'application_id'})
+                raw = (root/'tests/fixtures/evaluator'/f'{name}-native-evidence.json').read_text(encoding='utf-8')
+                result = validate_response(raw, answers)
+                self.assertEqual(result['evaluation_mode'], 'llm')
+                self.assertIsNone(result['score'])
+                self.assertTrue(result['evidence'])
+                self.assertTrue(all(isinstance(e['reason'], str) and e['reason'] for e in result['evidence']))
+
+    def test_native_evidence_requires_exact_values_and_types(self):
+        data = candidate().model_copy(update={'availability_days': ['сб', 'вс'], 'followup_answers': {'x': 'да'}})
+        answers = data.model_dump(exclude={'applicant_name', 'application_id'})
+        original = response(data)
+        evidence = [{'question_id': k, 'reason': answers[k]} for k in ['availability_hours_month', 'age_over_18', 'availability_days', 'followup_answers']]
+        result = validate_response(json.dumps({**original, 'evidence': evidence}, ensure_ascii=False), answers)
+        self.assertEqual([e['reason'] for e in result['evidence']], [json.dumps(answers[e['question_id']], ensure_ascii=False) for e in evidence])
+        for key, quote in [('availability_hours_month', 999), ('age_over_18', 1), ('availability_hours_month', 24.0), ('availability_days', ['сб']), ('availability_days', [True, 'вс']), ('followup_answers', {'x': 'нет'}), ('motivation', ['invented']), ('missing_field', '')]:
+            with self.subTest(key=key, quote=quote), self.assertRaises(EvaluationError):
+                validate_response(json.dumps({**original, 'evidence': [{'question_id': key, 'reason': quote}]}), answers)
+
+    def test_empty_sources_do_not_count_as_evidence_or_hide_schema_errors(self):
+        data = candidate()
+        answers = data.model_dump(exclude={'applicant_name', 'application_id'})
+        answers['empty'] = ''
+        original = response(data)
+        empty = {'question_id': 'empty', 'reason': ''}
+        result = validate_response(json.dumps({**original, 'evidence': original['evidence'] + [empty]}), answers)
+        self.assertEqual(result['evidence'], original['evidence'])
+        for entries in [[empty], [empty] * 31, [{**empty, 'unexpected': 'not allowed'}], [{'question_id': 'motivation', 'reason': ''}]]:
+            with self.subTest(entries=entries), self.assertRaises(EvaluationError):
+                validate_response(json.dumps({**original, 'evidence': entries}), answers)
+
     def test_two_contrasting_candidates_contract_and_prompt(self):
         for busy in (False, True):
             with self.subTest(busy=busy):
