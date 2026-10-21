@@ -261,19 +261,19 @@ class ScenariosVerificationTests(unittest.TestCase):
         rows = list(csv.reader(io.StringIO(content), delimiter=";"))
         header = rows[0]
         columns = [header[0].lstrip("\ufeff")] + header[1:]
+        self.assertNotIn("Дата", columns)
         self.assertIn("Согласие ПД", columns)
         self.assertIn("Дата рождения", columns)
         self.assertIn("Научные интересы", columns)
         self.assertIn("Хобби", columns)
-        self.assertEqual(len(columns), 32)
+        self.assertEqual(len(columns), 31)
         self.assertEqual(len(rows), 2)
         self.assertEqual(len(rows[1]), len(columns))
-        # Date column (created_at formatted as DD.MM.YYYY HH:MM)
-        self.assertRegex(rows[1][1], r"^\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}$")
-        self.assertEqual(rows[1][2], "'=HYPERLINK(1)")
+        # Name column
+        self.assertEqual(rows[1][1], "'=HYPERLINK(1)")
         # Birth date column (formatted as DD.MM.YYYY)
-        self.assertEqual(rows[1][5], "25.11.2000")
-        self.assertEqual(rows[1][14], "Первая строка Вторая строка")
+        self.assertEqual(rows[1][4], "25.11.2000")
+        self.assertEqual(rows[1][13], "Первая строка Вторая строка")
 
 
 if __name__ == "__main__":
