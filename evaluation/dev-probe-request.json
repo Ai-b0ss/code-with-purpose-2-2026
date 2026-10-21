@@ -1,0 +1,17 @@
+{
+  "scenario": "synthetic candidate, not a historical record",
+  "eligibility": {"consent_personal_data": true, "birth_date": "1996-03-12"},
+  "answers": {
+    "motivation": "Хочу разработать исторический квест по экспозиции ГИМ и провести его для школьников.",
+    "experience": "Проводила школьную игру по истории: составила задания и вела команду из пяти человек.",
+    "expectations": "Хочу научиться музейной работе и помочь проводить занятия для посетителей.",
+    "status": "working",
+    "desired_direction": "project",
+    "availability_hours_month": "8",
+    "availability_schedule_type": "flexible",
+    "availability_days": "суббота",
+    "other_commitments": "Работаю по будням, могу приходить по субботам; о занятости предупрежу заранее.",
+    "case_response": "Если не успеваю, заранее сообщу координатору и предложу замену или другое время.",
+    "followup.employment_schedule": "После работы могу участвовать по субботам; будние дни заняты."
+  }
+}

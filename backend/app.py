@@ -1,8 +1,4 @@
-"""Minimal runnable GIM hackathon prototype.
-
-The evaluation implemented here is deliberately a rules-only *demo*.
-It does NOT claim to be the museum-calibrated AI scorer.
-"""
+"""GIM website, questionnaire API and legacy demonstration endpoints."""
 from __future__ import annotations
 
 import csv
@@ -16,8 +12,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import FileResponse, Response
+from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -182,6 +179,13 @@ def clarifications_for(data: ApplicationInput) -> list[dict]:
         })
 
     # Доступность и совмещение
+    if data.status == "working" and not data.followup_answers.get("employment_schedule"):
+        items.append({
+            "id": "employment_schedule",
+            "category": "Совмещение работы и волонтёрства",
+            "question": "Как вы будете совмещать работу с музейными задачами и согласованными сменами? Укажите доступные дни или формат.",
+            "reason": "Занятость названа в критериях куратора поводом проверить реальную доступность, а не автоматическим отказом.",
+        })
     if data.availability_hours_month == 0 and not data.followup_answers.get("availability_boost"):
         items.append({
             "id": "availability_boost",
@@ -275,11 +279,11 @@ def evaluate_application(data: ApplicationInput) -> dict:
             "strengths": [], "possible_problems": [eligibility["reason"]],
             "interview_questions": [],
         }
-    if eligibility["status"] == "ineligible":
+    if eligibility["status"] in {"ineligible", "no_consent"}:
         return {
             "score": None, "score_status": "ineligible",
             "evaluation_mode": "eligibility_rules", "eligibility": eligibility,
-            "summary": "Заявка не проходит базовое условие участия: возраст 18+.",
+            "summary": "Заявка не проходит базовые условия участия: согласие и возраст 18+.",
             "recommended_direction": data.desired_direction,
             "recommended_direction_label": DIRECTIONS[data.desired_direction],
             "direction_reason": "Оценка по рубрике не запускалась.",
@@ -288,8 +292,8 @@ def evaluate_application(data: ApplicationInput) -> dict:
         }
     try:
         if os.getenv("GIM_EVALUATION_MODE") == "rag_llm":
-            from backend.scoring import assess
-            result = assess(data)
+            from backend.agent_workflow import run_assessment
+            result = run_assessment(data, eligibility=eligibility)
         else:
             result = evaluate(
                 data,
@@ -309,13 +313,31 @@ def home():
     return FileResponse(FRONTEND, media_type="text/html")
 
 
+@app.get("/student")
+def student_home():
+    return FileResponse(FRONTEND, media_type="text/html")
+
+
+@app.get("/coordinator")
+def coordinator_home():
+    return FileResponse(ROOT / "frontend" / "coordinator.html", media_type="text/html")
+
+
 @app.get("/api/v1/health")
 def health():
+    load_dotenv(ROOT / ".env")
     mode = os.getenv("GIM_EVALUATION_MODE", "demo")
+    endpoint = os.getenv("GIM_LLM_ENDPOINT", "https://api.openai.com/v1/chat/completions")
+    model_key = os.getenv("GIM_LLM_API_KEY") or os.getenv("OPENAI_API_KEY", "")
+    embedding_key = os.getenv("OPENAI_API_KEY", "")
     return {
         "status": "ok", "version": "0.1.0",
         "evaluation_mode": mode if mode in {"llm", "rag_llm"} else "rules_demo",
         "fallback_to_demo": os.getenv("GIM_LLM_FALLBACK_TO_DEMO", "0") == "1",
+        "model_configured": bool(model_key and not model_key.startswith("replace-"))
+            or endpoint.startswith(("http://127.0.0.1:", "http://localhost:")),
+        "rag_retrieval_mode": "hybrid" if embedding_key and not embedding_key.startswith("replace-") else "fulltext",
+        "session_database": "postgresql" if os.getenv("GIM_DATABASE_URL") else "sqlite",
     }
 
 
@@ -391,7 +413,9 @@ def save_application(data: ApplicationInput):
 
 
 @app.get("/api/v1/applications")
-def list_applications():
+def list_applications(authorization: str | None = Header(default=None)):
+    from backend.sessions import _coordinator_auth
+    _coordinator_auth(authorization)
     with db_connection() as con:
         records = con.execute(
             "SELECT a.id, a.created_at, a.applicant_name, a.evaluation, c.payload AS contact "
@@ -412,7 +436,9 @@ def list_applications():
 
 
 @app.get("/api/v1/applications/{application_id}")
-def get_application(application_id: str):
+def get_application(application_id: str, authorization: str | None = Header(default=None)):
+    from backend.sessions import _coordinator_auth
+    _coordinator_auth(authorization)
     with db_connection() as con:
         row = con.execute(
             "SELECT a.id, a.created_at, a.payload, a.evaluation, c.payload AS contact "
@@ -437,7 +463,9 @@ def safe_csv(value: object) -> str:
 
 
 @app.get("/api/v1/export.csv")
-def export_csv():
+def export_csv(authorization: str | None = Header(default=None)):
+    from backend.sessions import _coordinator_auth
+    _coordinator_auth(authorization)
     columns = [
         "ID заявки", "Дата", "Имя", "Возраст 18+", "Email", "VK",
         "Статус", "ВУЗ", "Факультет", "Курс", "Языки",

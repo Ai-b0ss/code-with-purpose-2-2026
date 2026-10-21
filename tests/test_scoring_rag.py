@@ -41,7 +41,15 @@ def model_response(grades=None, bad_quote=False):
          "evidence": ("придуманная цитата" if bad_quote else quote) if grade is not None else "",
          "rationale": "Основание по ответу"}
         for row, grade, source, quote in zip(RUBRIC, grades, sources, quotes)
-    ], "flags": []}, ensure_ascii=False)
+    ], "flags": [], "analysis": {
+        "candidate_summary": "Кандидат описал интерес к музейным мероприятиям и назвал конкретный опыт.",
+        "program_fit": "Выбранное направление связано с работой с посетителями; формат нужно подтвердить у координатора.",
+        "program_information": "Программа предполагает согласованные задачи и собеседование перед окончательным приёмом.",
+        "strengths": ["Есть пример организации выставки."],
+        "risks": ["Необходимо согласовать доступный график с ролью."],
+        "interview_questions": ["Какие музейные задачи вы готовы выполнять регулярно?"],
+        "source_doc_ids": ["role:organizational"],
+    }}, ensure_ascii=False)
 
 
 class Adapter:
@@ -84,6 +92,22 @@ def test_missing_grade_has_no_score():
     assert result["score_status"] == "needs_review"
 
 
+def test_scoring_provider_can_use_separate_compatible_api(monkeypatch):
+    adapter = Adapter([model_response()])
+    captured = {}
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("GIM_LLM_ENDPOINT", "https://provider.example/v1/chat/completions")
+    monkeypatch.setenv("GIM_LLM_MODEL", "other-model")
+    monkeypatch.setenv("GIM_LLM_API_KEY", "provider-test-key")
+    monkeypatch.setattr("backend.scoring.adapter_from_env",
+                        lambda env: (captured.update(env) or adapter))
+    result = assess(candidate())
+    assert result["score"] == 2.5
+    assert captured["GIM_LLM_ENDPOINT"] == "https://provider.example/v1/chat/completions"
+    assert captured["GIM_LLM_MODEL"] == "other-model"
+    assert captured["GIM_LLM_API_KEY"] == "provider-test-key"
+
+
 def test_invalid_quote_retries_once_then_errors():
     adapter = Adapter([model_response(bad_quote=True)] * 2)
     with pytest.raises(EvaluationError, match="invalid_scoring_response"):
@@ -96,6 +120,7 @@ def test_http_form_to_score_and_saved_result(monkeypatch, tmp_path):
     monkeypatch.setenv("GIM_EVALUATION_MODE", "rag_llm")
     monkeypatch.setenv("OPENAI_API_KEY", "test-only-adapter")
     monkeypatch.setenv("GIM_DB_PATH", str(tmp_path / "test.sqlite3"))
+    monkeypatch.setenv("GIM_COORDINATOR_TOKEN", "test-coordinator-secret")
     monkeypatch.setattr("backend.scoring.adapter_from_env", lambda env: adapter)
     body = candidate().model_dump()
     body["consent_personal_data"] = True
@@ -104,7 +129,7 @@ def test_http_form_to_score_and_saved_result(monkeypatch, tmp_path):
     response = client.post("/api/v1/applications", json=body)
     assert response.status_code == 201
     assert response.json()["evaluation"]["score"] == 2.5
-    assert client.get("/api/v1/applications/rag-test").json()["evaluation"]["criteria"][0]["id"] == "motivation"
+    assert client.get("/api/v1/applications/rag-test", headers={"Authorization": "Bearer test-coordinator-secret"}).json()["evaluation"]["criteria"][0]["id"] == "motivation"
     again = client.post("/api/v1/applications", json=body)
     assert again.json()["created"] is False
     assert adapter.calls == 1
