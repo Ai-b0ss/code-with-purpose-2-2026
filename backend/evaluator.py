@@ -62,7 +62,7 @@ class Evaluation(BaseModel):
     fit_for_candidate: str = Field(min_length=1, max_length=4000)
     # Legacy field retained for stored records; follow-up questions are asked
     # BEFORE the final evaluation via /api/v1/clarification.
-    interview_questions: list[str] = Field(max_length=2)
+    interview_questions: list[str] = Field(max_length=12)
     preliminary_verdict: Literal[
         "suggest_interview", "manual_review", "insufficient_information"
     ] | None = None
