@@ -21,8 +21,10 @@ from backend.availability_policy import availability_risks
 class EvaluationError(RuntimeError):
     """Safe error code; never contains answers, credentials or provider bodies."""
 
-    def __init__(self, code: str):
+    def __init__(self, code: str, details: tuple[str, ...] = ()):
         self.code = code
+        # Only short, whitelisted diagnostic codes; no raw model or candidate text.
+        self.details = tuple(details)
         super().__init__(code)
 
 
@@ -207,35 +209,65 @@ def _unique_object(pairs):
     return obj
 
 
+def _safe_schema_path(loc: tuple) -> str:
+    """Strip model-produced extra property names from diagnostics."""
+    allowed = set(Evaluation.model_fields) | set(Evidence.model_fields)
+    return ".".join(
+        str(part) if isinstance(part, int)
+        else part if isinstance(part, str) and part in allowed
+        else "unknown_field"
+        for part in loc[:5]
+    ) or "root"
+
+
 def validate_response(raw: str, answers: dict) -> dict:
-    """Validate shape and verbatim citations; semantic accuracy still needs review."""
+    """Validate strictly and classify errors without leaking the model text."""
     try:
         if not isinstance(raw, str) or len(raw) > 100_000:
-            raise ValueError("invalid size")
-        result = Evaluation.model_validate(json.loads(raw, object_pairs_hook=_unique_object))
+            raise EvaluationError("invalid_model_json", ("response_size_or_type",))
+        text = raw.strip()
+        ticks = chr(96) * 3
+        if text.startswith(ticks) and text.endswith(ticks):
+            lines = text.splitlines()
+            if len(lines) >= 3 and lines[0].lower() in (ticks, ticks + "json") and lines[-1] == ticks:
+                text = "\n".join(lines[1:-1]).strip()
+        result = Evaluation.model_validate(json.loads(text, object_pairs_hook=_unique_object))
         if result.evaluation_mode != "llm":
-            raise ValueError("wrong mode")
-        for field in (result.strengths, result.possible_problems, result.interview_questions):
-            if any(not text.strip() or len(text) > 2000 for text in field):
-                raise ValueError("invalid item")
-        for field in (result.summary, result.direction_reason,
-                      result.fit_for_museum, result.fit_for_candidate):
-            if not field.strip():
-                raise ValueError("empty text")
-        for item in result.evidence:
+            raise EvaluationError("invalid_model_json", ("evaluation_mode_invalid",))
+        for name in ("strengths", "possible_problems", "interview_questions"):
+            values = getattr(result, name)
+            if any(not value.strip() or len(value) > 2000 for value in values):
+                raise EvaluationError("invalid_model_json", (f"{name}.blank_or_too_long",))
+        for name in ("summary", "direction_reason", "fit_for_museum", "fit_for_candidate"):
+            if not getattr(result, name).strip():
+                raise EvaluationError("invalid_model_json", (f"{name}.blank",))
+        for i, item in enumerate(result.evidence):
             source = answers.get(item.question_id)
-            if source is None or not item.reason.strip():
-                raise ValueError("unknown source")
+            if source is None:
+                raise EvaluationError("invalid_model_json", (f"evidence.{i}.source_absent",))
+            if not item.reason.strip():
+                raise EvaluationError("invalid_model_json", (f"evidence.{i}.empty_quote",))
             if isinstance(source, str):
                 if item.reason not in source:
-                    raise ValueError("invented quotation")
+                    raise EvaluationError("invalid_model_json", (f"evidence.{i}.quote_not_exact",))
             elif item.reason != json.dumps(source, ensure_ascii=False):
-                raise ValueError("invented value")
+                raise EvaluationError("invalid_model_json", (f"evidence.{i}.value_not_exact",))
         output = result.model_dump()
         output["recommended_direction_label"] = DIRECTIONS[result.recommended_direction]
         return output
-    except (ValueError, TypeError, ValidationError):
-        raise EvaluationError("invalid_model_json") from None
+    except EvaluationError:
+        raise
+    except ValidationError as exc:
+        categories = []
+        for error in exc.errors(include_input=False, include_url=False)[:12]:
+            path = _safe_schema_path(tuple(error.get("loc", ())))
+            kind = str(error.get("type", "schema_error"))
+            categories.append(f"{path}:{kind}")
+        raise EvaluationError("invalid_model_json", tuple(categories)) from None
+    except json.JSONDecodeError:
+        raise EvaluationError("invalid_model_json", ("json_syntax",)) from None
+    except (ValueError, TypeError):
+        raise EvaluationError("invalid_model_json", ("json_duplicate_or_invalid_type",)) from None
 
 
 def adapter_from_env(env: Mapping[str, str] | None = None) -> ChatCompletionsAdapter:
