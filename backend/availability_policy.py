@@ -74,11 +74,12 @@ def availability_risks(answers) -> list[str]:
             "Число 8 не является установленным музеем порогом отказа."
         )
 
-    if signals and isinstance(hours, int) and hours >= 16 and (
-        days or "выход" in obligations or "суббот" in obligations
-        or "вечер" in obligations or schedule == "regular"
-        or has_schedule_exception
-    ):
+    if signals and (has_schedule_exception or (
+        isinstance(hours, int) and hours >= 16 and (
+            days or "выход" in obligations or "суббот" in obligations
+            or "вечер" in obligations or schedule == "regular"
+        )
+    )):
         signals.append(
             "Смягчающее обстоятельство: кандидат заявил доступные часы "
             "и конкретные дни/смены (в том числе в уточнении). "
