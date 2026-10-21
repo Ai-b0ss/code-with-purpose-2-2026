@@ -40,11 +40,11 @@ python -m uvicorn backend.app:app --host 127.0.0.1 --port 8765
 
 | Участник | Задача | Точка входа |
 | --- | --- | --- |
-| Илья Соколов | Полная диалоговая анкета, UX 5–7 минут | [#4](../../issues/4), `frontend/index.html` |
-| Игорь | LLM, рубрика кураторов, качество рекомендаций | [#5](../../issues/5), `backend/app.py` |
-| Александр Мирошниченко | API, SQLite, запись в Google Sheets, экспорт | [#6](../../issues/6), `backend/app.py` |
-| Ева Шишкина | Критерии, сценарии, замеры, проверка результатов | [#8](../../issues/8), `docs/Критерии_отбора_ГИМ.xlsx` |
-| Команда, ведёт Игорь | Интеграция, тесты и защита | [#9](../../issues/9) |
+| Илья Соколов | Полная диалоговая анкета, UX 5–7 минут | [#4](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues/4), `frontend/index.html` |
+| Игорь | LLM, рубрика кураторов, качество рекомендаций | [#5](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues/5), `backend/app.py` |
+| Александр Мирошниченко | API, SQLite, запись в Google Sheets, экспорт | [#6](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues/6), `backend/app.py` |
+| Ева Шишкина | Критерии, сценарии, замеры, проверка результатов | [#8](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues/8), `docs/Критерии_отбора_ГИМ.xlsx` |
+| Команда, ведёт Игорь | Интеграция, тесты и защита | [#9](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues/9) |
 
 Сначала договориться, кто редактирует какие функции `backend/app.py`, и работать в отдельных ветках. **Работающий API в `main` — исходный контракт; не подменять его неслитым эскизом.**
 
@@ -57,6 +57,6 @@ python -m uvicorn backend.app:app --host 127.0.0.1 --port 8765
 - [Критерии отбора](docs/Критерии_отбора_ГИМ.xlsx)
 - [Оригинальные файлы ГИМ](materials/gim/)
 - [Таблица для координатора](https://docs.google.com/spreadsheets/d/1AJVzUTu8KJPfknSgQBem5InL3q_ynAQ3qSO2h8bDVSc/edit)
-- [Задачи](../../issues) · [Доска проекта](https://github.com/users/Ai-b0ss/projects/1)
+- [Задачи](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues) · [Доска проекта](https://github.com/users/Ai-b0ss/projects/1)
 
 **Готовый продукт = реальный проход:** анкета → содержательное уточнение → объяснимая рекомендация → одна строка в Google Sheets. До этого момента новые панели, ML с нуля и VK-бот не приоритетны.
