@@ -4,7 +4,7 @@ import hashlib
 import zipfile
 
 ROOT = Path(__file__).resolve().parent.parent
-ZIP_NAME = "GIM_TEAM_QA_20261021.zip"
+ZIP_NAME = "GIM_TEAM_QA_SCORE_20261022.zip"
 PREFIX = "GIM_TEAM_QA/"
 FILES = (
     "START-TEAM.cmd", "team-start.ps1", "README-TEAM.md",
@@ -17,6 +17,7 @@ FILES = (
     "docs/04-gim-requirements.md", "docs/06-gim-stakeholder-answers.md",
     "docs/09-delivery-roadmap.md", "docs/18-criteria-source-audit-20261021.md",
     "docs/19-sqlite-reservation-20261021.md",
+    "docs/20-gim-scoring-pilot-20261022.md",
 )
 FORBIDDEN = {".git", ".venv", ".env", "data", "reports", "secret", "credentials"}
 
