@@ -1022,33 +1022,11 @@
       <p class="field-hint" id="resApplicationId" style="margin-top: 14px; padding-top: 10px; border-top: 1px dashed #e4d8c5; font-size: 13px; font-weight: 600;"></p>
     </div>
 
-    <!-- Внутренняя оценка алгоритма под спойлером для комиссии/жюри -->
-    <details class="museum-notice" style="margin-top: 20px; padding: 16px 18px; cursor: pointer;">
-      <summary style="font-weight: 700; color: var(--gold-dark); outline: none; user-select: none;">
-        Служебная информация для комиссии (клик для просмотра)
-      </summary>
-      <div style="margin-top: 16px; cursor: default;">
-        <p id="resSummary" style="line-height: 1.55; margin-bottom: 16px;"></p>
-        <div class="grid-2">
-          <div class="result-card" style="background: #ffffff;">
-            <h3 style="margin: 0 0 10px; font-size: 16px;">Сильные стороны кандидата</h3>
-            <ul class="stylish-list" id="resStrengths"></ul>
-          </div>
-          <div class="result-card" style="background: #ffffff;">
-            <h3 style="margin: 0 0 10px; font-size: 16px;">Темы для уточнения</h3>
-            <ul class="stylish-list" id="resProblems"></ul>
-          </div>
-        </div>
-        <div class="result-card" style="margin-top: 12px; background: #ffffff;">
-          <h3 style="margin: 0 0 10px; font-size: 16px;">Вопросы для очного собеседования</h3>
-          <ul class="stylish-list" id="resInterview"></ul>
-        </div>
-      </div>
-    </details>
+    <!-- Внутренняя оценка алгоритма скрыта для соискателей -->
 
-    <div class="actions" style="margin-top: 22px;">
-      <a class="btn btn-secondary" href="/api/v1/export.csv" download>Скачать общую таблицу (CSV)</a>
+    <div class="actions" style="margin-top: 24px;">
       <button type="button" class="btn btn-primary" id="resetBtn">Заполнить новую анкету</button>
+      <a class="btn btn-secondary" href="https://shm.ru/" target="_blank" rel="noopener">Вернуться на сайт ГИМ</a>
     </div>
   </section>
 
@@ -1517,22 +1495,29 @@
       const evalData = res.evaluation;
 
       // Populate results view
-      byId("resDirection").textContent = (evalData.recommended_direction_label || evalData.recommended_direction);
-      byId("resReason").textContent = evalData.direction_reason || "";
-      byId("resSummary").textContent = "Аналитическая выжимка: " + (evalData.summary || "");
+      if (byId("resDirection")) {
+        byId("resDirection").textContent = (evalData.recommended_direction_label || evalData.recommended_direction);
+      }
+      if (byId("resReason")) {
+        byId("resReason").textContent = evalData.direction_reason || "";
+      }
+      if (byId("resSummary")) {
+        byId("resSummary").textContent = "Аналитическая выжимка: " + (evalData.summary || "");
+      }
 
-      const hoursVal = byId("availability_hours_month").value;
+      const hoursVal = byId("availability_hours_month") ? byId("availability_hours_month").value : "16";
       if (byId("resHoursConfirmed")) {
         byId("resHoursConfirmed").textContent = hoursVal + " ч / месяц";
       }
-      const emailVal = byId("email").value.trim();
-      const vkVal = byId("vk_url").value.trim();
+      const emailVal = byId("email") ? byId("email").value.trim() : "";
+      const vkVal = byId("vk_url") ? byId("vk_url").value.trim() : "";
       if (byId("resContactConfirmed")) {
         byId("resContactConfirmed").textContent = emailVal + (emailVal && vkVal ? " · " : "") + vkVal;
       }
 
       function renderList(id, items) {
         const node = byId(id);
+        if (!node) return;
         node.replaceChildren();
         const arr = (items && items.length) ? items : ["Замечаний или вопросов нет."];
         arr.forEach(it => {
@@ -1546,7 +1531,9 @@
       renderList("resProblems", evalData.possible_problems);
       renderList("resInterview", evalData.interview_questions);
 
-      byId("resApplicationId").textContent = "Регистрационный номер заявки: " + res.application_id + " (сохранено в базе ГИМ)";
+      if (byId("resApplicationId")) {
+        byId("resApplicationId").textContent = "Регистрационный номер заявки: " + res.application_id + " (сохранено в базе ГИМ)";
+      }
 
       // Clear draft on success
       localStorage.removeItem(STORAGE_KEY);
