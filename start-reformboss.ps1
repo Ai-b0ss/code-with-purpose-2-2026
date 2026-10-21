@@ -5,7 +5,9 @@ param(
     [string]$Model = "deepseek-v4.1-flash",
     [switch]$Compare,
     [switch]$DisableJsonMode,
-    [switch]$SkipProbe
+    [switch]$SkipProbe,
+    [ValidateRange(1024, 65535)]
+    [int]$Port = 8765
 )
 
 $ErrorActionPreference = "Stop"
@@ -51,9 +53,32 @@ try {
             return
         }
     }
-    Write-Host "Live GIM server: http://127.0.0.1:8765"
+    # Bind-and-release probes avoid accidentally killing an existing server.
+    # If the preferred port is occupied, try the next available port.
+    $selectedPort = $null
+    for ($candidate = $Port; $candidate -le [Math]::Min($Port + 20, 65535); $candidate++) {
+        $listener = $null
+        try {
+            $address = [System.Net.IPAddress]::Parse("127.0.0.1")
+            $listener = [System.Net.Sockets.TcpListener]::new($address, $candidate)
+            $listener.Start()
+            $selectedPort = $candidate
+            break
+        } catch [System.Net.Sockets.SocketException] {
+            continue
+        } finally {
+            if ($null -ne $listener) { $listener.Stop() }
+        }
+    }
+    if ($null -eq $selectedPort) {
+        throw "No free localhost TCP ports found in range $Port-$([Math]::Min($Port + 20, 65535))."
+    }
+    if ($selectedPort -ne $Port) {
+        Write-Warning "Port $Port is busy. Using free port $selectedPort; existing process untouched."
+    }
+    Write-Host "Live GIM server: http://127.0.0.1:$selectedPort"
     Write-Host "Ctrl+C stops this server. This script clears the key from its process environment on exit."
-    python -m uvicorn backend.app:app --host 127.0.0.1 --port 8765
+    python -m uvicorn backend.app:app --host 127.0.0.1 --port $selectedPort
 } finally {
     Remove-Item Env:GIM_LLM_API_KEY -ErrorAction SilentlyContinue
     Remove-Item Env:GIM_LLM_ENDPOINT -ErrorAction SilentlyContinue
