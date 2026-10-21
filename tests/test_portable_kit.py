@@ -1,5 +1,6 @@
 """Offline regression checks for Ilya's no-secret portable QA bundle."""
 import json
+from contextlib import closing
 from pathlib import Path
 import sqlite3
 import tempfile
@@ -62,7 +63,7 @@ class PortableKitTests(unittest.TestCase):
     def test_private_curator_report_contains_real_evaluation_only_from_sqlite(self):
         with tempfile.TemporaryDirectory() as d:
             db=Path(d)/"gim.sqlite3"
-            with sqlite3.connect(db) as c:
+            with closing(sqlite3.connect(db)) as c, c:
                 c.execute("CREATE TABLE applications (id TEXT PRIMARY KEY, "
                           "created_at TEXT, applicant_name TEXT, payload TEXT, evaluation TEXT)")
                 c.execute("INSERT INTO applications VALUES(?,?,?,?,?)",
@@ -76,7 +77,6 @@ class PortableKitTests(unittest.TestCase):
             path=Path(d)/"report.html"
             self.assertEqual(curator_build(db,path),1)
             html=path.read_text(encoding="utf-8")
-            self.assertIn("evaluation_mode",html) if False else None
             self.assertIn("Режим",html)
             self.assertIn("llm",html)
             self.assertNotIn("<img src=x>",html)
