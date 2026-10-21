@@ -12,7 +12,7 @@ import json
 import os
 import sqlite3
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Literal
 
@@ -343,6 +343,36 @@ def safe_csv(value: object) -> str:
     return text
 
 
+MSK = timezone(timedelta(hours=3))
+
+
+def format_created_at(iso_str: str) -> str:
+    """Форматирует ISO timestamp (created_at) в 'ДД.ММ.ГГГГ ЧЧ:ММ' по МСК (UTC+3)."""
+    if not iso_str:
+        return ""
+    try:
+        dt = datetime.fromisoformat(str(iso_str))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        dt_msk = dt.astimezone(MSK)
+        return dt_msk.strftime("%d.%m.%Y %H:%M")
+    except Exception:
+        return str(iso_str).replace("T", " ")[:16]
+
+
+def format_birth_date(date_str: str) -> str:
+    """Форматирует 'ГГГГ-ММ-ДД' в привычный 'ДД.ММ.ГГГГ'."""
+    if not date_str:
+        return ""
+    try:
+        parts = str(date_str).strip().split("-")
+        if len(parts) == 3 and len(parts[0]) == 4:
+            return f"{parts[2]}.{parts[1]}.{parts[0]}"
+        return str(date_str)
+    except Exception:
+        return str(date_str)
+
+
 @app.get("/api/v1/export.csv")
 def export_csv():
     columns = [
@@ -367,11 +397,11 @@ def export_csv():
         e = json.loads(row["evaluation"])
         writer.writerow([
             safe_csv(row["id"]),
-            safe_csv(row["created_at"]),
+            safe_csv(format_created_at(row["created_at"])),
             safe_csv(entry.get("applicant_name", "")),
             entry.get("age_over_18", False),
             entry.get("consent_personal_data", False),
-            safe_csv(entry.get("birth_date", "")),
+            safe_csv(format_birth_date(entry.get("birth_date", ""))),
             safe_csv(entry.get("email", "")),
             safe_csv(entry.get("vk_url", "")),
             safe_csv(entry.get("status", "")),
