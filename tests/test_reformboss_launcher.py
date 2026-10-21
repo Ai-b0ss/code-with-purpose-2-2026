@@ -32,6 +32,21 @@ class ReformBossLauncherTests(unittest.TestCase):
         self.assertNotIn(b"ModuleNotFoundError", completed.stderr)
         self.assertNotIn(b"Traceback", completed.stderr)
 
+    def test_default_model_matches_authenticated_reformboss_catalog(self):
+        from scripts.check_reformboss import MODELS
+        self.assertEqual(MODELS[0], "deepseek-v4.1-flash")
+        self.assertNotIn("deepseek-v4.1-flash-1017", MODELS)
+        launcher = (ROOT / "start-reformboss.ps1").read_text(encoding="utf-8")
+        self.assertIn('[string]$Model = "deepseek-v4.1-flash"', launcher)
+        self.assertNotIn("deepseek-v4.1-flash-1017", launcher)
+
+    def test_launcher_plain_input_without_securestring_conversion(self):
+        launcher = (ROOT / "start-reformboss.ps1").read_text(encoding="utf-8")
+        self.assertIn('(Read-Host "Enter ReformBoss API key (VISIBLE)").Trim()', launcher)
+        self.assertNotIn("-AsSecureString", launcher)
+        self.assertNotIn("SecureStringToBSTR(", launcher)
+        self.assertIn("Remove-Item Env:GIM_LLM_API_KEY", launcher)
+
     def test_powershell_launcher_uses_module_execution(self):
         launcher = (ROOT / "start-reformboss.ps1").read_text(encoding="utf-8")
         self.assertIn(
