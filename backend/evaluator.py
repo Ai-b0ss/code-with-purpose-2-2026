@@ -351,7 +351,21 @@ def validate_response(raw: str, answers: dict, *, allow_legacy: bool = False) ->
                     raise EvaluationError("invalid_model_json", (f"evidence.{i}.quote_not_exact",))
             elif item.reason != json.dumps(source, ensure_ascii=False):
                 raise EvaluationError("invalid_model_json", (f"evidence.{i}.value_not_exact",))
+        if not result.scorecard and not allow_legacy:
+            raise EvaluationError("invalid_model_json", ("scorecard.missing",))
+        score, raw_mean, graded_count = (
+            _pilot_score(result.scorecard, result.evidence)
+            if result.scorecard else (None, None, 0)
+        )
         output = result.model_dump()
+        if result.scorecard:
+            output["score"] = score
+            output["score_status"] = (
+                "pilot_unvalidated" if score is not None else "insufficient_evidence"
+            )
+            output["score_raw"] = raw_mean
+            output["score_rubric"] = RUBRIC_VERSION
+            output["rated_criteria_count"] = graded_count
         output["interview_questions"] = _prioritize_interview_questions(output["interview_questions"])
         output["recommended_direction_label"] = DIRECTIONS[result.recommended_direction]
         return output
