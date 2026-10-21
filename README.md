@@ -6,6 +6,8 @@
 
 **Живая проверка 22.10.2026:** вымышленные ID записаны через Google Sheets API в [тестовую таблицу](https://docs.google.com/spreadsheets/d/1iQEevsZFMB307trbntFZWQkatYBOVUiMNBqGzZoDXzE/edit). [Строка A2](https://docs.google.com/spreadsheets/d/1iQEevsZFMB307trbntFZWQkatYBOVUiMNBqGzZoDXzE/edit#gid=220874114&range=A2), ID `synthetic-google-5687c84c7576`: повтор вернул `created=false`, обновление через Sheets API оставило тот же адрес и одну строку. [Строка A3](https://docs.google.com/spreadsheets/d/1iQEevsZFMB307trbntFZWQkatYBOVUiMNBqGzZoDXzE/edit#gid=220874114&range=A3), ID `synthetic-google-d0c1707bbc57`: сначала Google вернул `404`, при этом SQLite сохранила одну запись, затем повтор синхронизировал её. [Строка A4](https://docs.google.com/spreadsheets/d/1iQEevsZFMB307trbntFZWQkatYBOVUiMNBqGzZoDXzE/edit#gid=220874114&range=A4), ID `synthetic-parallel-666cc555c0e9`: два параллельных вызова дали одну строку. Контрольное чтение Google API показало ровно одну строку для каждого ID и метаданные ширины всех 32 колонок.
 
+[Полный HTTP-прогон с реальным Google Sheets API](docs/20-google-sheets-cloud-http-qa-20261022.md): три дополнительные синтетические заявки, повтор ID, параллельная отправка, сбой Google и восстановление после перезапуска сервера.
+
 Настройка (ключ в репозиторий и чат не отправлять):
 
 1. В [Google Cloud Console](https://console.cloud.google.com/) создайте проект, включите **Google Sheets API**, создайте **Service Account** и JSON-ключ для него.
