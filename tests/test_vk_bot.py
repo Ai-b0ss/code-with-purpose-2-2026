@@ -16,7 +16,10 @@ from vk_bot.bot import (
     VolunteerBotFSM,
     load_config,
     parse_and_validate_birth_date,
+    process_vk_message_event,
 )
+from backend.app import ApplicationInput
+from vk_api.bot_longpoll import VkBotEventType
 
 
 class VkBotUnitTests(unittest.TestCase):
@@ -52,7 +55,10 @@ class VkBotUnitTests(unittest.TestCase):
         self.assertEqual(parse_and_validate_birth_date("15.05.2003"), "2003-05-15")
         self.assertEqual(parse_and_validate_birth_date("01-12-1999"), "1999-12-01")
         self.assertEqual(parse_and_validate_birth_date("2001-07-20"), "2001-07-20")
+        self.assertEqual(parse_and_validate_birth_date("15 / 05 / 2003"), "2003-05-15")
+        self.assertEqual(parse_and_validate_birth_date("15   мая   2003 года"), "2003-05-15")
         self.assertIsNone(parse_and_validate_birth_date("31.02.2000"))
+        self.assertIsNone(parse_and_validate_birth_date("01.01.2099"))
         self.assertIsNone(parse_and_validate_birth_date("не дата"))
 
     def test_direction_mapping(self):
@@ -237,6 +243,19 @@ class VkBotUnitTests(unittest.TestCase):
         session = fsm.sessions[user_id]
         self.assertEqual(session.state, DialogState.START)
 
+    def test_negative_consent_cannot_match_positive_substring(self):
+        """Фраза «не согласен» не должна ошибочно считаться согласием."""
+        fsm = VolunteerBotFSM(api_client=MagicMock(spec=GimApiClient))
+        user_id = 1005
+
+        fsm.handle_message(user_id, "Привет")
+        fsm.handle_message(user_id, "Начать заполнение")
+        resp, _ = fsm.handle_message(user_id, "Не согласен")
+
+        self.assertIn("без согласия", resp)
+        self.assertEqual(fsm.sessions[user_id].state, DialogState.START)
+        self.assertFalse(fsm.sessions[user_id].consent_personal_data)
+
     def test_reset_command_at_any_step(self):
         """Команда /reset или «Заново» сбрасывает сессию пользователя."""
         mock_api = MagicMock(spec=GimApiClient)
@@ -268,7 +287,75 @@ class VkBotUnitTests(unittest.TestCase):
         session.desired_direction = "project"
 
         resp, _ = fsm.handle_message(user_id, "Только учёба")
-        self.assertIn("Не удалось связаться с сервером музея", resp)
+        self.assertIn("временно недоступен", resp)
+        self.assertIn("ответы сохранены", resp)
+
+    def test_application_payload_matches_backend_contract(self):
+        """Payload VK-бота должен проходить ApplicationInput без потери типов."""
+        session = VolunteerBotFSM(api_client=MagicMock(spec=GimApiClient)).get_or_create_session(
+            1006, "Анна Иванова"
+        )
+        session.application_id = "vk-1006-contract"
+        session.age_over_18 = True
+        session.consent_personal_data = True
+        session.birth_date = "2003-05-15"
+        session.email = "anna@example.org"
+        session.motivation = "Хочу помогать музею и работать с посетителями."
+        session.desired_direction = "organizational"
+        session.availability_hours_month = 16
+        session.foreign_languages = ["Английский B2"]
+        session.availability_days = ["Выходные (Сб, Вс)"]
+
+        payload = session.to_application_input()
+        validated = ApplicationInput(**payload)
+
+        self.assertEqual(validated.application_id, "vk-1006-contract")
+        self.assertIsInstance(payload["availability_hours_month"], int)
+        self.assertIsInstance(payload["foreign_languages"], list)
+        self.assertIsInstance(payload["availability_days"], list)
+        self.assertIsInstance(payload["age_over_18"], bool)
+        self.assertIsInstance(payload["consent_personal_data"], bool)
+
+    def test_submission_reuses_idempotency_key_after_transient_failure(self):
+        """Повторная отправка после потери ответа не создаёт новую заявку."""
+        mock_api = MagicMock(spec=GimApiClient)
+        mock_api.get_clarifications.return_value = {"questions": []}
+        mock_api.submit_application.side_effect = [
+            RuntimeError("temporary backend failure"),
+            {"application_id": "vk-1007-stable", "created": False},
+        ]
+
+        fsm = VolunteerBotFSM(api_client=mock_api)
+        session = fsm.get_or_create_session(1007, "Иван")
+        session.state = DialogState.COMMITMENTS
+        session.age_over_18 = True
+        session.consent_personal_data = True
+        session.motivation = "Достаточная мотивация для участия в музейной программе."
+        session.desired_direction = "project"
+
+        first, _ = fsm.handle_message(1007, "Только учёба")
+        second, _ = fsm.handle_message(1007, "Повторить отправку")
+
+        self.assertIn("временно недоступен", first)
+        self.assertIn("успешно принята", second)
+        first_payload = mock_api.submit_application.call_args_list[0].args[0]
+        second_payload = mock_api.submit_application.call_args_list[1].args[0]
+        self.assertTrue(first_payload["application_id"])
+        self.assertEqual(first_payload["application_id"], second_payload["application_id"])
+
+    def test_long_poll_event_error_isolated_from_next_event(self):
+        """Ошибка FSM одного сообщения не должна пробрасываться из event handler."""
+        vk = MagicMock()
+        vk.users.get.return_value = [{"first_name": "Тест", "last_name": "Пользователь"}]
+        fsm = MagicMock()
+        fsm.handle_message.side_effect = RuntimeError("broken user handler")
+        event = MagicMock()
+        event.type = VkBotEventType.MESSAGE_NEW
+        event.message = {"from_id": 1008, "text": "Привет"}
+
+        process_vk_message_event(event, vk, fsm, {})
+
+        vk.messages.send.assert_not_called()
 
     def test_free_form_arbitrary_inputs_fsm(self):
         """Проверка, что произвольный текст не блокирует соискателя на любом этапе."""

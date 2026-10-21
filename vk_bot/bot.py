@@ -13,6 +13,7 @@ import os
 import re
 import sys
 import time
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -42,9 +43,29 @@ if hasattr(sys.stderr, "reconfigure"):
     except Exception:
         pass
 
+class SafeStreamHandler(logging.StreamHandler):
+    """Не позволяет кодировке Windows-консоли ломать основной процесс."""
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            super().emit(record)
+        except UnicodeEncodeError:
+            try:
+                message = self.format(record)
+                encoding = getattr(self.stream, "encoding", None) or "utf-8"
+                fallback = message.encode(encoding, errors="backslashreplace").decode(
+                    encoding, errors="replace"
+                )
+                self.stream.write(fallback + self.terminator)
+                self.flush()
+            except Exception:
+                pass
+
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[SafeStreamHandler()],
 )
 logger = logging.getLogger("gim_vk_bot")
 
@@ -88,7 +109,7 @@ class BotConfig:
 
 def print_setup_guide() -> None:
     """Выводит понятную инструкцию при отсутствии ключей."""
-    print("""
+    guide = """
 ================================================================================
 🏛️  ВОЛОНТЁРСКАЯ ПРОГРАММА ГОСУДАРСТВЕННОГО ИСТОРИЧЕСКОГО МУЗЕЯ (ГИМ)
     Чат-бот ВКонтакте (VK Messenger Bot)
@@ -132,7 +153,11 @@ def print_setup_guide() -> None:
 
 6. Запустите бота повторно через run_vk_bot.bat.
 ================================================================================
-""")
+"""
+    try:
+        print(guide)
+    except UnicodeEncodeError:
+        print(guide.encode("ascii", errors="backslashreplace").decode("ascii"))
 
 
 def load_config() -> BotConfig | None:
@@ -175,45 +200,38 @@ MONTHS_RU: dict[str, int] = {
 
 def parse_and_validate_birth_date(date_str: str) -> str | None:
     """Проверяет дату (ДД.ММ.ГГГГ, словесную дату или ГГГГ-ММ-ДД) и возвращает её в формате 'ГГГГ-ММ-ДД'."""
-    text = date_str.strip()
-    # ДД.ММ.ГГГГ, ДД-ММ-ГГГГ, ДД/ММ/ГГГГ
-    m = re.match(r"^(\d{1,2})[\.\-/](\d{1,2})[\.\-/](\d{4})$", text)
-    if m:
-        day, month, year = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    text = " ".join(str(date_str).split())
+    today = datetime.now().date()
+
+    def normalize_date(year: int, month: int, day: int) -> str | None:
         try:
-            d = datetime(year, month, day)
-            now_year = datetime.now().year
-            if 1920 <= year <= now_year:
-                return d.strftime("%Y-%m-%d")
+            parsed = datetime(year, month, day)
         except ValueError:
             return None
+        if 1920 <= year <= today.year and parsed.date() <= today:
+            return parsed.strftime("%Y-%m-%d")
+        return None
+
+    # ДД.ММ.ГГГГ, ДД-ММ-ГГГГ, ДД/ММ/ГГГГ
+    m = re.fullmatch(r"(\d{1,2})\s*[\.\-/]\s*(\d{1,2})\s*[\.\-/]\s*(\d{4})", text)
+    if m:
+        day, month, year = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        return normalize_date(year, month, day)
 
     # 15 мая 2003, 15 мая 2003 года, 15 май 2003
-    m_ru = re.match(r"^(\d{1,2})\s+([а-яёА-ЯЁ]+)\s+(\d{4})(?:\s*года|\s*г\.?)?$", text)
+    m_ru = re.fullmatch(r"(\d{1,2})\s+([а-яёА-ЯЁ]+)\s+(\d{4})(?:\s*года|\s*г\.?)?", text)
     if m_ru:
         day = int(m_ru.group(1))
         month_name = m_ru.group(2).lower()
         year = int(m_ru.group(3))
         if month_name in MONTHS_RU:
-            try:
-                d = datetime(year, MONTHS_RU[month_name], day)
-                now_year = datetime.now().year
-                if 1920 <= year <= now_year:
-                    return d.strftime("%Y-%m-%d")
-            except ValueError:
-                return None
+            return normalize_date(year, MONTHS_RU[month_name], day)
 
     # ГГГГ-ММ-ДД
-    m_iso = re.match(r"^(\d{4})-(\d{1,2})-(\d{1,2})$", text)
+    m_iso = re.fullmatch(r"(\d{4})\s*-\s*(\d{1,2})\s*-\s*(\d{1,2})", text)
     if m_iso:
         year, month, day = int(m_iso.group(1)), int(m_iso.group(2)), int(m_iso.group(3))
-        try:
-            d = datetime(year, month, day)
-            now_year = datetime.now().year
-            if 1920 <= year <= now_year:
-                return d.strftime("%Y-%m-%d")
-        except ValueError:
-            return None
+        return normalize_date(year, month, day)
 
     return None
 
@@ -519,6 +537,7 @@ class UserSession:
     def to_application_input(self) -> dict[str, Any]:
         """Формирует payload в формате ApplicationInput FastAPI-бэкенда."""
         return {
+            "application_id": self.application_id,
             "applicant_name": self.applicant_name or f"Пользователь VK {self.user_id}",
             "age_over_18": self.age_over_18,
             "motivation": self.motivation,
@@ -708,13 +727,24 @@ class VolunteerBotFSM:
         return msg, VkKeyboards.consent()
 
     def _step_handle_consent(self, session: UserSession, lower_text: str) -> tuple[str, str]:
+        normalized = " ".join(lower_text.replace("ё", "е").split())
+        negative_markers = ("не соглас", "отказ", "нет")
+        if any(marker in normalized for marker in negative_markers):
+            session.state = DialogState.START
+            msg = (
+                "К сожалению, без согласия на обработку персональных данных и подтверждения "
+                "возраста 18+ мы не можем принять официальную заявку в музей. 🏛️\n\n"
+                "Если вы измените решение, просто напишите «Начать» или /reset."
+            )
+            return msg, VkKeyboards.start()
+
         positive_variants = {
             "согласен(на), мне есть 18 лет", "согласен", "согласна",
             "да", "18+", "мне есть 18 лет", "есть 18", "согласие",
         }
-        negative_variants = {"отказаться", "нет", "не согласен", "не согласна", "отказ"}
-
-        if any(v in lower_text for v in positive_variants):
+        if normalized in positive_variants or (
+            "соглас" in normalized and "18" in normalized
+        ):
             session.age_over_18 = True
             session.consent_personal_data = True
             session.state = DialogState.FULL_NAME
@@ -726,15 +756,6 @@ class VolunteerBotFSM:
             )
             kb = VkKeyboards.full_name_hint(vk_name) if vk_name else VkKeyboards.empty()
             return msg, kb
-
-        if any(v in lower_text for v in negative_variants):
-            session.state = DialogState.START
-            msg = (
-                "К сожалению, без согласия на обработку персональных данных и подтверждения "
-                "возраста 18+ мы не можем принять официальную заявку в музей. 🏛️\n\n"
-                "Если вы измените решение, просто напишите «Начать» или /reset."
-            )
-            return msg, VkKeyboards.start()
 
         msg = (
             "Пожалуйста, подтвердите возраст 18+ и согласие на обработку данных, "
@@ -1116,10 +1137,14 @@ class VolunteerBotFSM:
 
     def _submit_final_application(self, session: UserSession) -> tuple[str, str]:
         """Отправляет заявку в POST /api/v1/applications."""
+        # Один и тот же ID используется при повторной попытке. Это защищает от
+        # дублей, если backend сохранил заявку, но ответ потерялся в сети.
+        if not session.application_id:
+            session.application_id = f"vk-{session.user_id}-{uuid.uuid4().hex}"
         payload = session.to_application_input()
         try:
             res = self.api_client.submit_application(payload)
-            app_id = res.get("application_id", "GIM-OK")
+            app_id = res.get("application_id") or session.application_id
             session.application_id = app_id
             session.state = DialogState.DONE
 
@@ -1135,16 +1160,83 @@ class VolunteerBotFSM:
         except Exception as exc:
             logger.error("Ошибка отправки заявки на бэкенд: %s", exc)
             msg = (
-                "⚠️ Не удалось связаться с сервером музея для сохранения заявки.\n"
-                "Пожалуйста, убедитесь, что локальный сервер FastAPI запущен (порт 8765), "
-                "и отправьте любое сообщение для повторной попытки сохранения или /reset для начала заново."
+                "⚠️ Сервер музея временно недоступен, но ваши ответы сохранены в текущем диалоге.\n"
+                "Отправьте любое сообщение через минуту — бот повторит отправку заявки. "
+                "Для начала заново используйте /reset."
             )
             return msg, VkKeyboards.empty()
 
 
 # -----------------------------------------------------------------------------
-# 5. ТОЧКА ВХОДА И ЦИКЛ LONG POLL
+# 5. ОБРАБОТКА СОБЫТИЯ И ЦИКЛ LONG POLL
 # -----------------------------------------------------------------------------
+
+def process_vk_message_event(
+    event: Any,
+    vk: Any,
+    fsm: VolunteerBotFSM,
+    user_name_cache: dict[int, str],
+) -> None:
+    """Обрабатывает одно событие, не прерывая Long Poll из-за одного сбоя."""
+    event_type = getattr(event, "type", None)
+    if event_type != VkBotEventType.MESSAGE_NEW and event_type != VkBotEventType.MESSAGE_NEW.value:
+        return
+
+    msg_obj = getattr(event, "message", None) or getattr(event, "obj", {})
+    if not hasattr(msg_obj, "get"):
+        logger.warning("Пропущено событие message_new с неожиданным форматом: %r", msg_obj)
+        return
+
+    from_id = msg_obj.get("from_id") or msg_obj.get("user_id")
+    text = msg_obj.get("text", "")
+    if not from_id:
+        return
+
+    try:
+        from_id = int(from_id)
+        if from_id < 0:
+            return
+        if from_id not in user_name_cache:
+            try:
+                u_data = vk.users.get(user_ids=from_id)[0]
+                first = u_data.get("first_name", "")
+                last = u_data.get("last_name", "")
+                user_name = f"{first} {last}".strip()
+                user_name_cache[from_id] = user_name or f"Волонтёр #{from_id}"
+            except Exception as err:
+                logger.warning("Не удалось получить профиль пользователя %s: %s", from_id, err)
+                user_name_cache[from_id] = f"Волонтёр #{from_id}"
+
+        reply_text, keyboard = fsm.handle_message(
+            user_id=from_id,
+            text=str(text or ""),
+            user_name=user_name_cache[from_id],
+        )
+        send_kwargs: dict[str, Any] = {
+            "user_id": from_id,
+            "random_id": get_random_id(),
+            "message": reply_text,
+        }
+        if keyboard:
+            send_kwargs["keyboard"] = keyboard
+
+        try:
+            vk.messages.send(**send_kwargs)
+        except vk_api.exceptions.ApiError as err:
+            logger.error("Ошибка при отправке сообщения в VK (user_id=%s): %s", from_id, err)
+            if keyboard:
+                send_kwargs.pop("keyboard", None)
+                try:
+                    vk.messages.send(**send_kwargs)
+                except Exception as retry_err:
+                    logger.error("Повторная отправка в VK не удалась (user_id=%s): %s", from_id, retry_err)
+    except Exception as exc:
+        logger.error(
+            "Ошибка обработки сообщения пользователя %s; Long Poll продолжит работу: %s",
+            from_id,
+            exc,
+            exc_info=True,
+        )
 
 def run_bot() -> None:
     """Инициализация и запуск Long Poll слушателя сообщений группы VK."""
@@ -1192,58 +1284,12 @@ def run_bot() -> None:
     while True:
         try:
             for event in longpoll.listen():
-                if event.type != VkBotEventType.MESSAGE_NEW:
-                    continue
-
-                # Поддержка разных версий Bot Long Poll API (5.80+ и 5.103+)
-                msg_obj = event.message if getattr(event, "message", None) else getattr(event, "obj", {})
-                from_id = msg_obj.get("from_id") or msg_obj.get("user_id")
-                text = msg_obj.get("text", "")
-
-                if not from_id or from_id < 0:
-                    continue
-
-                # Автоматическое получение имени пользователя через users.get
-                if from_id not in user_name_cache:
-                    try:
-                        u_data = vk.users.get(user_ids=from_id)[0]
-                        first = u_data.get("first_name", "")
-                        last = u_data.get("last_name", "")
-                        user_name = f"{first} {last}".strip()
-                        user_name_cache[from_id] = user_name or f"Волонтёр #{from_id}"
-                    except Exception as err:
-                        logger.warning("Не удалось получить профиль пользователя %s: %s", from_id, err)
-                        user_name_cache[from_id] = f"Волонтёр #{from_id}"
-
-                user_name = user_name_cache[from_id]
-
-                # Обработка через FSM
-                reply_text, keyboard = fsm.handle_message(
-                    user_id=from_id,
-                    text=text,
-                    user_name=user_name,
-                )
-
-                # Отправка ответа
-                send_kwargs: dict[str, Any] = {
-                    "user_id": from_id,
-                    "random_id": get_random_id(),
-                    "message": reply_text,
-                }
-                if keyboard:
-                    send_kwargs["keyboard"] = keyboard
-
                 try:
-                    vk.messages.send(**send_kwargs)
-                except vk_api.exceptions.ApiError as err:
-                    logger.error("Ошибка при отправке сообщения в VK (user_id=%s): %s", from_id, err)
-                    # Если клиент пользователя не поддерживает инлайн-кнопки, пробуем без них
-                    if keyboard:
-                        send_kwargs.pop("keyboard", None)
-                        try:
-                            vk.messages.send(**send_kwargs)
-                        except Exception:
-                            pass
+                    process_vk_message_event(event, vk, fsm, user_name_cache)
+                except Exception as exc:
+                    # Защитный барьер на уровне цикла: ошибка одного события
+                    # не должна завершать генератор Long Poll.
+                    logger.error("Ошибка обработки события Long Poll: %s", exc, exc_info=True)
 
         except requests.exceptions.ReadTimeout:
             # Штатный таймаут опроса Long Poll
