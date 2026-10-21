@@ -4,7 +4,7 @@ import hashlib
 import zipfile
 
 ROOT = Path(__file__).resolve().parent.parent
-ZIP_NAME = "GIM_TEAM_QA_SCORE_20261022.zip"
+ZIP_NAME = "GIM_TEAM_QA_SCORE_20261022_R2.zip"
 PREFIX = "GIM_TEAM_QA/"
 FILES = (
     "START-TEAM.cmd", "team-start.ps1", "README-TEAM.md",
