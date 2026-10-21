@@ -70,6 +70,7 @@ class ApplicationInput(BaseModel):
     other_volunteer_programs: str = Field(default="", max_length=1500)
     source: str = Field(default="", max_length=200)
     followup_answers: dict[str, str] = Field(default_factory=dict)
+    followup_questions: list[dict[str, str]] = Field(default_factory=list, max_length=3)
 
 
 @contextmanager
