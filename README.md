@@ -9,6 +9,7 @@
 - [Брифинг и сравнение четырёх кейсов](docs/01-briefing.md)
 - [Команда и предварительные роли](docs/02-team.md)
 - [Журнал решений и открытые вопросы](docs/03-decisions.md)
+- [GitHub Projects — Mission Control](https://github.com/users/Ai-b0ss/projects/1)
 - [Задачи / Issues](../../issues)
 - [Google Docs: штаб команды и журнал таймкодов](https://docs.google.com/document/d/1DLrvphUEayiMeyAUhMpzm7t6NOKx0MpqvAakgGlcs70/edit)
 
@@ -22,7 +23,7 @@
 
 ## Система задач
 
-Пока доступны [Issues](../../issues) и шаблон задачи. Единая доска GitHub Projects будет связана с этим репозиторием, когда для CLI будут предоставлены OAuth-права `project` и `read:project`. Отсутствие доски не должно останавливать подготовку и обсуждение.
+Пока доступны [Issues](../../issues) и шаблон задачи. [Доска GitHub Projects](https://github.com/users/Ai-b0ss/projects/1) создана и связана с репозиторием. Сейчас в ней только подготовительные задачи. Статусы: Todo → In Progress → Done. Поля Priority и Phase добавлены, их значения уточняются после выбора кейса.
 
 ## Безопасность
 
