@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from backend.app import (
-    ApplicationInput, clarification_for, db_connection, evaluate_demo,
+    ApplicationInput, clarification_for, clarifications_for, db_connection, evaluate_demo,
     safe_csv,
 )
 
@@ -63,6 +63,57 @@ class BasicTests(unittest.TestCase):
                     os.environ.pop("GIM_DB_PATH", None)
                 else:
                     os.environ["GIM_DB_PATH"] = old
+
+    def test_extended_application_fields(self):
+        app = applicant(
+            email="volunteer@shm.ru",
+            vk_url="https://vk.com/history_volunteer",
+            birth_date="2003-05-12",
+            status="student",
+            university="МГУ имени М.В. Ломоносова",
+            faculty="Исторический",
+            course="3-й курс бакалавриата",
+            scientific_interests="История России XIX века",
+            foreign_languages=["Английский (B2)", "Немецкий (B1)"],
+            hobbies="Фотография, архивные исследования",
+            availability_schedule_type="regular",
+            availability_days=["пн", "ср", "сб"],
+            other_volunteer_programs="Волонтёры культуры",
+            source="Сайт Исторического музея",
+        )
+        self.assertEqual(app.email, "volunteer@shm.ru")
+        self.assertEqual(app.university, "МГУ имени М.В. Ломоносова")
+        self.assertEqual(len(app.foreign_languages), 2)
+        self.assertEqual(len(app.availability_days), 3)
+
+    def test_dynamic_clarifications_multiple(self):
+        # 1. Underage + short motivation + collections direction -> multiple distinct clarifications
+        data = applicant(
+            age_over_18=False,
+            motivation="Хочу в фонд",
+            desired_direction="collections",
+            availability_hours_month=4,
+        )
+        questions = clarifications_for(data)
+        self.assertGreaterEqual(len(questions), 3)
+        categories = [q["category"] for q in questions]
+        self.assertIn("Возраст и регламент", categories)
+        self.assertIn("Мотивация", categories)
+        self.assertIn("Фондовое направление", categories)
+
+        # 2. When answers are provided in followup_answers, questions are cleared
+        answered = applicant(
+            age_over_18=True,
+            motivation="Хочу в фонд",
+            desired_direction="collections",
+            availability_hours_month=16,
+            followup_answers={
+                "motivation_detail": "Меня интересует архив документов начала XX века.",
+                "collections_focus": "Готов работать с документами, также готов на экскурсии.",
+            },
+        )
+        questions_answered = clarifications_for(answered)
+        self.assertEqual(len(questions_answered), 0)
 
 
 if __name__ == "__main__":

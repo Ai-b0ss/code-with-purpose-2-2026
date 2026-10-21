@@ -3,227 +3,1412 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Музейный компас · ГИМ</title>
+  <title>Музейный компас · Государственный исторический музей</title>
   <style>
-    :root {color-scheme:light;--navy:#172f42;--blue:#177e97;--bg:#f4f7f7;--muted:#5b7079}
-    * {box-sizing:border-box}
-    body {margin:0;background:var(--bg);color:var(--navy);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
-    header {background:var(--navy);color:white;padding:25px max(20px,calc((100vw - 880px)/2))}
-    header small {letter-spacing:.12em;text-transform:uppercase;color:#a2d8df}
-    h1 {font-size:clamp(29px,5vw,44px);margin:5px 0}
-    h2 {margin:0 0 9px;font-size:23px}
-    main {max-width:880px;margin:28px auto;padding:0 16px 40px}
-    .card {background:white;border:1px solid #dbe5e6;border-radius:15px;padding:26px;margin-bottom:18px;box-shadow:0 8px 24px #1b435408}
-    .intro {color:var(--muted);line-height:1.5;margin:0 0 17px}
-    .progress {height:7px;border-radius:10px;background:#d7e6e8;overflow:hidden;margin:10px 0 24px}
-    .bar {background:var(--blue);width:25%;height:100%;transition:width .2s}
-    .step[hidden], [hidden] {display:none!important}
-    label {display:block;font-weight:650;margin:17px 0 8px}
-    input:not([type=checkbox]),select,textarea {display:block;width:100%;padding:12px 14px;border:1px solid #aec2ca;border-radius:8px;font:inherit;background:white;color:var(--navy)}
-    textarea {min-height:96px;resize:vertical}
-    .check {display:flex;gap:9px;align-items:center;line-height:1.4;font-weight:500}
-    .check input {width:18px;height:18px}
-    .actions {display:flex;gap:10px;margin-top:22px;flex-wrap:wrap}
-    button,.linkbtn {background:var(--blue);border:0;border-radius:9px;color:white;padding:12px 21px;cursor:pointer;font:inherit;font-weight:650}
-    button.secondary,.linkbtn.secondary {background:#dfebed;color:var(--navy)}
-    button:disabled {opacity:.55;cursor:wait}
-    .tag {display:inline-block;background:#dbf0ec;border-radius:99px;font-size:13px;padding:5px 12px;font-weight:650;color:#1a6258}
-    .notice {background:#f2edd8;border-radius:8px;padding:12px 14px;line-height:1.45;color:#654f1a;margin-top:14px}
-    .error {color:#a91f24;font-weight:650;margin-top:13px}
-    #results {line-height:1.55}
-    #results ul {padding-left:20px}
-    .hint {color:var(--muted);font-size:13px}
-    footer {font-size:13px;color:var(--muted);margin-top:18px}
-    @media(max-width:540px){.card{padding:18px}header{padding:22px 17px}}
+    :root {
+      color-scheme: light;
+      --navy: #12283a;
+      --navy-light: #1f3e58;
+      --blue: #177e97;
+      --blue-hover: #126377;
+      --gold: #b58c28;
+      --gold-bg: #fffbf0;
+      --gold-border: #e7d8aa;
+      --bg: #f3f6f7;
+      --card-bg: #ffffff;
+      --muted: #586e78;
+      --border: #cad9de;
+      --radius: 12px;
+      --shadow: 0 8px 24px rgba(18, 40, 58, 0.06);
+    }
+    * {box-sizing: border-box}
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--navy);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.5;
+    }
+    header {
+      background: linear-gradient(135deg, #0e202f 0%, #17364e 100%);
+      color: white;
+      padding: 24px 20px 28px;
+      border-bottom: 3px solid var(--gold);
+    }
+    .header-inner {
+      max-width: 860px;
+      margin: 0 auto;
+    }
+    header small {
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #9fe2ec;
+      font-weight: 700;
+      font-size: 12px;
+      display: block;
+      margin-bottom: 4px;
+    }
+    h1 {
+      font-size: clamp(26px, 4.5vw, 38px);
+      margin: 4px 0 10px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    header p {
+      margin: 0;
+      color: #e2f0f4;
+      font-size: 15px;
+      max-width: 680px;
+    }
+    main {
+      max-width: 860px;
+      margin: 24px auto 40px;
+      padding: 0 16px;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow);
+    }
+    .progress-container {
+      margin: 16px 0 24px;
+    }
+    .progress-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+    .progress-bar-bg {
+      height: 8px;
+      border-radius: 99px;
+      background: #dbe7eb;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--blue), #2bb0cf);
+      width: 25%;
+      transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .step-header {
+      margin-bottom: 22px;
+      border-bottom: 1px solid #eef3f5;
+      padding-bottom: 14px;
+    }
+    .step-header h2 {
+      margin: 0 0 6px;
+      font-size: 24px;
+      font-weight: 750;
+      color: var(--navy);
+    }
+    .step-header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .field {
+      margin-bottom: 20px;
+    }
+    .field:last-child {
+      margin-bottom: 0;
+    }
+    label.title {
+      display: block;
+      font-weight: 650;
+      margin-bottom: 8px;
+      font-size: 15px;
+      color: var(--navy);
+    }
+    label.title .req {
+      color: #cf222e;
+      margin-left: 2px;
+    }
+    .field-hint {
+      font-size: 12.5px;
+      color: var(--muted);
+      margin-top: 5px;
+      line-height: 1.4;
+    }
+    input[type=text],
+    input[type=email],
+    input[type=url],
+    input[type=date],
+    input[type=number],
+    select,
+    textarea {
+      display: block;
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid #aec2ca;
+      border-radius: 10px;
+      font: inherit;
+      background: white;
+      color: var(--navy);
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(23, 126, 151, 0.18);
+    }
+    textarea {
+      min-height: 94px;
+      resize: vertical;
+    }
+    .char-counter {
+      text-align: right;
+      font-size: 11.5px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .checkbox-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 12px;
+      background: #f7fafb;
+      border: 1px solid #dde6e9;
+      border-radius: 9px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 10px;
+    }
+    .checkbox-item:hover {
+      background: #edf4f6;
+    }
+    .checkbox-item input {
+      margin-top: 3px;
+      width: 18px;
+      height: 18px;
+      accent-color: var(--blue);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    /* Radio and Chip selectors */
+    .chip-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 14px;
+      background: #f2f7f8;
+      border: 1px solid #cbdde2;
+      border-radius: 99px;
+      font-size: 13.5px;
+      font-weight: 550;
+      color: var(--navy);
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s ease;
+      min-height: 38px;
+    }
+    .chip:hover {
+      background: #e4edf0;
+      border-color: #b1ccd3;
+    }
+    .chip input {
+      display: none;
+    }
+    .chip.active,
+    .chip:has(input:checked) {
+      background: #177e97;
+      color: white;
+      border-color: #177e97;
+    }
+    /* Direction Cards */
+    .direction-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+    }
+    .dir-card {
+      border: 2px solid #dde7ea;
+      background: white;
+      border-radius: 12px;
+      padding: 14px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+    .dir-card:hover {
+      border-color: #8fbcc7;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(23, 126, 151, 0.1);
+    }
+    .dir-card input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .dir-card.selected,
+    .dir-card:has(input:checked) {
+      border-color: var(--blue);
+      background: #f1f9fb;
+      box-shadow: 0 0 0 2px var(--blue);
+    }
+    .dir-card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 15px;
+      margin-bottom: 6px;
+      color: var(--navy);
+    }
+    .dir-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: #e6f3f6;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      color: var(--blue);
+      flex-shrink: 0;
+    }
+    .dir-desc {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.4;
+      flex-grow: 1;
+    }
+    /* Day of week chips */
+    .days-picker {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .day-chip {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      border: 1px solid #b8ccd3;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 650;
+      font-size: 13.5px;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s;
+    }
+    .day-chip:hover {
+      border-color: var(--blue);
+      background: #f1f8fa;
+    }
+    .day-chip.active {
+      background: var(--blue);
+      color: white;
+      border-color: var(--blue);
+    }
+    /* Hours presets */
+    .hours-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .hours-presets {
+      display: flex;
+      gap: 6px;
+    }
+    .preset-btn {
+      background: #e9f2f5;
+      border: 1px solid #c2d8df;
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--navy);
+      transition: background 0.15s;
+    }
+    .preset-btn:hover {
+      background: #d6e8ed;
+    }
+    /* Dynamic Clarification Question Cards */
+    .clarification-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-top: 16px;
+    }
+    .clarification-card {
+      background: #f9fbfb;
+      border: 1px solid #cbe0e5;
+      border-left: 4px solid var(--blue);
+      border-radius: 12px;
+      padding: 16px 18px;
+    }
+    .clarification-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .clarification-badge {
+      font-size: 11.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: #e1f1f5;
+      color: #126377;
+    }
+    .clarification-question {
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--navy);
+      margin-bottom: 6px;
+      line-height: 1.4;
+    }
+    .clarification-reason {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 12px;
+      line-height: 1.4;
+    }
+    .empty-clarifications {
+      background: #f0f9f6;
+      border: 1px solid #bfe3d5;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      color: #145943;
+      margin: 16px 0;
+    }
+    .empty-clarifications h3 {
+      margin: 0 0 6px;
+      font-size: 17px;
+    }
+    .empty-clarifications p {
+      margin: 0;
+      font-size: 14px;
+      color: #2b705a;
+    }
+    /* Actions toolbar */
+    .actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-top: 28px;
+      padding-top: 18px;
+      border-top: 1px solid #eef2f4;
+      flex-wrap: wrap;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 46px;
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 15px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s ease;
+      border: 0;
+    }
+    .btn-primary {
+      background: var(--blue);
+      color: white;
+    }
+    .btn-primary:hover {
+      background: var(--blue-hover);
+    }
+    .btn-secondary {
+      background: #e4edf0;
+      color: var(--navy);
+    }
+    .btn-secondary:hover {
+      background: #d4e3e7;
+    }
+    .btn-success {
+      background: #198754;
+      color: white;
+    }
+    .btn-success:hover {
+      background: #146c43;
+    }
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .draft-badge {
+      font-size: 12.5px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .clear-draft {
+      background: transparent;
+      border: none;
+      color: #9f4141;
+      text-decoration: underline;
+      cursor: pointer;
+      font-size: 12.5px;
+      padding: 0;
+    }
+    .error-box {
+      background: #fdf2f2;
+      border: 1px solid #f8b4b4;
+      border-radius: 10px;
+      padding: 12px 16px;
+      color: #9b1c1c;
+      font-weight: 600;
+      font-size: 14px;
+      margin-top: 16px;
+    }
+    /* Results screen */
+    #results .result-card {
+      background: #fdfefe;
+      border-radius: 12px;
+      border: 1px solid #d4e4e8;
+      padding: 20px;
+      margin: 16px 0;
+    }
+    .result-badge {
+      display: inline-block;
+      background: #e1f4ec;
+      color: #0f6848;
+      padding: 5px 12px;
+      border-radius: 99px;
+      font-weight: 700;
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+    .result-direction {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--navy);
+      margin: 0 0 8px;
+    }
+    ul.stylish-list {
+      padding-left: 20px;
+      margin: 8px 0;
+    }
+    ul.stylish-list li {
+      margin-bottom: 6px;
+      line-height: 1.45;
+    }
+    footer {
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+      padding: 20px 10px;
+      line-height: 1.5;
+    }
+    @media (max-width: 640px) {
+      .card {padding: 18px 16px; border-radius: 12px;}
+      .grid-2, .grid-3 {grid-template-columns: 1fr;}
+      .direction-cards {grid-template-columns: 1fr;}
+      .actions {flex-direction: column-reverse; align-items: stretch;}
+      .btn {width: 100%;}
+      .hours-row {flex-direction: column; align-items: stretch;}
+      header {padding: 20px 16px;}
+    }
   </style>
 </head>
 <body>
+
 <header>
-  <small>Государственный исторический музей · демоверсия команды</small>
-  <h1>Музейный компас</h1>
-  <div>Расскажите, чем вам интересно волонтёрство. Мы поможем подготовить заявку для координатора.</div>
+  <div class="header-inner">
+    <small>Государственный исторический музей · Волонтёрская программа</small>
+    <h1>Музейный компас</h1>
+    <p>Анкета кандидата в волонтёрскую команду ГИМ. Мы поможем подобрать направление, соответствующее вашим интересам, навыкам и свободному графику.</p>
+  </div>
 </header>
+
 <main>
+  <!-- Wizard Card -->
   <section class="card" id="wizard">
-    <span class="tag">Прототип · шаг <span id="stepNo">1</span> из 4</span>
-    <div class="progress"><div class="bar" id="bar"></div></div>
-    <form id="form">
+    <div class="progress-container">
+      <div class="progress-info">
+        <span>Шаг <span id="stepNumber">1</span> из 4: <strong id="stepTitle">Профиль и контакты</strong></span>
+        <span class="draft-badge" id="draftInfo" hidden>
+          Черновик сохранён <button type="button" class="clear-draft" id="clearDraftBtn">Очистить</button>
+        </span>
+      </div>
+      <div class="progress-bar-bg">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+    </div>
+
+    <form id="volunteerForm" novalidate>
+      <!-- STEP 1: ПРОФИЛЬ И КОНТАКТЫ -->
       <section class="step" data-step="0">
-        <h2>Знакомство</h2>
-        <p class="intro">Ответы помогут координатору оценить подходящее направление. На заполнение ориентировочно 5–7 минут.</p>
-        <label for="name">Как вас зовут?</label>
-        <input id="name" name="applicant_name" required placeholder="Пример: Тестовый кандидат" minlength="2">
-        <label class="check"><input id="adult" type="checkbox" required> Мне исполнилось 18 лет</label>
-        <label class="check"><input id="consent" type="checkbox" required> Я согласен(-на) отправить ответы на рассмотрение</label>
-      </section>
-      <section class="step" data-step="1" hidden>
-        <h2>Мотивация и интересы</h2>
-        <p class="intro">Здесь важны ваши собственные слова, а не идеальный текст.</p>
-        <label for="motivation">Почему именно Исторический музей?</label>
-        <textarea id="motivation" name="motivation" minlength="10" required placeholder="Что хотите попробовать, чему научиться и как помочь?"></textarea>
-        <label for="experience">Какой у вас есть опыт или полезные навыки?</label>
-        <textarea id="experience" name="experience" placeholder="Можно рассказать о проектах, работе, хобби или учёбе."></textarea>
-        <label for="expectations">Что вы ожидаете от участия?</label>
-        <textarea id="expectations" name="expectations" placeholder="Что для вас будет хорошим результатом?"></textarea>
-      </section>
-      <section class="step" data-step="2" hidden>
-        <h2>Направление и время</h2>
-        <p class="intro">Нам важно понять вашу реальную доступность, а не формальный статус занятости.</p>
-        <label for="direction">Что вам интереснее?</label>
-        <select id="direction" name="desired_direction" required>
-          <option value="">Выберите направление</option>
-          <option value="organizational">Организация мероприятий</option>
-          <option value="project">Квесты и мастер-классы</option>
-          <option value="collections">Работа с музейными фондами</option>
-          <option value="inclusive">Инклюзивные инициативы</option>
-          <option value="media">Фото, видео и медиапроекты</option>
-          <option value="undecided">Пока не знаю — помогите выбрать</option>
-        </select>
-        <label for="hours">Сколько часов в месяц вы реально можете участвовать?</label>
-        <input id="hours" name="availability_hours_month" type="number" min="0" max="400" value="12" required>
-        <label for="commitments">Какие ещё обязательства могут влиять на график?</label>
-        <textarea id="commitments" name="other_commitments" placeholder="Учёба, работа, другие программы — можно указать, как вы их совмещаете."></textarea>
-      </section>
-      <section class="step" data-step="3" hidden>
-        <h2>Последнее уточнение</h2>
-        <p class="intro">Если ваши ответы достаточно полные, мы не будем задавать лишний вопрос.</p>
-        <div id="followupBlock" hidden>
-          <label for="followup" id="followupLabel">Уточняющий вопрос</label>
-          <textarea id="followup" name="followup_answer" placeholder="Ваш ответ (по желанию)"></textarea>
+        <div class="step-header">
+          <h2>1. Знакомство и контакты</h2>
+          <p>Основные данные о вас для связи с координатором волонтёрской службы ГИМ.</p>
         </div>
-        <p id="noFollowup" class="hint" hidden>Уточнений пока не требуется — можно отправлять.</p>
-        <p class="notice">Это первая техническая версия: пока оценивает демонстрационный алгоритм. Кураторская шкала и модель ИИ будут подключены отдельно.</p>
+
+        <div class="field">
+          <label class="title" for="applicant_name">Фамилия, Имя и Отчество <span class="req">*</span></label>
+          <input type="text" id="applicant_name" name="applicant_name" required minlength="2" placeholder="Например: Иванов Иван Иванович">
+        </div>
+
+        <div class="grid-2">
+          <div class="field">
+            <label class="title" for="email">Электронная почта <span class="req">*</span></label>
+            <input type="email" id="email" name="email" required placeholder="name@example.com">
+          </div>
+          <div class="field">
+            <label class="title" for="vk_url">Страница ВКонтакте <span class="req">*</span></label>
+            <input type="url" id="vk_url" name="vk_url" required placeholder="https://vk.com/id..." pattern="https?://.*">
+            <div class="field-hint">Взаимодействие с волонтёрами ГИМ ведётся в сети ВКонтакте.</div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="field">
+            <label class="title" for="birth_date">Дата рождения <span class="req">*</span></label>
+            <input type="date" id="birth_date" name="birth_date" required>
+          </div>
+          <div class="field">
+            <label class="title">Статус занятости <span class="req">*</span></label>
+            <div class="chip-group" id="statusGroup">
+              <label class="chip"><input type="radio" name="status" value="student" checked>Студент</label>
+              <label class="chip"><input type="radio" name="status" value="working">Работаю</label>
+              <label class="chip"><input type="radio" name="status" value="unemployed">В поиске работы</label>
+              <label class="chip"><input type="radio" name="status" value="other">Другое</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Образование / ВУЗ -->
+        <div id="educationBlock">
+          <div class="grid-2">
+            <div class="field">
+              <label class="title" for="university">ВУЗ / Учебное заведение</label>
+              <select id="university" name="university">
+                <option value="">Выберите учебное заведение</option>
+                <option value="МГУ имени М.В. Ломоносова">МГУ имени М.В. Ломоносова</option>
+                <option value="Российский государственный гуманитарный университет (РГГУ)">РГГУ</option>
+                <option value="НИУ ВШЭ">НИУ «Высшая школа экономики»</option>
+                <option value="Российский университет дружбы народов (РУДН)">РУДН</option>
+                <option value="Другое">Другое учебное заведение</option>
+              </select>
+            </div>
+            <div class="field" id="universityOtherField" hidden>
+              <label class="title" for="university_other">Укажите название ВУЗа</label>
+              <input type="text" id="university_other" name="university_other" placeholder="Название университета / института">
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="field">
+              <label class="title" for="faculty">Факультет / Специальность</label>
+              <input type="text" id="faculty" name="faculty" placeholder="Например: Исторический факультет, культурология">
+            </div>
+            <div class="field">
+              <label class="title" for="course">Курс / Ступень обучения</label>
+              <select id="course" name="course">
+                <option value="">Выберите курс</option>
+                <option value="1-й курс бакалавриата">1-й курс бакалавриата</option>
+                <option value="2-й курс бакалавриата">2-й курс бакалавриата</option>
+                <option value="3-й курс бакалавриата">3-й курс бакалавриата</option>
+                <option value="4-й курс бакалавриата">4-й курс бакалавриата</option>
+                <option value="Магистратура">Магистратура</option>
+                <option value="Аспирантура">Аспирантура</option>
+                <option value="Окончил(а) обучение">Окончил(а) обучение</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="title" for="scientific_interests">Сфера научных / профессиональных интересов</label>
+            <input type="text" id="scientific_interests" name="scientific_interests" placeholder="Например: Археология, история России XIX в., музеология, дизайн выставок">
+          </div>
+        </div>
+
+        <!-- Иностранные языки -->
+        <div class="field">
+          <label class="title">Владение иностранными языками (уровень B1 и выше)</label>
+          <div class="chip-group" id="languagesGroup">
+            <label class="chip"><input type="checkbox" name="foreign_languages" value="Английский">Английский</label>
+            <label class="chip"><input type="checkbox" name="foreign_languages" value="Немецкий">Немецкий</label>
+            <label class="chip"><input type="checkbox" name="foreign_languages" value="Французский">Французский</label>
+            <label class="chip"><input type="checkbox" name="foreign_languages" value="Китайский">Китайский</label>
+            <label class="chip"><input type="checkbox" name="foreign_languages" value="Испанский">Испанский</label>
+            <label class="chip"><input type="checkbox" name="foreign_languages" value="Итальянский">Итальянский</label>
+          </div>
+        </div>
+
+        <div class="field" style="margin-top: 16px;">
+          <label class="checkbox-item">
+            <input type="checkbox" id="age_over_18" name="age_over_18" required>
+            <span>Мне исполнилось 18 лет <span class="req">*</span></span>
+          </label>
+          <label class="checkbox-item">
+            <input type="checkbox" id="consent_personal_data" name="consent_personal_data" required checked>
+            <span>Даю согласие на обработку персональных данных (<a href="https://shm.ru/politika-konfidentsialnosti/" target="_blank" rel="noopener">Политика конфиденциальности ГИМ</a>) <span class="req">*</span></span>
+          </label>
+        </div>
       </section>
-      <div id="error" class="error" role="alert" hidden></div>
+
+      <!-- STEP 2: МОТИВАЦИЯ И ОПЫТ -->
+      <section class="step" data-step="1" hidden>
+        <div class="step-header">
+          <h2>2. Мотивация и опыт</h2>
+          <p>Расскажите своими словами, почему вас привлекает музей и чем вам интересно заниматься.</p>
+        </div>
+
+        <div class="field">
+          <label class="title" for="motivation">Почему Вы выбрали волонтерскую программу Исторического музея? <span class="req">*</span></label>
+          <textarea id="motivation" name="motivation" required minlength="10" placeholder="Что именно вы хотите попробовать в музее, чему научиться и какую пользу принести?"></textarea>
+          <div class="char-counter"><span id="motivationCount">0</span> / мин. 10 симв.</div>
+        </div>
+
+        <div class="field">
+          <label class="title" for="expectations">Чего Вы ожидаете от волонтерства в Историческом музее?</label>
+          <textarea id="expectations" name="expectations" placeholder="Что для вас будет успешным и ценным результатом участия?"></textarea>
+        </div>
+
+        <div class="field">
+          <label class="title" for="experience">Опыт работы, стажировки, участие в проектах и волонтерстве</label>
+          <textarea id="experience" name="experience" placeholder="Опыт в других музеях, архивах, экспедициях, проведение экскурсий, организация событий, фото/видео..."></textarea>
+        </div>
+
+        <div class="field">
+          <label class="title" for="hobbies">Ваши хобби и увлечения</label>
+          <input type="text" id="hobbies" name="hobbies" placeholder="Чем вы любите заниматься в свободное время?">
+        </div>
+
+        <div class="field">
+          <label class="title">Откуда Вы узнали о Волонтерской программе ГИМ?</label>
+          <div class="chip-group" id="sourceGroup">
+            <label class="chip"><input type="radio" name="source" value="Социальные сети">Социальные сети</label>
+            <label class="chip"><input type="radio" name="source" value="Рекомендации друзей">Рекомендации друзей</label>
+            <label class="chip"><input type="radio" name="source" value="Сайт Исторического музея">Сайт ГИМ</label>
+            <label class="chip"><input type="radio" name="source" value="Другое">Другое</label>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 3: НАПРАВЛЕНИЕ И ДОСТУПНОСТЬ -->
+      <section class="step" data-step="2" hidden>
+        <div class="step-header">
+          <h2>3. Направление и график</h2>
+          <p>Выберите приоритетную область волонтёрства и удобный для вас режим участия.</p>
+        </div>
+
+        <div class="field">
+          <label class="title">В работу какого направления ГИМ Вы бы хотели включиться? <span class="req">*</span></label>
+          <div class="direction-cards" id="directionsCards">
+            <label class="dir-card">
+              <input type="radio" name="desired_direction" value="organizational" required>
+              <div class="dir-card-header">
+                <span class="dir-icon">🏛️</span>
+                <span>Организационное</span>
+              </div>
+              <div class="dir-desc">Помощь в организации масштабных культурно-массовых мероприятий, навигация, встреча гостей.</div>
+            </label>
+
+            <label class="dir-card">
+              <input type="radio" name="desired_direction" value="project">
+              <div class="dir-card-header">
+                <span class="dir-icon">🎯</span>
+                <span>Проектное</span>
+              </div>
+              <div class="dir-desc">Разработка и проведение тематических квестов, мастер-классов и просветительских программ.</div>
+            </label>
+
+            <label class="dir-card">
+              <input type="radio" name="desired_direction" value="collections">
+              <div class="dir-card-header">
+                <span class="dir-icon">📦</span>
+                <span>Фондовое</span>
+              </div>
+              <div class="dir-desc">Помощь в работе с музейными фондами, сверка, описи, научная систематизация коллекций.</div>
+            </label>
+
+            <label class="dir-card">
+              <input type="radio" name="desired_direction" value="inclusive">
+              <div class="dir-card-header">
+                <span class="dir-icon">🤝</span>
+                <span>Инклюзивное</span>
+              </div>
+              <div class="dir-desc">Программы доступной среды, сопровождение посетителей с инвалидностью, тактильные экскурсии.</div>
+            </label>
+
+            <label class="dir-card">
+              <input type="radio" name="desired_direction" value="media">
+              <div class="dir-card-header">
+                <span class="dir-icon">📸</span>
+                <span>Медиа</span>
+              </div>
+              <div class="dir-desc">Фото- и видеосъёмка мероприятий, монтаж, написание постов, дизайн материалов для соцсетей.</div>
+            </label>
+
+            <label class="dir-card">
+              <input type="radio" name="desired_direction" value="undecided">
+              <div class="dir-card-header">
+                <span class="dir-icon">🧭</span>
+                <span>Пока не определился</span>
+              </div>
+              <div class="dir-desc">Хочу познакомиться с разными проектами и определить направление вместе с куратором.</div>
+            </label>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="title" for="availability_hours_month">Сколько часов в месяц Вы готовы уделять волонтёрству? <span class="req">*</span></label>
+          <div class="hours-row">
+            <input type="number" id="availability_hours_month" name="availability_hours_month" min="0" max="400" value="16" required style="max-width: 140px;">
+            <div class="hours-presets">
+              <button type="button" class="preset-btn" data-hours="8">8 ч / мес</button>
+              <button type="button" class="preset-btn" data-hours="16">16 ч / мес</button>
+              <button type="button" class="preset-btn" data-hours="24">24 ч / мес</button>
+              <button type="button" class="preset-btn" data-hours="36">36+ ч / мес</button>
+            </div>
+          </div>
+          <div class="field-hint">Обычно участие в регулярных проектах музея требует от 8–12 часов в месяц.</div>
+        </div>
+
+        <div class="field">
+          <label class="title">Формат участия и график</label>
+          <div class="chip-group" id="scheduleTypeGroup">
+            <label class="chip"><input type="radio" name="availability_schedule_type" value="flexible" checked>Гибкий график (под мероприятия)</label>
+            <label class="chip"><input type="radio" name="availability_schedule_type" value="regular">Регулярный график (в фиксированные дни)</label>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="title">Удобные дни недели</label>
+          <div class="days-picker" id="daysPicker">
+            <div class="day-chip" data-day="пн">Пн</div>
+            <div class="day-chip" data-day="вт">Вт</div>
+            <div class="day-chip" data-day="ср">Ср</div>
+            <div class="day-chip" data-day="чт">Чт</div>
+            <div class="day-chip" data-day="пт">Пт</div>
+            <div class="day-chip" data-day="сб">Сб</div>
+            <div class="day-chip" data-day="вс">Вс</div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="title" for="other_commitments">Обязательства и график занятости</label>
+          <textarea id="other_commitments" name="other_commitments" placeholder="Учёба, сессия, работа, сторонние дедлайны — опишите, как вы планируете совмещать их с музеем."></textarea>
+        </div>
+
+        <div class="field">
+          <label class="title" for="other_volunteer_programs">Состоите ли вы сейчас в других волонтёрских организациях?</label>
+          <input type="text" id="other_volunteer_programs" name="other_volunteer_programs" placeholder="Например: Волонтёры культуры, благотворительные фонды (или оставьте пустым)">
+        </div>
+      </section>
+
+      <!-- STEP 4: ДИНАМИЧЕСКИЕ УТОЧНЕНИЯ -->
+      <section class="step" data-step="3" hidden>
+        <div class="step-header">
+          <h2>4. Индивидуальные уточнения</h2>
+          <p>Система анализирует заполненную анкету и формирует контекстные вопросы для куратора.</p>
+        </div>
+
+        <div id="clarificationsContainer">
+          <div class="empty-clarifications" id="noClarificationsCard" hidden>
+            <h3>✨ Отличная анкета!</h3>
+            <p>Ваши ответы содержат всю необходимую информацию. Дополнительных уточнений перед отправкой не требуется.</p>
+          </div>
+          <div class="clarification-list" id="clarificationsList"></div>
+        </div>
+
+        <div class="field" id="legacyFallbackBlock" hidden style="margin-top: 16px;">
+          <label class="title" id="fallbackQuestionLabel" for="fallback_answer">Дополнительный комментарий</label>
+          <textarea id="fallback_answer" name="followup_answer" placeholder="Ваш ответ (по желанию)"></textarea>
+        </div>
+
+        <div style="background: var(--gold-bg); border: 1px solid var(--gold-border); border-radius: 10px; padding: 14px; margin-top: 20px; font-size: 13.5px; line-height: 1.45; color: #5d4615;">
+          <strong>Порядок рассмотрения:</strong> после отправки анкета сохраняется в базе координатора. Кураторы ГИМ сопоставляют профиль с актуальными задачами направлений и связываются для согласования собеседования.
+        </div>
+      </section>
+
+      <div class="error-box" id="errorBox" role="alert" hidden></div>
+
+      <!-- Action Buttons -->
       <div class="actions">
-        <button id="back" type="button" class="secondary" hidden>Назад</button>
-        <button id="next" type="button">Продолжить</button>
-        <button id="submit" type="submit" hidden>Отправить анкету</button>
+        <div>
+          <button type="button" class="btn btn-secondary" id="prevBtn" hidden>← Назад</button>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <button type="button" class="btn btn-primary" id="nextBtn">Продолжить →</button>
+          <button type="submit" class="btn btn-success" id="submitBtn" hidden>Отправить анкету в ГИМ ✓</button>
+        </div>
       </div>
     </form>
   </section>
 
+  <!-- Results View -->
   <section class="card" id="results" hidden>
-    <span class="tag">Результат сохранён</span>
-    <h2>Рекомендация для координатора</h2>
-    <p id="summary"></p>
-    <h3>Предлагаемое направление</h3>
-    <p id="recommendation"></p>
-    <h3>Что нужно уточнить</h3><ul id="problems"></ul>
-    <h3>Вопросы для собеседования</h3><ul id="interview"></ul>
-    <p class="hint" id="recordid"></p>
-    <div class="actions"><a class="linkbtn secondary" href="/api/v1/export.csv">Выгрузить общую таблицу (CSV)</a><button class="secondary" id="reset" type="button">Заполнить ещё одну</button></div>
+    <span class="result-badge">Заявка принята</span>
+    <h2 style="margin: 0 0 10px; font-size: 24px;">Предварительное резюме координатора</h2>
+    <div class="result-card">
+      <div class="result-direction" id="resDirection"></div>
+      <p id="resReason" style="color: var(--muted); margin: 0 0 14px;"></p>
+      <p id="resSummary" style="line-height: 1.5;"></p>
+    </div>
+
+    <div class="grid-2">
+      <div class="result-card">
+        <h3 style="margin: 0 0 10px; font-size: 16px;">Сильные стороны кандидата</h3>
+        <ul class="stylish-list" id="resStrengths"></ul>
+      </div>
+      <div class="result-card">
+        <h3 style="margin: 0 0 10px; font-size: 16px;">Темы для уточнения</h3>
+        <ul class="stylish-list" id="resProblems"></ul>
+      </div>
+    </div>
+
+    <div class="result-card">
+      <h3 style="margin: 0 0 10px; font-size: 16px;">Вопросы для очного собеседования</h3>
+      <ul class="stylish-list" id="resInterview"></ul>
+    </div>
+
+    <p class="field-hint" id="resApplicationId" style="margin-top: 14px;"></p>
+
+    <div class="actions" style="margin-top: 20px;">
+      <a class="btn btn-secondary" href="/api/v1/export.csv" download>Скачать общую таблицу (CSV)</a>
+      <button type="button" class="btn btn-primary" id="resetBtn">Заполнить новую анкету</button>
+    </div>
   </section>
-  <footer>ГИМ · прототип команды «Код со смыслом 2». Текущий оценщик — правила демонстрации, не финальная нейросеть.</footer>
+
+  <footer>
+    Государственный исторический музей (ГИМ) · Хакатон «Код со смыслом 2» · 2026<br>
+    Система первичного анкетирования и распределения волонтёров
+  </footer>
 </main>
+
 <script>
-(function () {
-  const form = document.getElementById("form");
+(function() {
+  const STORAGE_KEY = "gim_volunteer_form_draft_v1";
+
+  const form = document.getElementById("volunteerForm");
   const steps = [...document.querySelectorAll(".step")];
-  const back = document.getElementById("back");
-  const next = document.getElementById("next");
-  const send = document.getElementById("submit");
-  const error = document.getElementById("error");
+  const stepTitles = [
+    "Профиль и контакты",
+    "Мотивация и опыт",
+    "Направление и график",
+    "Индивидуальные уточнения"
+  ];
+
+  const prevBtn = document.getElementById("prevBtn");
+  const nextBtn = document.getElementById("nextBtn");
+  const submitBtn = document.getElementById("submitBtn");
+  const errorBox = document.getElementById("errorBox");
   const wizard = document.getElementById("wizard");
   const results = document.getElementById("results");
-  let step = 0;
+  const progressBar = document.getElementById("progressBar");
+  const stepNumber = document.getElementById("stepNumber");
+  const stepTitle = document.getElementById("stepTitle");
+  const draftInfo = document.getElementById("draftInfo");
+  const clearDraftBtn = document.getElementById("clearDraftBtn");
+  const motivationInput = document.getElementById("motivation");
+  const motivationCount = document.getElementById("motivationCount");
+  const universitySelect = document.getElementById("university");
+  const universityOtherField = document.getElementById("universityOtherField");
+
+  let currentStep = 0;
   let applicationId = null;
+  let dynamicClarifications = [];
+  let followupAnswers = {};
+
   const byId = id => document.getElementById(id);
-  const val = id => byId(id).value.trim();
-  function render() {
-    steps.forEach((node, i) => node.hidden = i !== step);
-    back.hidden = step === 0;
-    next.hidden = step === steps.length - 1;
-    send.hidden = step !== steps.length - 1;
-    byId("stepNo").textContent = step + 1;
-    byId("bar").style.width = ((step + 1) / steps.length * 100) + "%";
-    error.hidden = true;
+
+  // --- Step Rendering ---
+  function renderStep() {
+    steps.forEach((el, index) => {
+      el.hidden = index !== currentStep;
+    });
+
+    stepNumber.textContent = currentStep + 1;
+    stepTitle.textContent = stepTitles[currentStep];
+    progressBar.style.width = ((currentStep + 1) / steps.length * 100) + "%";
+
+    prevBtn.hidden = currentStep === 0;
+    nextBtn.hidden = currentStep === steps.length - 1;
+    submitBtn.hidden = currentStep !== steps.length - 1;
+
+    errorBox.hidden = true;
+    window.scrollTo({top: 0, behavior: "smooth"});
   }
-  function payload() {
+
+  // --- Character counter for motivation ---
+  if (motivationInput && motivationCount) {
+    motivationInput.addEventListener("input", () => {
+      motivationCount.textContent = motivationInput.value.trim().length;
+    });
+  }
+
+  // --- University Other toggle ---
+  if (universitySelect && universityOtherField) {
+    universitySelect.addEventListener("change", () => {
+      universityOtherField.hidden = universitySelect.value !== "Другое";
+    });
+  }
+
+  // --- Days picker toggle ---
+  const dayChips = document.querySelectorAll(".day-chip");
+  dayChips.forEach(chip => {
+    chip.addEventListener("click", () => {
+      chip.classList.toggle("active");
+      saveDraft();
+    });
+  });
+
+  // --- Hours preset buttons ---
+  document.querySelectorAll(".preset-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      byId("availability_hours_month").value = btn.dataset.hours;
+      saveDraft();
+    });
+  });
+
+  // --- Direction Card UI highlight ---
+  const dirCards = document.querySelectorAll(".dir-card");
+  dirCards.forEach(card => {
+    card.addEventListener("click", () => {
+      dirCards.forEach(c => c.classList.remove("selected"));
+      card.classList.add("selected");
+    });
+  });
+
+  // --- Form Data Serialization ---
+  function getSelectedDirection() {
+    const checked = document.querySelector('input[name="desired_direction"]:checked');
+    return checked ? checked.value : "undecided";
+  }
+
+  function getSelectedStatus() {
+    const checked = document.querySelector('input[name="status"]:checked');
+    return checked ? checked.value : "student";
+  }
+
+  function getSelectedSource() {
+    const checked = document.querySelector('input[name="source"]:checked');
+    return checked ? checked.value : "";
+  }
+
+  function getSelectedLanguages() {
+    return [...document.querySelectorAll('input[name="foreign_languages"]:checked')].map(c => c.value);
+  }
+
+  function getSelectedDays() {
+    return [...document.querySelectorAll(".day-chip.active")].map(c => c.dataset.day);
+  }
+
+  function buildPayload() {
+    const combinedFollowup = Object.entries(followupAnswers)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join("\n") || (byId("fallback_answer") ? byId("fallback_answer").value.trim() : "");
+
     return {
       application_id: applicationId,
-      applicant_name: val("name"),
-      age_over_18: byId("adult").checked,
-      motivation: val("motivation"),
-      experience: val("experience"),
-      expectations: val("expectations"),
-      availability_hours_month: Number(byId("hours").value),
-      other_commitments: val("commitments"),
-      desired_direction: byId("direction").value,
-      followup_answer: val("followup")
+      applicant_name: byId("applicant_name").value.trim(),
+      email: byId("email").value.trim(),
+      vk_url: byId("vk_url").value.trim(),
+      birth_date: byId("birth_date").value,
+      age_over_18: byId("age_over_18").checked,
+      consent_personal_data: byId("consent_personal_data").checked,
+      status: getSelectedStatus(),
+      university: byId("university").value,
+      university_other: byId("university_other") ? byId("university_other").value.trim() : "",
+      faculty: byId("faculty") ? byId("faculty").value.trim() : "",
+      course: byId("course") ? byId("course").value : "",
+      scientific_interests: byId("scientific_interests") ? byId("scientific_interests").value.trim() : "",
+      foreign_languages: getSelectedLanguages(),
+      motivation: byId("motivation").value.trim(),
+      expectations: byId("expectations") ? byId("expectations").value.trim() : "",
+      experience: byId("experience") ? byId("experience").value.trim() : "",
+      hobbies: byId("hobbies") ? byId("hobbies").value.trim() : "",
+      source: getSelectedSource(),
+      desired_direction: getSelectedDirection(),
+      availability_hours_month: Number(byId("availability_hours_month").value) || 0,
+      availability_schedule_type: (document.querySelector('input[name="availability_schedule_type"]:checked') || {}).value || "flexible",
+      availability_days: getSelectedDays(),
+      other_commitments: byId("other_commitments") ? byId("other_commitments").value.trim() : "",
+      other_volunteer_programs: byId("other_volunteer_programs") ? byId("other_volunteer_programs").value.trim() : "",
+      followup_answer: combinedFollowup,
+      followup_answers: followupAnswers
     };
   }
-  function validateStep() {
-    const controls = [...steps[step].querySelectorAll("input, textarea, select")];
-    for (const control of controls) {
-      if (!control.checkValidity()) { control.reportValidity(); return false; }
+
+  // --- Step Validation ---
+  function validateStep(stepIdx) {
+    errorBox.hidden = true;
+    errorBox.textContent = "";
+
+    if (stepIdx === 0) {
+      const name = byId("applicant_name").value.trim();
+      if (!name || name.length < 2) {
+        showError("Пожалуйста, укажите ваши Фамилию, Имя и Отчество (не менее 2 символов).");
+        byId("applicant_name").focus();
+        return false;
+      }
+      const email = byId("email").value.trim();
+      if (!email || !byId("email").checkValidity()) {
+        showError("Пожалуйста, укажите корректный адрес электронной почты.");
+        byId("email").focus();
+        return false;
+      }
+      const vk = byId("vk_url").value.trim();
+      if (!vk || !vk.includes("vk.com")) {
+        showError("Пожалуйста, укажите ссылку на ваш профиль ВКонтакте (например, https://vk.com/id...).");
+        byId("vk_url").focus();
+        return false;
+      }
+      if (!byId("birth_date").value) {
+        showError("Пожалуйста, укажите дату рождения.");
+        byId("birth_date").focus();
+        return false;
+      }
+      if (!byId("age_over_18").checked) {
+        showError("Для участия необходимо подтвердить возраст 18+.");
+        byId("age_over_18").focus();
+        return false;
+      }
+      if (!byId("consent_personal_data").checked) {
+        showError("Необходимо дать согласие на обработку персональных данных.");
+        byId("consent_personal_data").focus();
+        return false;
+      }
     }
+
+    if (stepIdx === 1) {
+      const mot = byId("motivation").value.trim();
+      if (!mot || mot.length < 10) {
+        showError("Пожалуйста, опишите вашу мотивацию подробнее (минимум 10 символов).");
+        byId("motivation").focus();
+        return false;
+      }
+    }
+
+    if (stepIdx === 2) {
+      const dir = getSelectedDirection();
+      if (!dir) {
+        showError("Пожалуйста, выберите интересующее вас направление.");
+        return false;
+      }
+      const hours = Number(byId("availability_hours_month").value);
+      if (isNaN(hours) || hours < 0 || hours > 400) {
+        showError("Укажите корректное количество часов в месяц (от 0 до 400).");
+        byId("availability_hours_month").focus();
+        return false;
+      }
+    }
+
     return true;
   }
+
+  function showError(msg) {
+    errorBox.hidden = false;
+    errorBox.textContent = msg;
+    errorBox.scrollIntoView({behavior: "smooth", block: "nearest"});
+  }
+
+  // --- Dynamic Clarification Rendering ---
+  function renderClarifications(questions) {
+    const list = byId("clarificationsList");
+    const emptyCard = byId("noClarificationsCard");
+    list.replaceChildren();
+
+    if (!questions || questions.length === 0) {
+      emptyCard.hidden = false;
+      return;
+    }
+
+    emptyCard.hidden = true;
+    questions.forEach((q, idx) => {
+      const card = document.createElement("div");
+      card.className = "clarification-card";
+
+      const meta = document.createElement("div");
+      meta.className = "clarification-meta";
+
+      const badge = document.createElement("span");
+      badge.className = "clarification-badge";
+      badge.textContent = q.category || "Уточнение";
+      meta.appendChild(badge);
+
+      const title = document.createElement("div");
+      title.className = "clarification-question";
+      title.textContent = (idx + 1) + ". " + q.question;
+
+      const reason = document.createElement("div");
+      reason.className = "clarification-reason";
+      reason.textContent = "Контекст вопроса: " + q.reason;
+
+      const textarea = document.createElement("textarea");
+      textarea.placeholder = "Ваш ответ куратору...";
+      textarea.value = followupAnswers[q.id] || "";
+      textarea.addEventListener("input", (e) => {
+        followupAnswers[q.id] = e.target.value.trim();
+        saveDraft();
+      });
+
+      card.appendChild(meta);
+      card.appendChild(title);
+      card.appendChild(reason);
+      card.appendChild(textarea);
+      list.appendChild(card);
+    });
+  }
+
+  // --- LocalStorage Draft Persistence ---
+  function saveDraft() {
+    try {
+      const data = buildPayload();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      draftInfo.hidden = false;
+    } catch (_) {}
+  }
+
+  function restoreDraft() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const data = JSON.parse(raw);
+
+      if (data.applicant_name) byId("applicant_name").value = data.applicant_name;
+      if (data.email) byId("email").value = data.email;
+      if (data.vk_url) byId("vk_url").value = data.vk_url;
+      if (data.birth_date) byId("birth_date").value = data.birth_date;
+      if (typeof data.age_over_18 === "boolean") byId("age_over_18").checked = data.age_over_18;
+      if (typeof data.consent_personal_data === "boolean") byId("consent_personal_data").checked = data.consent_personal_data;
+
+      if (data.status) {
+        const r = document.querySelector(`input[name="status"][value="${data.status}"]`);
+        if (r) r.checked = true;
+      }
+      if (data.university) {
+        byId("university").value = data.university;
+        if (data.university === "Другое" && universityOtherField) {
+          universityOtherField.hidden = false;
+          if (data.university_other) byId("university_other").value = data.university_other;
+        }
+      }
+      if (data.faculty && byId("faculty")) byId("faculty").value = data.faculty;
+      if (data.course && byId("course")) byId("course").value = data.course;
+      if (data.scientific_interests && byId("scientific_interests")) byId("scientific_interests").value = data.scientific_interests;
+
+      if (Array.isArray(data.foreign_languages)) {
+        data.foreign_languages.forEach(lang => {
+          const cb = document.querySelector(`input[name="foreign_languages"][value="${lang}"]`);
+          if (cb) cb.checked = true;
+        });
+      }
+
+      if (data.motivation) {
+        byId("motivation").value = data.motivation;
+        if (motivationCount) motivationCount.textContent = data.motivation.length;
+      }
+      if (data.expectations && byId("expectations")) byId("expectations").value = data.expectations;
+      if (data.experience && byId("experience")) byId("experience").value = data.experience;
+      if (data.hobbies && byId("hobbies")) byId("hobbies").value = data.hobbies;
+
+      if (data.source) {
+        const r = document.querySelector(`input[name="source"][value="${data.source}"]`);
+        if (r) r.checked = true;
+      }
+
+      if (data.desired_direction) {
+        const r = document.querySelector(`input[name="desired_direction"][value="${data.desired_direction}"]`);
+        if (r) {
+          r.checked = true;
+          const card = r.closest(".dir-card");
+          if (card) card.classList.add("selected");
+        }
+      }
+
+      if (data.availability_hours_month !== undefined) {
+        byId("availability_hours_month").value = data.availability_hours_month;
+      }
+      if (data.availability_schedule_type) {
+        const r = document.querySelector(`input[name="availability_schedule_type"][value="${data.availability_schedule_type}"]`);
+        if (r) r.checked = true;
+      }
+      if (Array.isArray(data.availability_days)) {
+        dayChips.forEach(chip => {
+          if (data.availability_days.includes(chip.dataset.day)) {
+            chip.classList.add("active");
+          }
+        });
+      }
+      if (data.other_commitments && byId("other_commitments")) byId("other_commitments").value = data.other_commitments;
+      if (data.other_volunteer_programs && byId("other_volunteer_programs")) byId("other_volunteer_programs").value = data.other_volunteer_programs;
+
+      if (data.followup_answers) {
+        followupAnswers = data.followup_answers;
+      }
+
+      draftInfo.hidden = false;
+    } catch (_) {}
+  }
+
+  clearDraftBtn.addEventListener("click", () => {
+    localStorage.removeItem(STORAGE_KEY);
+    form.reset();
+    dayChips.forEach(c => c.classList.remove("active"));
+    dirCards.forEach(c => c.classList.remove("selected"));
+    followupAnswers = {};
+    draftInfo.hidden = true;
+    currentStep = 0;
+    renderStep();
+  });
+
+  // Auto-save on form inputs
+  form.addEventListener("input", saveDraft);
+  form.addEventListener("change", saveDraft);
+
+  // --- API Call Helper ---
   async function api(path, data) {
-    const response = await fetch(path, {
+    const res = await fetch(path, {
       method: "POST",
-      headers: {"Content-Type":"application/json"},
+      headers: {"Content-Type": "application/json"},
       body: JSON.stringify(data)
     });
-    if (!response.ok) {
-      let detail = "Сервер временно недоступен";
-      try { detail = JSON.stringify((await response.json()).detail || detail); } catch (_) {}
+    if (!res.ok) {
+      let detail = "Ошибка сервера";
+      try {
+        const err = await res.json();
+        detail = err.detail ? (typeof err.detail === "string" ? err.detail : JSON.stringify(err.detail)) : detail;
+      } catch (_) {}
       throw new Error(detail);
     }
-    return response.json();
+    return res.json();
   }
-  function showError(e) { error.hidden = false; error.textContent = String(e.message || e); }
-  next.addEventListener("click", async () => {
-    if (!validateStep()) return;
-    next.disabled = true;
+
+  // --- Navigation Handlers ---
+  nextBtn.addEventListener("click", async () => {
+    if (!validateStep(currentStep)) return;
+
+    nextBtn.disabled = true;
     try {
-      if (step === 2) {
-        const response = await api("/api/v1/clarification", payload());
-        byId("followupBlock").hidden = !response.question;
-        byId("noFollowup").hidden = Boolean(response.question);
-        if (response.question) byId("followupLabel").textContent = response.question;
+      // Transitioning to Step 4: request dynamic clarifications from API
+      if (currentStep === 2) {
+        const payload = buildPayload();
+        const res = await api("/api/v1/clarification", payload);
+        dynamicClarifications = res.questions || [];
+        renderClarifications(dynamicClarifications);
+
+        // Fallback for legacy question string if provided
+        if (res.question && (!dynamicClarifications || dynamicClarifications.length === 0)) {
+          byId("legacyFallbackBlock").hidden = false;
+          byId("fallbackQuestionLabel").textContent = res.question;
+        } else {
+          byId("legacyFallbackBlock").hidden = true;
+        }
       }
-      step += 1;
-      render();
-    } catch (e) { showError(e); }
-    finally { next.disabled = false; }
+
+      currentStep += 1;
+      renderStep();
+    } catch (e) {
+      showError(e.message || "Не удалось загрузить уточнения. Проверьте соединение.");
+    } finally {
+      nextBtn.disabled = false;
+    }
   });
-  back.addEventListener("click", () => { if (step > 0) { step -= 1; render(); } });
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    if (!validateStep()) return;
-    send.disabled = true;
+
+  prevBtn.addEventListener("click", () => {
+    if (currentStep > 0) {
+      currentStep -= 1;
+      renderStep();
+    }
+  });
+
+  // --- Form Submission ---
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!validateStep(currentStep)) return;
+
+    submitBtn.disabled = true;
     try {
-      if (!applicationId) applicationId = window.crypto && crypto.randomUUID
-        ? crypto.randomUUID() : "demo-" + Date.now();
-      const res = await api("/api/v1/applications", payload());
-      const e = res.evaluation;
-      byId("summary").textContent = e.summary + " (демонстрационная оценка, балл 0–3 пока не вычисляется)";
-      byId("recommendation").textContent = e.recommended_direction_label + ". " + e.direction_reason;
-      function list(id, values) {
+      if (!applicationId) {
+        applicationId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : "gim-" + Date.now();
+      }
+
+      const payload = buildPayload();
+      const res = await api("/api/v1/applications", payload);
+      const evalData = res.evaluation;
+
+      // Populate results view
+      byId("resDirection").textContent = "Рекомендованное направление: " + (evalData.recommended_direction_label || evalData.recommended_direction);
+      byId("resReason").textContent = evalData.direction_reason || "";
+      byId("resSummary").textContent = evalData.summary || "";
+
+      function renderList(id, items) {
         const node = byId(id);
         node.replaceChildren();
-        (values.length ? values : ["Дополнительных замечаний нет."]).forEach(v => {
+        const arr = (items && items.length) ? items : ["Замечаний или вопросов нет."];
+        arr.forEach(it => {
           const li = document.createElement("li");
-          li.textContent = v;
+          li.textContent = it;
           node.appendChild(li);
         });
       }
-      list("problems", e.possible_problems);
-      list("interview", e.interview_questions);
-      byId("recordid").textContent = "ID заявки: " + res.application_id;
+
+      renderList("resStrengths", evalData.strengths);
+      renderList("resProblems", evalData.possible_problems);
+      renderList("resInterview", evalData.interview_questions);
+
+      byId("resApplicationId").textContent = "Идентификатор заявки: " + res.application_id + " (сохранено в локальной базе)";
+
+      // Clear draft on success
+      localStorage.removeItem(STORAGE_KEY);
+
       wizard.hidden = true;
       results.hidden = false;
-      window.scrollTo({top:0, behavior:"smooth"});
-    } catch (e) { showError(e); }
-    finally { send.disabled = false; }
+      window.scrollTo({top: 0, behavior: "smooth"});
+    } catch (err) {
+      showError(err.message || "Ошибка отправки анкеты. Попробуйте еще раз.");
+    } finally {
+      submitBtn.disabled = false;
+    }
   });
-  byId("reset").addEventListener("click", () => {
-    applicationId = null; step = 0; form.reset(); wizard.hidden = false;
-    results.hidden = true; render(); window.scrollTo(0,0);
+
+  // --- Reset to fill another ---
+  byId("resetBtn").addEventListener("click", () => {
+    applicationId = null;
+    currentStep = 0;
+    form.reset();
+    dayChips.forEach(c => c.classList.remove("active"));
+    dirCards.forEach(c => c.classList.remove("selected"));
+    followupAnswers = {};
+    results.hidden = true;
+    wizard.hidden = false;
+    renderStep();
   });
-  render();
+
+  // Initial load
+  restoreDraft();
+  renderStep();
 })();
 </script>
 </body>
