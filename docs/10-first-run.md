@@ -49,4 +49,4 @@ python tests/smoke_http.py
 
 ## Следующие этапы
 
-Полная анкета и UX → настоящий LLM-слой → Google Sheets → отложенная проверка по историческим оценкам → репетиция защиты. [Задачи](../issues) · [План](09-delivery-roadmap.md).
+Полная анкета и UX → настоящий LLM-слой → Google Sheets → отложенная проверка по историческим оценкам → репетиция защиты. [Задачи](https://github.com/Ai-b0ss/code-with-purpose-2-2026/issues) · [План](09-delivery-roadmap.md).
