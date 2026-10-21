@@ -144,7 +144,7 @@ class EvaluatorTests(unittest.TestCase):
         answers = data.model_dump(exclude={"applicant_name", "application_id"})
         raw = json.dumps(response(data), ensure_ascii=False)
         tick = chr(96) * 3
-        fenced = tick + "json\\n" + raw + "\\n" + tick
+        fenced = tick + "json\n" + raw + "\n" + tick
         result = validate_response(fenced, answers)
         self.assertEqual(result["evaluation_mode"], "llm")
         self.assertIsNone(result["score"])
