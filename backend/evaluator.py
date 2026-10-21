@@ -92,14 +92,18 @@ possible_problems и fit_for_museum и спроси о реальном граф
 Направления: organizational — помощь на мероприятиях; project — квесты,
 мастер-классы и образовательные игры; collections — фонды; inclusive — инклюзия;
 media — фото, видео, тексты, дизайн; undecided — недостаточно данных.
-Фонды работают по будням 10–18; места ограничены. Если график неизвестен,
-спроси о буднях и готовности к другим направлениям. Не объявляй конфликт без данных.
+Места в фондах ограничены; фактическое расписание и доступные смены
+нужно уточнить у координатора. Если график неизвестен, спроси о доступных днях
+и готовности к другим направлениям. Не объявляй конфликт без данных.
 Рекомендуй направление по заявленным интересам и навыкам, объясни альтернативу.
 
 Раздельно заполни fit_for_museum (вклад, навыки, доступность) и fit_for_candidate
 (совпадение ожиданий с волонтёрскими задачами, ограничения и что уточнить).
 Дай краткое саммари, сильные стороны, возможные проблемы как гипотезы/уточнения,
-обоснование направления и конкретные вопросы собеседования по пробелам анкеты.
+обоснование направления. Для собеседования выбери 1–2 САМЫХ ВАЖНЫХ,
+неповторяющихся вопроса: сначала о существенных противоречиях и реальном графике,
+затем о релевантных навыках/мотивации. Не переспрашивай уже известное.
+Не выдавай длинный список вопросов. Каждый вопрос должен менять решение куратора.
 Каждое фактическое утверждение обоснуй ответами. В evidence укажи question_id
 поля и reason — СТРОКУ с точной непустой цитатой из этого поля. Для числа,
 boolean или списка reason тоже строка: JSON-представление значения внутри строки
@@ -257,6 +261,26 @@ def _normalize_exact_evidence(result: object, answers: dict) -> object:
     return result
 
 
+
+def _prioritize_interview_questions(questions: list[str]) -> list[str]:
+    """Bound interview load, retaining the model's declared priority order.
+
+    Validate the complete raw response before truncation: invalid model text must
+    not become valid merely because it would have been dropped.
+    """
+    selected: list[str] = []
+    seen: set[str] = set()
+    for question in questions:
+        key = " ".join(question.casefold().split()).rstrip("?!., ")
+        if key in seen:
+            continue
+        seen.add(key)
+        selected.append(question)
+        if len(selected) == 2:
+            break
+    return selected
+
+
 def validate_response(raw: str, answers: dict) -> dict:
     """Validate strictly and classify errors without leaking the model text."""
     try:
@@ -291,6 +315,7 @@ def validate_response(raw: str, answers: dict) -> dict:
             elif item.reason != json.dumps(source, ensure_ascii=False):
                 raise EvaluationError("invalid_model_json", (f"evidence.{i}.value_not_exact",))
         output = result.model_dump()
+        output["interview_questions"] = _prioritize_interview_questions(output["interview_questions"])
         output["recommended_direction_label"] = DIRECTIONS[result.recommended_direction]
         return output
     except EvaluationError:

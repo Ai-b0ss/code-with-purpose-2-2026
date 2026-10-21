@@ -161,7 +161,7 @@ def clarifications_for(data: ApplicationInput) -> list[dict]:
             "id": "availability_boost",
             "category": "График и занятость",
             "question": "При каких условиях вы могли бы выделять больше времени для участия (например, в выходные или на спецпроектах)?",
-            "reason": "Базовое участие в ГИМ обычно требует от 8–12 часов в месяц.",
+            "reason": "Необходимо уточнить, подходит ли заявленный график для выбранного направления. Числовой минимум не подтверждён.",
         })
     elif data.other_volunteer_programs.strip() and not data.followup_answers.get("other_volunteering"):
         items.append({
@@ -171,7 +171,18 @@ def clarifications_for(data: ApplicationInput) -> list[dict]:
             "reason": "Музею важно убедиться в отсутствии конфликта графиков в дни ключевых событий.",
         })
 
-    return items
+    # At most three actionable form questions; risk/eligibility before role detail.
+    priorities = {
+        "age_terms": 0,
+        "availability_boost": 1,
+        "other_volunteering": 2,
+        "motivation_detail": 3,
+        "collections_focus": 4,
+        "project_format": 4,
+        "media_tasks": 4,
+        "audience_type": 4,
+    }
+    return sorted(items, key=lambda item: priorities.get(item["id"], 5))[:3]
 
 
 def evaluate_demo(data: ApplicationInput) -> dict:
