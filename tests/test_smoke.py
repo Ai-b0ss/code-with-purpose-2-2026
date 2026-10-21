@@ -105,11 +105,12 @@ class BasicTests(unittest.TestCase):
             availability_hours_month=4,
         )
         questions = clarifications_for(data)
-        self.assertGreaterEqual(len(questions), 3)
+        self.assertEqual(len(questions), 3)
         categories = [q["category"] for q in questions]
         self.assertIn("Возраст и регламент", categories)
         self.assertIn("Мотивация", categories)
-        self.assertIn("Фондовое направление", categories)
+        self.assertIn("График и занятость", categories)
+        self.assertNotIn("Фондовое направление", categories)
 
         # 2. When answers are provided in followup_answers, questions are cleared
         answered = applicant(
