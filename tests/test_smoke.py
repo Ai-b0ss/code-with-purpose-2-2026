@@ -4,9 +4,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from fastapi import HTTPException
 from backend.app import (
     ApplicationInput, clarification_for, clarifications_for, db_connection, evaluate_demo,
-    safe_csv,
+    safe_csv, save_application,
 )
 
 
@@ -14,6 +15,7 @@ def applicant(**changes):
     obj = {
         "applicant_name": "Тестовый кандидат",
         "age_over_18": True,
+        "consent_personal_data": True,
         "motivation": "Меня интересуют музейные образовательные проекты и исторические медиа.",
         "experience": "Монтаж видео для университетского исторического проекта.",
         "expectations": "Развивать навыки и быть полезным музею.",
@@ -46,6 +48,7 @@ class BasicTests(unittest.TestCase):
     def test_csv_formula_escape(self):
         self.assertEqual(safe_csv("=HYPERLINK(1)"), "'=HYPERLINK(1)")
         self.assertEqual(safe_csv("обычный текст"), "обычный текст")
+        self.assertEqual(safe_csv("строка 1\nстрока 2\r\nстрока 3"), "строка 1 строка 2 строка 3")
 
     def test_sqlite_initialization(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -63,6 +66,13 @@ class BasicTests(unittest.TestCase):
                     os.environ.pop("GIM_DB_PATH", None)
                 else:
                     os.environ["GIM_DB_PATH"] = old
+
+    def test_save_application_requires_consent(self):
+        data = applicant(consent_personal_data=False)
+        with self.assertRaises(HTTPException) as cm:
+            save_application(data)
+        self.assertEqual(cm.exception.status_code, 422)
+        self.assertIn("согласие", cm.exception.detail)
 
     def test_extended_application_fields(self):
         app = applicant(
