@@ -262,6 +262,18 @@ class EvaluatorTests(unittest.TestCase):
         self.assertEqual(captured[0]["model"], "local")
         self.assertEqual(captured[0]["response_format"], {"type": "json_object"})
 
+    def test_ollama_native_adapter_disables_thinking(self):
+        adapter = ChatCompletionsAdapter("http://localhost:11434/api/chat", "qwen3.5:9b")
+        envelope = b'{"done_reason":"stop","message":{"content":"{\\"ok\\":true}"}}'
+        with patch("urllib.request.OpenerDirector.open", return_value=BytesIO(envelope)) as opened:
+            result = adapter.complete(system="system", user="user", schema={})
+        body = json.loads(opened.call_args.args[0].data)
+        self.assertEqual(result, '{"ok":true}')
+        self.assertEqual(body["think"], False)
+        self.assertEqual(body["stream"], False)
+        self.assertEqual(body["format"], "json")
+        self.assertNotIn("response_format", body)
+
 
 class LiveEvaluatorTests(unittest.TestCase):
     @unittest.skipUnless(

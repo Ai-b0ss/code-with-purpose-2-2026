@@ -131,13 +131,20 @@ class ChatCompletionsAdapter:
             raise EvaluationError("invalid_configuration")
 
     def complete(self, *, system: str, user: str, schema: dict) -> str:
+        native_ollama = urlsplit(self.endpoint).path == "/api/chat"
         body = {
             "model": self.model,
             "messages": [{"role": "system", "content": system},
                          {"role": "user", "content": user}],
-            "temperature": 0,
         }
-        if self.json_mode:
+        if native_ollama:
+            body.update({"stream": False, "think": False,
+                         "options": {"temperature": 0}})
+            if self.json_mode:
+                body["format"] = "json"
+        else:
+            body["temperature"] = 0
+        if self.json_mode and not native_ollama:
             body["response_format"] = {"type": "json_object"}
         headers = {"Content-Type": "application/json"}
         if self.api_key:
@@ -154,10 +161,15 @@ class ChatCompletionsAdapter:
             if len(raw) > 1_000_000:
                 raise EvaluationError("response_too_large")
             envelope = json.loads(raw)
-            choice = envelope["choices"][0]
-            if choice.get("finish_reason") != "stop":
-                raise EvaluationError("incomplete_response")
-            content = choice["message"]["content"]
+            if native_ollama:
+                if envelope.get("done_reason") != "stop":
+                    raise EvaluationError("incomplete_response")
+                content = envelope["message"]["content"]
+            else:
+                choice = envelope["choices"][0]
+                if choice.get("finish_reason") != "stop":
+                    raise EvaluationError("incomplete_response")
+                content = choice["message"]["content"]
             if not isinstance(content, str):
                 raise EvaluationError("invalid_provider_response")
             return content

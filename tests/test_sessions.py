@@ -142,15 +142,32 @@ def test_withdrawing_consent_removes_session_data(monkeypatch, tmp_path):
     pii = tmp_path / "pii.sqlite3"
     monkeypatch.setenv("GIM_SESSIONS_DB_PATH", str(main))
     monkeypatch.setenv("GIM_PII_DB_PATH", str(pii))
+    monkeypatch.setenv("GIM_EVALUATION_MODE", "rag_llm")
+    monkeypatch.setattr("backend.scoring.retrieve", lambda role, query: [{
+        "doc_id": "test:fact", "version_id": "test", "text": "Museum context"}])
+    monkeypatch.setattr("backend.scoring.assess", lambda *args, **kwargs: {
+        "score": 2.5, "score_status": "pilot_scored", "criteria": []})
     client = TestClient(app)
     sid = client.post("/api/v1/sessions").json()["session_id"]
     assert _answer(client, sid, "consent_personal_data", "true").status_code == 200
     assert _answer(client, sid, "email", "someone@example.org").status_code == 200
+    values = {"applicant_name": "Synthetic Person", "vk_url": "https://vk.com/synthetic",
+              "birth_date": "1990-01-01", "motivation": "I want to help the museum",
+              "expectations": "Learn museum work", "desired_direction": "project",
+              "availability_hours_month": "8", "case_response": "I will warn the coordinator early.",
+              **PROFILE}
+    for field, value in values.items():
+        assert _answer(client, sid, field, value).status_code == 200
+    assert client.post(f"/api/v1/sessions/{sid}/submit", json={"idempotency_key": "submit"}).status_code == 202
+    with sqlite3.connect(main) as con:
+        assert con.execute("SELECT count(*) FROM run_inputs").fetchone()[0] == 1
     withdrawn = _answer(client, sid, "consent_personal_data", "false", "withdraw")
     assert withdrawn.json()["state"] == "CLOSED"
     assert _answer(client, sid, "email", "again@example.org").status_code == 409
     with sqlite3.connect(main) as con:
         assert con.execute("SELECT count(*) FROM answers").fetchone()[0] == 0
+        assert con.execute("SELECT count(*) FROM run_inputs").fetchone()[0] == 0
+        assert con.execute("SELECT count(*) FROM session_runs").fetchone()[0] == 0
     with sqlite3.connect(pii) as con:
         assert con.execute("SELECT count(*) FROM contacts").fetchone()[0] == 0
 
