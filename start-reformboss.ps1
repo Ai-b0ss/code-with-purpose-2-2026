@@ -6,6 +6,8 @@ param(
     [switch]$Compare,
     [switch]$DisableJsonMode,
     [switch]$SkipProbe,
+    [ValidateRange(1, 300)]
+    [int]$TimeoutSeconds = 180,
     [ValidateRange(1024, 65535)]
     [int]$Port = 8765
 )
@@ -39,7 +41,7 @@ try {
     $env:GIM_LLM_MODEL = $Model
     $env:GIM_EVALUATION_MODE = "llm"
     $env:GIM_LLM_FALLBACK_TO_DEMO = "0"
-    $env:GIM_LLM_TIMEOUT = "60"
+    $env:GIM_LLM_TIMEOUT = [string]$TimeoutSeconds
     $env:GIM_LLM_JSON_MODE = if ($DisableJsonMode) { "0" } else { "1" }
 
     if (-not $SkipProbe) {
