@@ -40,7 +40,10 @@
    `recommended_direction`, `preliminary_verdict` и
    `verdict_comment` для координатора.
 6. `preliminary_verdict` принимает
-   `suggest_interview` / `manual_review` / `insufficient_information`.
+   `suggest_interview` / `manual_review` / `not_recommended_for_interview` /
+   `insufficient_information`. `not_recommended_for_interview` используется
+   только при прямо подтверждённом несоответствии задачам, не для
+   автоматического отказа по году обучения или частичной занятости.
    **Это предварительная рекомендация о дальнейшем рассмотрении,
    не автоматическое принятие или отклонение.**
    Вычисляемый равновесный балл в пилотной шкале не откалиброван
