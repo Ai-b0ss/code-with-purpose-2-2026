@@ -49,6 +49,25 @@ class ApplicationInput(BaseModel):
     desired_direction: Direction
     followup_answer: str = Field(default="", max_length=2000)
 
+    # Расширенные поля официальной анкеты ГИМ
+    email: str = Field(default="", max_length=200)
+    vk_url: str = Field(default="", max_length=200)
+    birth_date: str = Field(default="", max_length=30)
+    consent_personal_data: bool = Field(default=False)
+    status: str = Field(default="student", max_length=50)
+    university: str = Field(default="", max_length=200)
+    university_other: str = Field(default="", max_length=200)
+    faculty: str = Field(default="", max_length=200)
+    course: str = Field(default="", max_length=100)
+    scientific_interests: str = Field(default="", max_length=2000)
+    foreign_languages: list[str] = Field(default_factory=list)
+    hobbies: str = Field(default="", max_length=2000)
+    availability_schedule_type: str = Field(default="flexible", max_length=50)
+    availability_days: list[str] = Field(default_factory=list)
+    other_volunteer_programs: str = Field(default="", max_length=1500)
+    source: str = Field(default="", max_length=200)
+    followup_answers: dict[str, str] = Field(default_factory=dict)
+
 
 @contextmanager
 def db_connection():
@@ -83,6 +102,76 @@ def clarification_for(data: ApplicationInput) -> str | None:
     if data.desired_direction == "collections" and not data.followup_answer.strip():
         return "Готовы ли вы рассмотреть другие направления, если мест в фондах не будет?"
     return None
+
+
+def clarifications_for(data: ApplicationInput) -> list[dict]:
+    items: list[dict] = []
+
+    # Возраст
+    if not data.age_over_18:
+        items.append({
+            "id": "age_terms",
+            "category": "Возраст и регламент",
+            "question": "Участие предполагает возраст 18+. Вы хотите уточнить условия у координатора?",
+            "reason": "По правилам музея большинство программ рассчитаны на совершеннолетних волонтёров.",
+        })
+
+    # Мотивация
+    if len(data.motivation.strip()) < 65 and not data.followup_answer.strip() and not data.followup_answers.get("motivation_detail"):
+        items.append({
+            "id": "motivation_detail",
+            "category": "Мотивация",
+            "question": "Что именно в работе Исторического музея вам наиболее интересно и почему?",
+            "reason": "Кураторам важно понимать конкретные причины выбора ГИМ среди других музеев.",
+        })
+
+    # Специфика выбранного направления (из официальных материалов ГИМ)
+    if data.desired_direction == "collections" and not data.followup_answers.get("collections_focus"):
+        items.append({
+            "id": "collections_focus",
+            "category": "Фондовое направление",
+            "question": "Какие именно фонды вас привлекают и готовы ли вы рассмотреть другие направления, если мест в фондах будет недостаточно?",
+            "reason": "Места в фондах строго ограничены; кураторам важно знать вашу гибкость.",
+        })
+    elif data.desired_direction == "project" and not data.followup_answers.get("project_format"):
+        items.append({
+            "id": "project_format",
+            "category": "Проектное направление",
+            "question": "Какие форматы вам ближе: мастер-классы, исторические квесты, тематические экскурсии или образовательные игры?",
+            "reason": "Поможет распределить вас в проектную группу с релевантными задачами.",
+        })
+    elif data.desired_direction == "media" and not data.followup_answers.get("media_tasks"):
+        items.append({
+            "id": "media_tasks",
+            "category": "Медиа-направление",
+            "question": "Какая деятельность внутри направления вам интереснее: фото, видео, посты, контент-план или дизайн?",
+            "reason": "Медиа-служба музея формирует команды под конкретный тип контента.",
+        })
+    elif data.desired_direction == "organizational" and not data.followup_answers.get("audience_type"):
+        items.append({
+            "id": "audience_type",
+            "category": "Организационное направление",
+            "question": "С какой категорией посетителей вы предпочитаете взаимодействовать: дети, молодёжь, семейная аудитория или пожилые люди?",
+            "reason": "Музейные мероприятия делятся по целевым аудиториям.",
+        })
+
+    # Доступность и совмещение
+    if data.availability_hours_month < 8 and not data.followup_answers.get("availability_boost"):
+        items.append({
+            "id": "availability_boost",
+            "category": "График и занятость",
+            "question": "При каких условиях вы могли бы выделять больше времени для участия (например, в выходные или на спецпроектах)?",
+            "reason": "Базовое участие в ГИМ обычно требует от 8–12 часов в месяц.",
+        })
+    elif data.other_volunteer_programs.strip() and not data.followup_answers.get("other_volunteering"):
+        items.append({
+            "id": "other_volunteering",
+            "category": "Совмещение волонтерства",
+            "question": "Как планируете распределять нагрузку с участием в других волонтерских объединениях?",
+            "reason": "Музею важно убедиться в отсутствии конфликта графиков в дни ключевых событий.",
+        })
+
+    return items
 
 
 def evaluate_demo(data: ApplicationInput) -> dict:
@@ -142,6 +231,22 @@ def evaluate_demo(data: ApplicationInput) -> dict:
     }
 
 
+def evaluate_application(data: ApplicationInput) -> dict:
+    """Use the standalone evaluator in actual API flows, configured by environment.
+
+    Default demo is explicit. Live LLM is opt-in via GIM_EVALUATION_MODE=llm.
+    Provider failures are surfaced instead of passing simulated AI as real.
+    """
+    from backend.evaluator import EvaluationError, evaluate
+    try:
+        return evaluate(
+            data,
+            fallback_to_demo=os.getenv("GIM_LLM_FALLBACK_TO_DEMO", "0") == "1",
+        )
+    except EvaluationError as exc:
+        raise HTTPException(status_code=503, detail=f"evaluator_{exc.code}") from None
+
+
 app = FastAPI(title="ГИМ — Музейный компас", version="0.1.0")
 
 
@@ -152,24 +257,35 @@ def home():
 
 @app.get("/api/v1/health")
 def health():
-    return {"status": "ok", "version": "0.1.0", "evaluation_mode": "rules_demo"}
+    mode = os.getenv("GIM_EVALUATION_MODE", "demo")
+    return {
+        "status": "ok", "version": "0.1.0",
+        "evaluation_mode": "llm" if mode == "llm" else "rules_demo",
+        "fallback_to_demo": os.getenv("GIM_LLM_FALLBACK_TO_DEMO", "0") == "1",
+    }
 
 
 @app.post("/api/v1/clarification")
 def clarification(data: ApplicationInput):
-    return {"question": clarification_for(data)}
+    questions = clarifications_for(data)
+    legacy_question = clarification_for(data)
+    return {
+        "question": legacy_question,
+        "questions": questions,
+    }
 
 
 @app.post("/api/v1/preview")
 def preview(data: ApplicationInput):
-    return {"evaluation": evaluate_demo(data)}
+    return {"evaluation": evaluate_application(data)}
 
 
 @app.post("/api/v1/applications", status_code=201)
 def save_application(data: ApplicationInput):
     application_id = data.application_id or uuid.uuid4().hex
+    if not data.consent_personal_data:
+        raise HTTPException(status_code=422, detail="Необходимо явное согласие на обработку персональных данных.")
     created_at = datetime.now(timezone.utc).isoformat()
-    evaluation = evaluate_demo(data)
     with db_connection() as con:
         previous = con.execute(
             "SELECT payload, evaluation, created_at FROM applications WHERE id = ?",
@@ -182,6 +298,9 @@ def save_application(data: ApplicationInput):
                 "evaluation": json.loads(previous["evaluation"]),
                 "created": False,
             }
+        # Evaluate only new applications. A retry with the same ID must not
+        # re-call a paid/slow/unavailable model or overwrite the original result.
+        evaluation = evaluate_application(data)
         con.execute(
             "INSERT INTO applications(id, created_at, applicant_name, payload, evaluation) "
             "VALUES(?, ?, ?, ?, ?)",
@@ -245,8 +364,10 @@ def safe_csv(value: object) -> str:
 @app.get("/api/v1/export.csv")
 def export_csv():
     columns = [
-        "ID заявки", "Дата", "Имя", "Возраст 18+", "Мотивация", "Опыт",
-        "Ожидания", "Часов/месяц", "Другие обязательства", "Направление",
+        "ID заявки", "Дата", "Имя", "Возраст 18+", "Email", "VK",
+        "Статус", "ВУЗ", "Факультет", "Курс", "Языки",
+        "Мотивация", "Опыт", "Ожидания", "Часов/месяц", "Тип графика", "Дни",
+        "Другие обязательства", "Другие волонтерства", "Направление", "Источник",
         "Дополнительный ответ", "Оценка 0-3", "Саммари",
         "Возможные проблемы", "Рекомендуемое направление",
         "Почему направление", "Вопросы для собеседования",
@@ -264,16 +385,25 @@ def export_csv():
         e = json.loads(row["evaluation"])
         writer.writerow([
             safe_csv(row["id"]), safe_csv(row["created_at"]),
-            safe_csv(entry["applicant_name"]), entry["age_over_18"],
-            safe_csv(entry["motivation"]), safe_csv(entry["experience"]),
-            safe_csv(entry["expectations"]), entry["availability_hours_month"],
-            safe_csv(entry["other_commitments"]),
-            safe_csv(DIRECTIONS[entry["desired_direction"]]),
-            safe_csv(entry["followup_answer"]), safe_csv(e["score"]),
-            safe_csv(e["summary"]), safe_csv("; ".join(e["possible_problems"])),
-            safe_csv(e["recommended_direction_label"]),
-            safe_csv(e["direction_reason"]),
-            safe_csv("; ".join(e["interview_questions"])),
+            safe_csv(entry.get("applicant_name", "")), entry.get("age_over_18", False),
+            safe_csv(entry.get("email", "")), safe_csv(entry.get("vk_url", "")),
+            safe_csv(entry.get("status", "")),
+            safe_csv(entry.get("university_other") or entry.get("university", "")),
+            safe_csv(entry.get("faculty", "")), safe_csv(entry.get("course", "")),
+            safe_csv(", ".join(entry.get("foreign_languages", [])) if isinstance(entry.get("foreign_languages"), list) else str(entry.get("foreign_languages", ""))),
+            safe_csv(entry.get("motivation", "")), safe_csv(entry.get("experience", "")),
+            safe_csv(entry.get("expectations", "")), entry.get("availability_hours_month", 0),
+            safe_csv(entry.get("availability_schedule_type", "")),
+            safe_csv(", ".join(entry.get("availability_days", [])) if isinstance(entry.get("availability_days"), list) else str(entry.get("availability_days", ""))),
+            safe_csv(entry.get("other_commitments", "")),
+            safe_csv(entry.get("other_volunteer_programs", "")),
+            safe_csv(DIRECTIONS.get(entry.get("desired_direction", ""), entry.get("desired_direction", ""))),
+            safe_csv(entry.get("source", "")),
+            safe_csv(entry.get("followup_answer", "")), safe_csv(e.get("score")),
+            safe_csv(e.get("summary", "")), safe_csv("; ".join(e.get("possible_problems", []))),
+            safe_csv(e.get("recommended_direction_label", "")),
+            safe_csv(e.get("direction_reason", "")),
+            safe_csv("; ".join(e.get("interview_questions", []))),
         ])
     return Response(
         content="\ufeff" + output.getvalue(),
