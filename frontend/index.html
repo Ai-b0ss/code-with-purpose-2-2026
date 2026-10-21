@@ -665,8 +665,8 @@
 
         <div class="field" style="margin-top: 16px;">
           <label class="checkbox-item">
-            <input type="checkbox" id="age_over_18" name="age_over_18" required>
-            <span>Мне исполнилось 18 лет <span class="req">*</span></span>
+            <input type="checkbox" id="age_over_18" name="age_over_18">
+            <span>Мне исполнилось 18 лет (проверяется по дате рождения)</span>
           </label>
           <label class="checkbox-item">
             <input type="checkbox" id="consent_personal_data" name="consent_personal_data" required>
@@ -791,7 +791,7 @@
               <button type="button" class="preset-btn" data-hours="36">36+ ч / мес</button>
             </div>
           </div>
-          <div class="field-hint">Обычно участие в регулярных проектах музея требует от 8–12 часов в месяц.</div>
+          <div class="field-hint">Укажите доступное время. Совместимость с графиком выбранной роли проверит координатор.</div>
         </div>
 
         <div class="field">
@@ -846,6 +846,12 @@
           <textarea id="fallback_answer" name="followup_answer" placeholder="Ваш ответ (по желанию)"></textarea>
         </div>
 
+        <div class="field">
+          <label class="title" for="case_response">Ситуация: вы не успеваете на согласованную смену или задачу. Как поступите?</label>
+          <textarea id="case_response" name="case_response" maxlength="2000" placeholder="Опишите, когда и кому сообщите и как предложите решить ситуацию."></textarea>
+          <div class="field-hint">Ответ поможет оценить ответственность. Если данных недостаточно, итоговый балл будет отправлен на проверку.</div>
+        </div>
+
         <div style="background: var(--gold-bg); border: 1px solid var(--gold-border); border-radius: 10px; padding: 14px; margin-top: 20px; font-size: 13.5px; line-height: 1.45; color: #5d4615;">
           <strong>Порядок рассмотрения:</strong> после отправки анкета сохраняется в базе координатора. Кураторы ГИМ сопоставляют профиль с актуальными задачами направлений и связываются для согласования собеседования.
         </div>
@@ -870,6 +876,12 @@
   <section class="card" id="results" hidden>
     <span class="result-badge">Заявка принята</span>
     <h2 style="margin: 0 0 10px; font-size: 24px;">Предварительное резюме координатора</h2>
+    <div class="result-card" id="scoreCard" hidden>
+      <h3 style="margin: 0 0 8px;">Итоговый балл</h3>
+      <strong id="resScore" style="font-size: 32px;"></strong>
+      <p id="resScoreNote" class="field-hint"></p>
+      <ul class="stylish-list" id="resCriteria"></ul>
+    </div>
     <div class="result-card">
       <div class="result-direction" id="resDirection"></div>
       <p id="resReason" style="color: var(--muted); margin: 0 0 14px;"></p>
@@ -1056,6 +1068,7 @@
       other_commitments: byId("other_commitments") ? byId("other_commitments").value.trim() : "",
       other_volunteer_programs: byId("other_volunteer_programs") ? byId("other_volunteer_programs").value.trim() : "",
       followup_answer: combinedFollowup,
+      case_response: byId("case_response").value.trim(),
       followup_answers: followupAnswers
     };
   }
@@ -1089,11 +1102,6 @@
         byId("birth_date").focus();
         return false;
       }
-      if (!byId("age_over_18").checked) {
-        showError("Для участия необходимо подтвердить возраст 18+.");
-        byId("age_over_18").focus();
-        return false;
-      }
       if (!byId("consent_personal_data").checked) {
         showError("Необходимо дать согласие на обработку персональных данных.");
         byId("consent_personal_data").focus();
@@ -1106,6 +1114,11 @@
       if (!mot || mot.length < 10) {
         showError("Пожалуйста, опишите вашу мотивацию подробнее (минимум 10 символов).");
         byId("motivation").focus();
+        return false;
+      }
+      if (!byId("expectations").value.trim()) {
+        showError("Опишите, чего ожидаете от волонтерства в музее.");
+        byId("expectations").focus();
         return false;
       }
     }
@@ -1124,6 +1137,11 @@
       }
     }
 
+    if (stepIdx === steps.length - 1 && !byId("case_response").value.trim()) {
+      showError("Ответьте на ситуационный вопрос.");
+      byId("case_response").focus();
+      return false;
+    }
     return true;
   }
 
@@ -1184,6 +1202,11 @@
   // --- LocalStorage Draft Persistence ---
   function saveDraft() {
     try {
+      if (!byId("consent_personal_data").checked) {
+        localStorage.removeItem(STORAGE_KEY);
+        draftInfo.hidden = true;
+        return;
+      }
       const data = buildPayload();
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       draftInfo.hidden = false;
@@ -1195,6 +1218,10 @@
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
       const data = JSON.parse(raw);
+      if (data.consent_personal_data !== true) {
+        localStorage.removeItem(STORAGE_KEY);
+        return;
+      }
 
       if (data.applicant_name) byId("applicant_name").value = data.applicant_name;
       if (data.email) byId("email").value = data.email;
@@ -1267,6 +1294,7 @@
       if (data.followup_answers) {
         followupAnswers = data.followup_answers;
       }
+      if (data.case_response) byId("case_response").value = data.case_response;
 
       draftInfo.hidden = false;
     } catch (_) {}
@@ -1311,6 +1339,20 @@
 
     nextBtn.disabled = true;
     try {
+      if (currentStep === 0) {
+        const gate = await api("/api/v1/eligibility", {
+          birth_date: byId("birth_date").value,
+          consent_personal_data: byId("consent_personal_data").checked
+        });
+        if (gate.status === "ineligible") {
+          showError("Возраст 18+ — обязательное условие участия. " + gate.reason);
+          return;
+        }
+        if (gate.status !== "eligible") {
+          showError(gate.reason);
+          return;
+        }
+      }
       // Transitioning to Step 4: request dynamic clarifications from API
       if (currentStep === 2) {
         const payload = buildPayload();
@@ -1350,18 +1392,56 @@
 
     submitBtn.disabled = true;
     try {
-      if (!applicationId) {
-        applicationId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : "gim-" + Date.now();
-      }
-
       const payload = buildPayload();
-      const res = await api("/api/v1/applications", payload);
-      const evalData = res.evaluation;
+      if (!applicationId) {
+        const created = await api("/api/v1/sessions", {});
+        applicationId = created.session_id;
+      }
+      const id = applicationId;
+      const fields = ["consent_personal_data", ...Object.keys(payload).filter(k => k !== "consent_personal_data" && k !== "application_id")];
+      for (const field of fields) {
+        const value = payload[field];
+        if (value === "" || value === null || value === undefined) continue;
+        const text = typeof value === "string" ? value : JSON.stringify(value);
+        await api(`/api/v1/sessions/${id}/answers`, {
+          answer_id: `${id}:${field}`,
+          question_id: field,
+          text,
+          idempotency_key: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : `${field}-${Date.now()}`
+        });
+      }
+      const submitted = await api(`/api/v1/sessions/${id}/submit`, {
+        idempotency_key: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : `submit-${Date.now()}`
+      });
+      if (!submitted.run_id) throw new Error(`Анкета неполная: ${submitted.next_question || "уточните ответы"}`);
+      let finished;
+      for (let attempt = 0; attempt < 60; attempt++) {
+        const response = await fetch(`/api/v1/sessions/${id}/result`);
+        if (!response.ok) throw new Error("Не удалось получить результат оценки.");
+        finished = await response.json();
+        if (["SCORED", "NEEDS_REVIEW", "INELIGIBLE", "ERROR"].includes(finished.status)) break;
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      if (!finished || !finished.evaluation) throw new Error("Оценка ещё не готова. Повторите запрос позднее.");
+      const evalData = finished.evaluation;
+      const res = {application_id: id};
 
       // Populate results view
       byId("resDirection").textContent = "Рекомендованное направление: " + (evalData.recommended_direction_label || evalData.recommended_direction);
       byId("resReason").textContent = evalData.direction_reason || "";
       byId("resSummary").textContent = evalData.summary || "";
+      const scoreCard = byId("scoreCard");
+      scoreCard.hidden = !Array.isArray(evalData.criteria);
+      if (!scoreCard.hidden) {
+        byId("resScore").textContent = evalData.score == null ? "Требуется проверка" : `${evalData.score.toLocaleString("ru-RU")} / 3`;
+        byId("resScoreNote").textContent = "Проектная рубрика " + evalData.rubric_version + ". Решение о приглашении принимает координатор.";
+        byId("resCriteria").replaceChildren();
+        evalData.criteria.forEach(c => {
+          const li = document.createElement("li");
+          li.textContent = `${c.label}: ${c.grade == null ? "нужны данные" : c.grade + " / 3"} · вес ${c.weight_percent}% · ${c.rationale}`;
+          byId("resCriteria").appendChild(li);
+        });
+      }
 
       function renderList(id, items) {
         const node = byId(id);

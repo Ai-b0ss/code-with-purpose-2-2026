@@ -1,0 +1,380 @@
+{
+  "split_version": "holdout-v1",
+  "method": "normalize, deduplicate by content fingerprint, then 20% stratified holdout by cohort and historical grade",
+  "source_rows": 168,
+  "unique_applications": 113,
+  "training_applications": 90,
+  "holdout_applications": 23,
+  "source_sha256": {
+    "docs/applications-2024-autumn.xlsx": "4e487c543309e90f3bcf7f3656a7489872cdc499d7735434faa2bb26e460b590",
+    "docs/applications-2025-spring.xlsx": "e800164ba020e55d591ee477b411e61f6fe5a8ca3c08724cc2d101ae24ad723a",
+    "docs/hse-hackathon-2025-spring.xlsx": "7a9c5c12388b8680ac23c2b8334f44b67030f2819f1c60b968a99c7dbe6b982b"
+  },
+  "holdout": [
+    {
+      "id": "historical:0397c3b9edd4147c20940aad",
+      "cohort": "2025-spring",
+      "historical_grade": 3,
+      "source_refs": [
+        {
+          "source_path": "docs/applications-2025-spring.xlsx",
+          "source_hash": "e800164ba020e55d591ee477b411e61f6fe5a8ca3c08724cc2d101ae24ad723a",
+          "sheet": "Ответы на форму (1)",
+          "row_number": 48
+        },
+        {
+          "source_path": "docs/hse-hackathon-2025-spring.xlsx",
+          "source_hash": "7a9c5c12388b8680ac23c2b8334f44b67030f2819f1c60b968a99c7dbe6b982b",
+          "sheet": "Ответы на форму (1)",
+          "row_number": 49
+        }
+      ]
+    },
+    {
+      "id": "historical:0cadb1a2577d0818e96b5215",
+      "cohort": "2025-spring",
+      "historical_grade": 0,
+      "source_refs": [
+        {
+          "source_path": "docs/applications-2025-spring.xlsx",
+          "source_hash": "e800164ba020e55d591ee477b411e61f6fe5a8ca3c08724cc2d101ae24ad723a",
+          "sheet": "Ответы на форму (1)",
+          "row_number": 18
+        },
+        {
+          "source_path": "docs/hse-hackathon-2025-spring.xlsx",
+          "source_hash": "7a9c5c12388b8680ac23c2b8334f44b67030f2819f1c60b968a99c7dbe6b982b",
+          "sheet": "Ответы на форму (1)",
+          "row_number": 19
+        }
+      ]
+    },
+    {
+      "id": "historical:1a6b22246e2eb924d92ac840",
+      "cohort": "2024-autumn",
+      "historical_grade": 1,
+      "source_refs": [
+        {
+          "source_path": "docs/applications-2024-autumn.xlsx",
+          "source_hash": "4e487c543309e90f3bcf7f3656a7489872cdc499d7735434faa2bb26e460b590",
+          "sheet": "Дистант 29.10",
+          "row_number": 16
+        }
+      ]
+    },
+    {
+      "id": "historical:34b002c1e55cd987f52ec0f8",
+      "cohort": "2025-spring",
+      "historical_grade": 2,
+      "source_refs": [
+        {
+          "source_path": "docs/applications-2025-spring.xlsx",
+          "source_hash": "e800164ba020e55d591ee477b411e61f6fe5a8ca3c08724cc2d101ae24ad723a",
+          "sheet": "Ответы на форму (1)",
+          "row_number": 38
+        },
+        {
+          "source_path": "docs/hse-hackathon-2025-spring.xlsx",
+          "source_hash": "7a9c5c12388b8680ac23c2b8334f44b67030f2819f1c60b968a99c7dbe6b982b",
+          "sheet": "Ответы на форму (1)",
+          "row_number": 39
+        }
+      ]
+    },
+    {
+      "id": "historical:51cda752c9b63387ce9e3cd5",
+      "cohort": "2024-autumn",
+      "historical_grade": 2,
+      "source_refs": [
+        {
+          "source_path": "docs/applications-2024-autumn.xlsx",
+          "source_hash": "4e487c543309e90f3bcf7f3656a7489872cdc499d7735434faa2bb26e460b590",
+          "sheet": "Очно 30.10",
+          "row_number": 18
+        }
+      ]
+    },
+    {
+      "id": "historical:5d88213d3ee834d4eb79e646",
+      "cohort": "2024-autumn",
+      "historical_grade": 1,
+      "source_refs": [
+        {
+          "source_path": "docs/applications-2024-autumn.xlsx",
+          "source_hash": "4e487c543309e90f3bcf7f3656a7489872cdc499d7735434faa2bb26e460b590",
+          "sheet": "Дистант 29.10",
+          "row_number": 21
+        }
+      ]
+    },
+    {
+      "id": "historical:62358d62d9b1f8edebbf6c1f",
+      "cohort": "2025-spring",
+      "historical_grade": 1,
+      "source_refs": [
+        {
+          "source_path": "docs/applications-2025-spring.xlsx",
+          "source_hash": "e800164ba020e55d591ee477b411e61f6fe5a8ca3c08724cc2d101ae24ad723a",
+          "sheet": "Ответы на форму (1)",
+          "row_number": 34
+        },
+        {
+          "source_path": "docs/hse-hackathon-2025-spring.xlsx",
+          "source_hash": "7a9c5c12388b8680ac23c2b8334f44b67030f2819f1c60b968a99c7dbe6b982b",
+          "sheet": "Ответы на форму (1)",
+          "row_number": 35
+        }
+      ]
+    },
+    {
+      "id": "historical:6631cb3b017a6d7c518180f1",
+      "cohort": "2024-autumn",
+      "historical_grade": 2,
+      "source_refs": [
+        {
+          "source_path": "docs/applications-2024-autumn.xlsx",
+          "source_hash": "4e487c543309e90f3bcf7f3656a7489872cdc499d7735434faa2bb26e460b590",
+          "sheet": "Очно 30.10",
+          "row_number": 21
+        }
+      ]
+    },
+    {
+      "id": "historical:7291bc67ccd7e096634bf9d8",
+      "cohort": "2024-autumn",
+      "historical_grade": 2,
+      "source_refs": [
+        {
+          "source_path": "docs/applications-2024-autumn.xlsx",
+          "source_hash": "4e487c543309e90f3bcf7f3656a7489872cdc499d7735434faa2bb26e460b590",
+          "sheet": "Очно 30.10",
+          "row_number": 31
+        }
+      ]
+    },
+    {
+      "id": "historical:8655a76b716494bedfd8b314",
+      "cohort": "2025-spring",
+      "historical_grade": 0,
+      "source_refs": [
+        {
+          "source_path": "docs/applications-2025-spring.xlsx",
+          "source_hash": "e800164ba020e55d591ee477b411e61f6fe5a8ca3c08724cc2d101ae24ad723a",
+          "sheet": "Ответы на форму (1)",
+          "row_number": 8
+        },
+        {
+          "source_path": "docs/hse-hackathon-2025-spring.xlsx",
+          "source_hash": "7a9c5c12388b8680ac23c2b8334f44b67030f2819f1c60b968a99c7dbe6b982b",
+          "sheet": "Ответы на форму (1)",
+          "row_number": 9
+        }
+      ]
+    },
+    {
+      "id": "historical:88630696bad9c81fa4e7ccfd",
+      "cohort": "2024-autumn",
+      "historical_grade": 2,
+      "source_refs": [
+        {
+          "source_path": "docs/applications-2024-autumn.xlsx",
+          "source_hash": "4e487c543309e90f3bcf7f3656a7489872cdc499d7735434faa2bb26e460b590",
+          "sheet": "Дистант 29.10",
+          "row_number": 11
+        }
+      ]
+    },
+    {
+      "id": "historical:88f408583a0545e91337060b",
+      "cohort": "2025-spring",
+      "historical_grade": 0,
+      "source_refs": [
+        {
+          "source_path": "docs/applications-2025-spring.xlsx",
+          "source_hash": "e800164ba020e55d591ee477b411e61f6fe5a8ca3c08724cc2d101ae24ad723a",
+          "sheet": "Ответы на форму (1)",
+          "row_number": 19
+        },
+        {
+          "source_path": "docs/hse-hackathon-2025-spring.xlsx",
+          "source_hash": "7a9c5c12388b8680ac23c2b8334f44b67030f2819f1c60b968a99c7dbe6b982b",
+          "sheet": "Ответы на форму (1)",
+          "row_number": 20
+        }
+      ]
+    },
+    {
+      "id": "historical:946ec20f8d503a5c737b3b2c",
+      "cohort": "2024-autumn",
+      "historical_grade": 2,
+      "source_refs": [
+        {
+          "source_path": "docs/applications-2024-autumn.xlsx",
+          "source_hash": "4e487c543309e90f3bcf7f3656a7489872cdc499d7735434faa2bb26e460b590",
+          "sheet": "Очно 30.10",
+          "row_number": 28
+        }
+      ]
+    },
+    {
+      "id": "historical:949af76987af7346e26be0fb",
+      "cohort": "2024-autumn",
+      "historical_grade": 2,
+      "source_refs": [
+        {
+          "source_path": "docs/applications-2024-autumn.xlsx",
+          "source_hash": "4e487c543309e90f3bcf7f3656a7489872cdc499d7735434faa2bb26e460b590",
+          "sheet": "Дистант 29.10",
+          "row_number": 19
+        }
+      ]
+    },
+    {
+      "id": "historical:9753acb531fce9ec816f4d4e",
+      "cohort": "2024-autumn",
+      "historical_grade": 2,
+      "source_refs": [
+        {
+          "source_path": "docs/applications-2024-autumn.xlsx",
+          "source_hash": "4e487c543309e90f3bcf7f3656a7489872cdc499d7735434faa2bb26e460b590",
+          "sheet": "Очно 30.10",
+          "row_number": 22
+        }
+      ]
+    },
+    {
+      "id": "historical:9863ee237f5dbfd52a4f8e52",
+      "cohort": "2024-autumn",
+      "historical_grade": 3,
+      "source_refs": [
+        {
+          "source_path": "docs/applications-2024-autumn.xlsx",
+          "source_hash": "4e487c543309e90f3bcf7f3656a7489872cdc499d7735434faa2bb26e460b590",
+          "sheet": "Очно 30.10",
+          "row_number": 19
+        }
+      ]
+    },
+    {
+      "id": "historical:9d9debf372452cc3490982cd",
+      "cohort": "2025-spring",
+      "historical_grade": 0,
+      "source_refs": [
+        {
+          "source_path": "docs/applications-2025-spring.xlsx",
+          "source_hash": "e800164ba020e55d591ee477b411e61f6fe5a8ca3c08724cc2d101ae24ad723a",
+          "sheet": "Ответы на форму (1)",
+          "row_number": 26
+        },
+        {
+          "source_path": "docs/hse-hackathon-2025-spring.xlsx",
+          "source_hash": "7a9c5c12388b8680ac23c2b8334f44b67030f2819f1c60b968a99c7dbe6b982b",
+          "sheet": "Ответы на форму (1)",
+          "row_number": 27
+        }
+      ]
+    },
+    {
+      "id": "historical:a84719b057d5f4d665677d18",
+      "cohort": "2025-spring",
+      "historical_grade": 2,
+      "source_refs": [
+        {
+          "source_path": "docs/applications-2025-spring.xlsx",
+          "source_hash": "e800164ba020e55d591ee477b411e61f6fe5a8ca3c08724cc2d101ae24ad723a",
+          "sheet": "Ответы на форму (1)",
+          "row_number": 46
+        },
+        {
+          "source_path": "docs/hse-hackathon-2025-spring.xlsx",
+          "source_hash": "7a9c5c12388b8680ac23c2b8334f44b67030f2819f1c60b968a99c7dbe6b982b",
+          "sheet": "Ответы на форму (1)",
+          "row_number": 47
+        }
+      ]
+    },
+    {
+      "id": "historical:d5e0d0e3e8ada27d4827ee4f",
+      "cohort": "2025-spring",
+      "historical_grade": 0,
+      "source_refs": [
+        {
+          "source_path": "docs/applications-2025-spring.xlsx",
+          "source_hash": "e800164ba020e55d591ee477b411e61f6fe5a8ca3c08724cc2d101ae24ad723a",
+          "sheet": "Ответы на форму (1)",
+          "row_number": 17
+        },
+        {
+          "source_path": "docs/hse-hackathon-2025-spring.xlsx",
+          "source_hash": "7a9c5c12388b8680ac23c2b8334f44b67030f2819f1c60b968a99c7dbe6b982b",
+          "sheet": "Ответы на форму (1)",
+          "row_number": 18
+        }
+      ]
+    },
+    {
+      "id": "historical:e2a03148f0ee60b8fe3852f1",
+      "cohort": "2024-autumn",
+      "historical_grade": 2,
+      "source_refs": [
+        {
+          "source_path": "docs/applications-2024-autumn.xlsx",
+          "source_hash": "4e487c543309e90f3bcf7f3656a7489872cdc499d7735434faa2bb26e460b590",
+          "sheet": "Дистант 29.10",
+          "row_number": 15
+        }
+      ]
+    },
+    {
+      "id": "historical:e4e3c07e465a847311b48465",
+      "cohort": "2025-spring",
+      "historical_grade": 0,
+      "source_refs": [
+        {
+          "source_path": "docs/applications-2025-spring.xlsx",
+          "source_hash": "e800164ba020e55d591ee477b411e61f6fe5a8ca3c08724cc2d101ae24ad723a",
+          "sheet": "Ответы на форму (1)",
+          "row_number": 6
+        },
+        {
+          "source_path": "docs/hse-hackathon-2025-spring.xlsx",
+          "source_hash": "7a9c5c12388b8680ac23c2b8334f44b67030f2819f1c60b968a99c7dbe6b982b",
+          "sheet": "Ответы на форму (1)",
+          "row_number": 7
+        }
+      ]
+    },
+    {
+      "id": "historical:e684361a17bb4c3766df5887",
+      "cohort": "2024-autumn",
+      "historical_grade": 2,
+      "source_refs": [
+        {
+          "source_path": "docs/applications-2024-autumn.xlsx",
+          "source_hash": "4e487c543309e90f3bcf7f3656a7489872cdc499d7735434faa2bb26e460b590",
+          "sheet": "Дистант 29.10",
+          "row_number": 2
+        }
+      ]
+    },
+    {
+      "id": "historical:f73963782ad768fd534a882a",
+      "cohort": "2025-spring",
+      "historical_grade": 3,
+      "source_refs": [
+        {
+          "source_path": "docs/applications-2025-spring.xlsx",
+          "source_hash": "e800164ba020e55d591ee477b411e61f6fe5a8ca3c08724cc2d101ae24ad723a",
+          "sheet": "Ответы на форму (1)",
+          "row_number": 56
+        },
+        {
+          "source_path": "docs/hse-hackathon-2025-spring.xlsx",
+          "source_hash": "7a9c5c12388b8680ac23c2b8334f44b67030f2819f1c60b968a99c7dbe6b982b",
+          "sheet": "Ответы на форму (1)",
+          "row_number": 57
+        }
+      ]
+    }
+  ]
+}

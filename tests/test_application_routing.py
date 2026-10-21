@@ -15,6 +15,7 @@ def candidate(**overrides):
         application_id="route-integration-test-1",
         applicant_name="Тестовый кандидат",
         age_over_18=True,
+        birth_date="1990-01-01",
         consent_personal_data=True,
         motivation="Хочу регулярно помогать музею в организации исторических мероприятий.",
         availability_hours_month=20,
