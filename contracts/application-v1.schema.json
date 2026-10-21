@@ -1,0 +1,257 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GIM Application Snapshot v1",
+  "$id": "https://github.com/Ai-b0ss/code-with-purpose-2-2026/blob/main/contracts/application-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "application_id",
+    "status",
+    "answers",
+    "evaluation",
+    "export"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "application_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "created_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "clarifying",
+        "ready_to_submit",
+        "scored",
+        "exported",
+        "reviewed"
+      ]
+    },
+    "answers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "question_id",
+          "question",
+          "answer"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "question_id": {
+            "type": "string"
+          },
+          "question": {
+            "type": "string"
+          },
+          "answer": {
+            "type": [
+              "string",
+              "number",
+              "boolean",
+              "null"
+            ]
+          },
+          "is_followup": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "availability": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "hours_per_month": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "schedule": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "other_programs": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "needs_clarification": {
+          "type": "boolean"
+        }
+      }
+    },
+    "desired_direction": {
+      "enum": [
+        "organizational",
+        "project",
+        "collections",
+        "inclusive",
+        "media",
+        "undecided"
+      ]
+    },
+    "evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "score",
+        "score_status",
+        "summary",
+        "strengths",
+        "possible_problems",
+        "recommended_direction",
+        "direction_reason",
+        "fit_for_candidate",
+        "interview_questions",
+        "evidence"
+      ],
+      "properties": {
+        "score": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 3
+        },
+        "score_status": {
+          "enum": [
+            "not_calibrated",
+            "suggested",
+            "needs_review",
+            "curator_confirmed"
+          ]
+        },
+        "summary": {
+          "type": "string"
+        },
+        "strengths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "possible_problems": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "recommended_direction": {
+          "enum": [
+            "organizational",
+            "project",
+            "collections",
+            "inclusive",
+            "media",
+            "undecided"
+          ]
+        },
+        "direction_reason": {
+          "type": "string"
+        },
+        "fit_for_candidate": {
+          "type": "string"
+        },
+        "interview_questions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "question_id",
+              "reason"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "question_id": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "rubric_version": {
+          "type": "string"
+        },
+        "model_version": {
+          "type": "string"
+        }
+      }
+    },
+    "export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "pending",
+            "synced",
+            "failed",
+            "not_requested"
+          ]
+        },
+        "external_row_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "destination": {
+          "enum": [
+            "google_sheets",
+            "csv",
+            "xlsx",
+            "none"
+          ]
+        }
+      }
+    },
+    "curator": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "decision": {
+          "type": "string"
+        },
+        "score": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 3
+        },
+        "comment": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
