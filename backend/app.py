@@ -21,6 +21,7 @@ from typing import Literal
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
+from backend import google_sheets
 
 ROOT = Path(__file__).resolve().parent.parent
 FRONTEND = ROOT / "frontend" / "index.html"
@@ -93,6 +94,17 @@ def db_connection():
             started_at REAL NOT NULL
         )"""
     )
+    columns = {row[1] for row in connection.execute("PRAGMA table_info(applications)")}
+    for name, definition in {
+        "sheet_sync_status": "TEXT NOT NULL DEFAULT 'pending'",
+        "sheet_sync_error": "TEXT",
+        "sheet_row_url": "TEXT",
+        "sheet_synced_at": "TEXT",
+        "sheet_sync_token": "TEXT",
+        "sheet_sync_started_at": "REAL",
+    }.items():
+        if name not in columns:
+            connection.execute(f"ALTER TABLE applications ADD COLUMN {name} {definition}")
     connection.commit()
     try:
         yield connection
@@ -329,6 +341,7 @@ def save_application(data: ApplicationInput):
             "created_at": row["created_at"],
             "evaluation": json.loads(row["evaluation"]),
             "created": False,
+            "sheet_sync": sheet_sync_view(row),
         }
 
     # Keep each SQLite write transaction short; no DB-wide lock during LLM.
@@ -337,7 +350,7 @@ def save_application(data: ApplicationInput):
         with db_connection() as con:
             con.execute("BEGIN IMMEDIATE")
             row = con.execute(
-                "SELECT evaluation, created_at FROM applications WHERE id = ?",
+                "SELECT * FROM applications WHERE id = ?",
                 (application_id,),
             ).fetchone()
             if row is not None:
@@ -380,7 +393,7 @@ def save_application(data: ApplicationInput):
             ).fetchone()
             if reservation is None or reservation["token"] != token:
                 existing = con.execute(
-                    "SELECT evaluation, created_at FROM applications WHERE id = ?",
+                    "SELECT * FROM applications WHERE id = ?",
                     (application_id,),
                 ).fetchone()
                 if existing is not None:
@@ -410,11 +423,13 @@ def save_application(data: ApplicationInput):
             pass
         raise
 
+    sync = sync_application(application_id)
     return {
         "application_id": application_id,
         "created_at": created_at,
         "evaluation": evaluation,
         "created": True,
+        "sheet_sync": sync,
     }
 
 
@@ -422,7 +437,7 @@ def save_application(data: ApplicationInput):
 def list_applications():
     with db_connection() as con:
         records = con.execute(
-            "SELECT id, created_at, applicant_name, evaluation "
+            "SELECT * "
             "FROM applications ORDER BY created_at DESC LIMIT 200"
         ).fetchall()
     return {
@@ -432,6 +447,7 @@ def list_applications():
                 "created_at": row["created_at"],
                 "applicant_name": row["applicant_name"],
                 "evaluation": json.loads(row["evaluation"]),
+                "sheet_sync": sheet_sync_view(row),
             }
             for row in records
         ]
@@ -442,7 +458,7 @@ def list_applications():
 def get_application(application_id: str):
     with db_connection() as con:
         row = con.execute(
-            "SELECT id, created_at, payload, evaluation FROM applications WHERE id=?",
+            "SELECT * FROM applications WHERE id=?",
             (application_id,),
         ).fetchone()
     if row is None:
@@ -452,6 +468,7 @@ def get_application(application_id: str):
         "created_at": row["created_at"],
         "answers": json.loads(row["payload"]),
         "evaluation": json.loads(row["evaluation"]),
+        "sheet_sync": sheet_sync_view(row),
     }
 
 
@@ -465,62 +482,91 @@ def safe_csv(value: object) -> str:
     return text
 
 
+def sheet_sync_view(row) -> dict:
+    return {
+        "status": row["sheet_sync_status"],
+        "error": row["sheet_sync_error"],
+        "row_url": row["sheet_row_url"],
+        "synced_at": row["sheet_synced_at"],
+    }
+
+
+def sheet_values(row) -> list:
+    entry = json.loads(row["payload"])
+    e = json.loads(row["evaluation"])
+    clean = safe_csv
+    joined = lambda key: ", ".join(entry.get(key, []))
+    return [
+        clean(row["id"]), clean(row["created_at"]), clean(entry.get("applicant_name")),
+        entry.get("age_over_18", False), entry.get("consent_personal_data", False),
+        clean(entry.get("birth_date")), clean(entry.get("email")), clean(entry.get("vk_url")),
+        clean(entry.get("status")), clean(entry.get("university_other") or entry.get("university")),
+        clean(entry.get("faculty")), clean(entry.get("course")), clean(entry.get("scientific_interests")),
+        clean(joined("foreign_languages")), clean(entry.get("motivation")), clean(entry.get("experience")),
+        clean(entry.get("expectations")), clean(entry.get("hobbies")), entry.get("availability_hours_month", 0),
+        clean(entry.get("availability_schedule_type")), clean(joined("availability_days")),
+        clean(entry.get("other_commitments")), clean(entry.get("other_volunteer_programs")),
+        clean(DIRECTIONS.get(entry.get("desired_direction"), entry.get("desired_direction"))),
+        clean(entry.get("source")), clean(entry.get("followup_answer")), clean(e.get("score")),
+        clean(e.get("summary")), clean("; ".join(e.get("possible_problems", []))),
+        clean(e.get("recommended_direction_label")), clean(e.get("direction_reason")),
+        clean("; ".join(e.get("interview_questions", []))),
+    ]
+
+
+def sync_application(application_id: str) -> dict:
+    """Claim a short-lived delivery lease; never hold a SQLite transaction over HTTP."""
+    token = uuid.uuid4().hex
+    with db_connection() as con:
+        con.execute("BEGIN IMMEDIATE")
+        row = con.execute("SELECT * FROM applications WHERE id=?", (application_id,)).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="Заявка не найдена")
+        if row["sheet_sync_status"] == "synced":
+            return sheet_sync_view(row)
+        if row["sheet_sync_status"] == "syncing" and time.time() - (row["sheet_sync_started_at"] or 0) < 180:
+            return sheet_sync_view(row)
+        con.execute("UPDATE applications SET sheet_sync_status='syncing', sheet_sync_error=NULL, "
+                    "sheet_sync_token=?, sheet_sync_started_at=? WHERE id=?",
+                    (token, time.time(), application_id))
+    try:
+        if not google_sheets.configured():
+            raise google_sheets.SheetSyncError("google_not_configured")
+        row_url = google_sheets.write_row(application_id, sheet_values(row))
+        status, error = "synced", None
+    except Exception as exc:
+        # Never store provider bodies, credentials, or applicant data in errors.
+        status = "failed"
+        error = str(exc) if isinstance(exc, google_sheets.SheetSyncError) else "google_sync_error"
+        row_url = None
+    with db_connection() as con:
+        con.execute("UPDATE applications SET sheet_sync_status=?, sheet_sync_error=?, "
+                    "sheet_row_url=COALESCE(?, sheet_row_url), sheet_synced_at=?, "
+                    "sheet_sync_token=NULL, sheet_sync_started_at=NULL "
+                    "WHERE id=? AND sheet_sync_token=?",
+                    (status, error, row_url, datetime.now(timezone.utc).isoformat() if status == "synced" else None,
+                     application_id, token))
+        result = con.execute("SELECT * FROM applications WHERE id=?", (application_id,)).fetchone()
+    return sheet_sync_view(result)
+
+
+@app.post("/api/v1/applications/{application_id}/sync")
+def retry_sheet_sync(application_id: str):
+    return {"application_id": application_id, "sheet_sync": sync_application(application_id)}
+
+
 @app.get("/api/v1/export.csv")
 def export_csv():
-    columns = [
-        "ID заявки", "Дата", "Имя", "Возраст 18+", "Согласие ПД", "Дата рождения",
-        "Email", "VK", "Статус", "ВУЗ", "Факультет", "Курс", "Научные интересы",
-        "Языки", "Мотивация", "Опыт", "Ожидания", "Хобби", "Часов/месяц", "Тип графика",
-        "Дни", "Другие обязательства", "Другие волонтерства", "Направление", "Источник",
-        "Дополнительный ответ", "Оценка 0-3", "Саммари",
-        "Возможные проблемы", "Рекомендуемое направление",
-        "Почему направление", "Вопросы для собеседования",
-    ]
     output = io.StringIO()
     writer = csv.writer(output, delimiter=";", quoting=csv.QUOTE_MINIMAL)
-    writer.writerow(columns)
+    writer.writerow(google_sheets.HEADERS)
     with db_connection() as con:
         records = con.execute(
             "SELECT id, created_at, payload, evaluation "
             "FROM applications ORDER BY created_at"
         ).fetchall()
     for row in records:
-        entry = json.loads(row["payload"])
-        e = json.loads(row["evaluation"])
-        writer.writerow([
-            safe_csv(row["id"]),
-            safe_csv(row["created_at"]),
-            safe_csv(entry.get("applicant_name", "")),
-            entry.get("age_over_18", False),
-            entry.get("consent_personal_data", False),
-            safe_csv(entry.get("birth_date", "")),
-            safe_csv(entry.get("email", "")),
-            safe_csv(entry.get("vk_url", "")),
-            safe_csv(entry.get("status", "")),
-            safe_csv(entry.get("university_other") or entry.get("university", "")),
-            safe_csv(entry.get("faculty", "")),
-            safe_csv(entry.get("course", "")),
-            safe_csv(entry.get("scientific_interests", "")),
-            safe_csv(", ".join(entry.get("foreign_languages", [])) if isinstance(entry.get("foreign_languages"), list) else str(entry.get("foreign_languages", ""))),
-            safe_csv(entry.get("motivation", "")),
-            safe_csv(entry.get("experience", "")),
-            safe_csv(entry.get("expectations", "")),
-            safe_csv(entry.get("hobbies", "")),
-            entry.get("availability_hours_month", 0),
-            safe_csv(entry.get("availability_schedule_type", "")),
-            safe_csv(", ".join(entry.get("availability_days", [])) if isinstance(entry.get("availability_days"), list) else str(entry.get("availability_days", ""))),
-            safe_csv(entry.get("other_commitments", "")),
-            safe_csv(entry.get("other_volunteer_programs", "")),
-            safe_csv(DIRECTIONS.get(entry.get("desired_direction", ""), entry.get("desired_direction", ""))),
-            safe_csv(entry.get("source", "")),
-            safe_csv(entry.get("followup_answer", "")),
-            safe_csv(e.get("score")),
-            safe_csv(e.get("summary", "")),
-            safe_csv("; ".join(e.get("possible_problems", []))),
-            safe_csv(e.get("recommended_direction_label", "")),
-            safe_csv(e.get("direction_reason", "")),
-            safe_csv("; ".join(e.get("interview_questions", []))),
-        ])
+        writer.writerow(sheet_values(row))
     return Response(
         content="\ufeff" + output.getvalue(),
         media_type="text/csv; charset=utf-8",
