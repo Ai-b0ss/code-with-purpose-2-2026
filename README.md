@@ -22,6 +22,16 @@
 
 **Независимая проверка на Windows:** 31 unit-тест, 30 PASS / 1 SKIP (не настроен live LLM); `run-tests.bat`: 49 PASS / 1 SKIP / 0 FAIL. Настоящий Edge: заполнение всех шагов → дополнительные вопросы → отправка → SQLite → CSV; без JavaScript-ошибок. Это не подтверждает качество реальных LLM-рекомендаций, работу Sheets или время заполнения 5–7 минут.
 
+## Запуск ReformBoss (настоящая LLM)
+
+Добавлен [`start-reformboss.ps1`](start-reformboss.ps1): по умолчанию проверяет `deepseek-v4.1-flash-1017` через `https://api.reformboss.com/v1/chat/completions` на вымышленном кандидате, затем поднимает приложение в режиме `llm`. Ключ запрашивается **скрытым вводом** и не записывается на диск.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\start-reformboss.ps1
+```
+
+`-Model glm-5.3` — переключить модель; `-Compare` — три реальные API-вызова для DeepSeek, GLM и Kimi; `-DisableJsonMode` — обход несовместимого `response_format`. Реальная модель **ещё не подтверждена live-тестом с ключом команды**. [Инструкция](docs/11-llm-evaluator.md).
+
 ## Запуск на своём ноутбуке
 
 Нужны Git и Python 3.11+.
