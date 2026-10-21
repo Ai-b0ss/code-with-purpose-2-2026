@@ -270,6 +270,76 @@ class VkBotUnitTests(unittest.TestCase):
         resp, _ = fsm.handle_message(user_id, "Только учёба")
         self.assertIn("Не удалось связаться с сервером музея", resp)
 
+    def test_free_form_arbitrary_inputs_fsm(self):
+        """Проверка, что произвольный текст не блокирует соискателя на любом этапе."""
+        mock_api = MagicMock(spec=GimApiClient)
+        mock_api.get_clarifications.return_value = {"questions": []}
+        mock_api.submit_application.return_value = {"application_id": "GIM-FREE-1", "created": True}
+
+        fsm = VolunteerBotFSM(api_client=mock_api)
+        uid = 2001
+
+        fsm.handle_message(uid, "Привет", user_name="Василий Петров")
+        fsm.handle_message(uid, "Начать заполнение")
+        fsm.handle_message(uid, "Согласен(на), мне есть 18 лет")
+        fsm.handle_message(uid, "Петров Василий Сергеевич")
+
+        # Произвольная дата словами
+        resp, _ = fsm.handle_message(uid, "24 июня 2001 года")
+        self.assertIn("Email", resp)
+        self.assertEqual(fsm.sessions[uid].birth_date, "2001-06-24")
+
+        fsm.handle_message(uid, "petrov@example.org")
+
+        # Произвольный статус: "Самозанятый" распознаётся как занятость (working),
+        # а нестандартный статус вроде "Пенсионер-любитель" сохраняется как есть
+        resp, _ = fsm.handle_message(uid, "Самозанятый экскурсовод")
+        self.assertIn("место учёбы", resp)
+        self.assertEqual(fsm.sessions[uid].status, "working")
+
+        fsm.handle_message(uid, "РГГУ")
+        fsm.handle_message(uid, "Факультет истории искусств")
+
+        # Произвольный курс
+        resp, _ = fsm.handle_message(uid, "Магистратура 2 курс")
+        self.assertIn("научных или профессиональных интересов", resp)
+        self.assertEqual(fsm.sessions[uid].course, "Магистратура 2 курс")
+
+        fsm.handle_message(uid, "Древнерусская архитектура")
+
+        # Произвольные языки (автоматически разбиваются по запятой)
+        resp, _ = fsm.handle_message(uid, "Французский B2, Немецкий со словарём")
+        self.assertIn("Мотивация и опыт", resp)
+        self.assertEqual(fsm.sessions[uid].foreign_languages, ["Французский B2", "Немецкий со словарём"])
+
+        fsm.handle_message(uid, "Обожаю Исторический музей с детства!")
+        fsm.handle_message(uid, "Проводил городские экскурсии 2 года")
+
+        # Произвольное направление со смысловым словом 'архив'
+        resp, _ = fsm.handle_message(uid, "Очень хочу в архивы и музейные фонды")
+        self.assertIn("Сколько часов в месяц", resp)
+        self.assertEqual(fsm.sessions[uid].desired_direction, "collections")
+
+        # Произвольные часы с числом
+        resp, _ = fsm.handle_message(uid, "Смогу уделять около 18 часов в месяц")
+        self.assertIn("Какой график участия", resp)
+        self.assertEqual(fsm.sessions[uid].availability_hours_month, 18)
+
+        # Произвольный график со словом 'фикс'
+        resp, _ = fsm.handle_message(uid, "Предпочитаю фиксированные дни")
+        self.assertIn("В какие дни недели", resp)
+        self.assertEqual(fsm.sessions[uid].availability_schedule_type, "regular")
+
+        # Произвольные дни
+        resp, _ = fsm.handle_message(uid, "Среда вечер и вся суббота")
+        self.assertIn("другие регулярные обязательства", resp)
+        self.assertEqual(fsm.sessions[uid].availability_days, ["Среда вечер и вся суббота"])
+
+        # Произвольные обязательства -> финализация
+        resp, _ = fsm.handle_message(uid, "Основная работа на фрилансе, время планирую сам")
+        self.assertIn("Ваша заявка успешно принята", resp)
+        self.assertEqual(fsm.sessions[uid].other_commitments, "Основная работа на фрилансе, время планирую сам")
+
 
 if __name__ == "__main__":
     unittest.main()
