@@ -101,6 +101,26 @@ class ClarificationFlowTests(unittest.TestCase):
                 clarification(candidate())
             self.assertEqual(ctx.exception.status_code, 503)
 
+    def test_preliminary_llm_cannot_receive_data_without_consent(self):
+        with patch.dict("os.environ", {"GIM_EVALUATION_MODE": "llm"}):
+            with self.assertRaises(HTTPException) as ctx:
+                clarification(candidate().model_copy(update={"consent_personal_data": False}))
+            self.assertEqual(ctx.exception.status_code, 422)
+
+    def test_schedule_response_mitigates_risk_without_claiming_acceptance(self):
+        from backend.availability_policy import availability_risks
+        constrained = candidate().model_copy(update={
+            "course": "1-й курс бакалавриата",
+            "availability_hours_month": 10,
+            "followup_answers": {
+                "ai_availability": "Каждую субботу могу участвовать стабильно."
+            },
+        })
+        risks = availability_risks(constrained)
+        self.assertTrue(any("Первый курс" in value for value in risks))
+        self.assertTrue(any("Смягчающее" in value for value in risks))
+        self.assertFalse(any("отклон" in value for value in risks))
+
     def test_frontend_has_qa_gate_and_clear_final_sequencing(self):
         from pathlib import Path
         html = (Path(__file__).resolve().parents[1] / "frontend/index.html").read_text(encoding="utf-8")
