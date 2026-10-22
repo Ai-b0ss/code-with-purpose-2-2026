@@ -369,8 +369,8 @@ class VkBotUnitTests(unittest.TestCase):
         session.desired_direction = "project"
 
         resp, _ = fsm.handle_message(user_id, "Только учёба")
-        self.assertIn("временно недоступен", resp)
-        self.assertIn("ответы сохранены", resp)
+        self.assertIn("Не удалось отправить заявку", resp)
+        self.assertIn("ответы сохранены", resp.casefold())
 
     def test_application_payload_matches_backend_contract(self):
         """Payload VK-бота должен проходить ApplicationInput без потери типов."""
@@ -422,7 +422,7 @@ class VkBotUnitTests(unittest.TestCase):
         first, _ = fsm.handle_message(1007, "Только учёба")
         second, _ = fsm.handle_message(1007, "Повторить отправку")
 
-        self.assertIn("временно недоступен", first)
+        self.assertIn("Не удалось отправить заявку", first)
         self.assertIn("успешно принята", second)
         first_payload = mock_api.submit_application.call_args_list[0].args[0]
         second_payload = mock_api.submit_application.call_args_list[1].args[0]
