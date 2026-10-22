@@ -3,10 +3,12 @@ from __future__ import annotations
 
 import json
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 from fastapi import HTTPException
+from fastapi.testclient import TestClient
 
-from backend.app import clarification, ApplicationInput
+from backend.app import app, clarification, ApplicationInput
 from backend.clarification_agent import questions_before_verdict
 from backend.evaluator import EvaluationError, evaluate
 from test_evaluator import candidate, response, FakeAdapter
@@ -70,6 +72,42 @@ class ClarificationFlowTests(unittest.TestCase):
         }})
         with self.assertRaises(EvaluationError):
             questions_before_verdict(data, adapter=FakeAdapter(plan(question())))
+
+    def test_issue49_fictional_profile_catalog(self):
+        catalog = Path(__file__).parent / "fixtures/clarification/issue49.json"
+        cases = json.loads(catalog.read_text(encoding="utf-8"))["cases"]
+        self.assertEqual(len({case["id"] for case in cases}), len(cases))
+        self.assertTrue({f"T{number:02d}" for number in (*range(9, 20), 21)}.issubset(
+            {case["id"].split("-")[0] for case in cases}))
+        for case in cases:
+            with self.subTest(case=case["id"]):
+                self.assertTrue(case["uncertainty"])
+                data = candidate().model_copy(update=case["changes"])
+                questions = questions_before_verdict(data, mode="demo")["questions"]
+                with patch.dict("os.environ", {"GIM_EVALUATION_MODE": "demo"}):
+                    http = TestClient(app).post("/api/v1/clarification", json=data.model_dump())
+                self.assertEqual(http.status_code, 200)
+                self.assertEqual(http.json()["questions"], questions)
+                ids = {q["id"] for q in questions}
+                self.assertLessEqual(len(questions), 2)
+                self.assertEqual(len(ids), len(questions))
+
+    def test_unknown_answer_stops_question_loop(self):
+        data = candidate().model_copy(update={
+            "clarification_round": 1,
+            "followup_questions": [{"id": "ai_availability", **question()}],
+            "followup_answers": {"ai_availability": "Пока не знаю"},
+        })
+        adapter = FakeAdapter("invalid")
+        self.assertEqual(questions_before_verdict(data, adapter=adapter)["questions"], [])
+        self.assertFalse(adapter.calls)
+
+    def test_http_llm_failure_is_503_without_demo_fallback(self):
+        with patch("backend.clarification_agent.adapter_from_env", return_value=FakeAdapter("INVALID")), patch.dict(
+                "os.environ", {"GIM_EVALUATION_MODE": "llm", "GIM_ALLOW_EXTERNAL_LLM": "1"}):
+            result = TestClient(app).post("/api/v1/clarification", json=candidate().model_dump())
+        self.assertEqual(result.status_code, 503)
+        self.assertEqual(result.json()["detail"], "clarification_invalid_model_json")
 
     def test_invalid_criteria_and_duplicate_questions_fail_closed(self):
         for raw in (
