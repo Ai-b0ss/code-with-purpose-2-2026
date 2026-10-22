@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import requests
 import vk_api
@@ -354,6 +354,12 @@ class VkKeyboards:
         return kb.get_keyboard()
 
     @staticmethod
+    def retry() -> str:
+        kb = VkKeyboard(inline=True)
+        kb.add_button("Повторить отправку", color=VkKeyboardColor.PRIMARY)
+        return kb.get_keyboard()
+
+    @staticmethod
     def empty() -> str:
         return VkKeyboard.get_empty_keyboard()
 
@@ -518,10 +524,33 @@ class VolunteerBotFSM:
 
     EMAIL_REGEX = re.compile(r"^[\w\.\+\-]+@[a-zA-Z0-9\-]+(\.[a-zA-Z0-9\-]+)+$")
 
-    def __init__(self, api_client: GimApiClient, session_ttl: int = 86400):
+    def __init__(
+        self,
+        api_client: GimApiClient,
+        session_ttl: int = 86400,
+        notifier: Callable[[int, str], None] | None = None,
+    ):
         self.api_client = api_client
         self.session_ttl = session_ttl
+        self.notifier = notifier
         self.sessions: dict[int, UserSession] = {}
+        self._last_processing_notice: dict[int, float] = {}
+
+    def _notify_processing(self, user_id: int) -> None:
+        # A notification is NOT proof of registration; it goes out before network I/O.
+        now = time.monotonic()
+        if now - self._last_processing_notice.get(user_id, float("-inf")) < 12:
+            return
+        self._last_processing_notice[user_id] = now
+        if self.notifier is not None:
+            try:
+                self.notifier(
+                    user_id,
+                    "Проверяем ответы анкеты с помощью ИИ. Это может занять несколько минут. "
+                    "После завершения пришлём вопрос или подтверждение регистрации.",
+                )
+            except Exception as exc:
+                logger.warning("Не удалось отправить статус обработки пользователю %s: %s", user_id, type(exc).__name__)
 
     def get_or_create_session(self, user_id: int, user_name: str | None = None) -> UserSession:
         now = time.time()
@@ -1049,6 +1078,7 @@ class VolunteerBotFSM:
         if session.clarification_round >= 2:
             return self._submit_final_application(session)
         payload = session.to_application_input()
+        self._notify_processing(session.user_id)
         try:
             res = self.api_client.get_clarifications(payload)
             session.clarification_round = res.get("round", session.clarification_round + 1)
@@ -1119,6 +1149,7 @@ class VolunteerBotFSM:
         if not session.application_id:
             session.application_id = f"vk-{session.user_id}-{uuid.uuid4().hex}"
         payload = session.to_application_input()
+        self._notify_processing(session.user_id)
         try:
             res = self.api_client.submit_application(payload)
             app_id = res.get("application_id") or session.application_id
@@ -1139,10 +1170,10 @@ class VolunteerBotFSM:
             session.state = DialogState.SUBMIT_RETRY
             msg = (
                 "⚠️ Сервер музея временно недоступен, но ваши ответы сохранены в текущем диалоге.\n"
-                "Отправьте любое сообщение через минуту — бот повторит отправку заявки. "
+                "Нажмите «Повторить отправку» — прежний номер заявки будет использован повторно. "
                 "Для начала заново используйте /reset."
             )
-            return msg, VkKeyboards.empty()
+            return msg, VkKeyboards.retry()
 
 
 # -----------------------------------------------------------------------------
@@ -1185,11 +1216,26 @@ def process_vk_message_event(
                 logger.warning("Не удалось получить профиль пользователя %s: %s", from_id, err)
                 user_name_cache[from_id] = f"Волонтёр #{from_id}"
 
-        reply_text, keyboard = fsm.handle_message(
-            user_id=from_id,
-            text=str(text or ""),
-            user_name=user_name_cache[from_id],
-        )
+        # Status is scoped to this VK event, not persisted as a global callback.
+        old_notifier = fsm.notifier
+        def status_notifier(uid: int, status_text: str) -> None:
+            try:
+                vk.messages.setActivity(type="typing", peer_id=uid)
+            except Exception:
+                pass
+            vk.messages.send(user_id=uid, random_id=get_random_id(), message=status_text)
+
+        if old_notifier is None:
+            fsm.notifier = status_notifier
+        try:
+            reply_text, keyboard = fsm.handle_message(
+                user_id=from_id,
+                text=str(text or ""),
+                user_name=user_name_cache[from_id],
+            )
+        finally:
+            if old_notifier is None:
+                fsm.notifier = None
         send_kwargs: dict[str, Any] = {
             "user_id": from_id,
             "random_id": get_random_id(),
