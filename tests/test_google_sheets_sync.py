@@ -75,11 +75,11 @@ class SyncTests(unittest.TestCase):
             def __init__(self): self.calls = []
             def get(self, url, **kwargs):
                 self.calls.append(("GET", url, kwargs))
-                if url.endswith("/values/'Заявки API'!A:A"):
+                if url.endswith("/values/'Заявки'!A:A"):
                     return Response({"values": [["ID заявки"], ["synthetic-sync-1"]]})
                 if "/values/" in url:
                     return Response({"values": [HEADERS]})
-                return Response({"sheets": [{"properties": {"sheetId": 7, "title": "Заявки API"}}]})
+                return Response({"sheets": [{"properties": {"sheetId": 7, "title": "Заявки"}}]})
             def put(self, url, **kwargs):
                 self.calls.append(("PUT", url, kwargs))
                 return Response({})
@@ -89,8 +89,10 @@ class SyncTests(unittest.TestCase):
 
         session = Session()
         with patch.dict(os.environ, {"GIM_GOOGLE_SPREADSHEET_ID": "test-sheet"}), \
-             patch("backend.google_sheets._client", return_value=session):
+             patch("backend.google_sheets._client", return_value=session), \
+             patch("backend.sheets_dashboard.ensure_dashboard") as dashboard:
             result = write_row("synthetic-sync-1", ["synthetic-sync-1"] + [""] * 42)
+        dashboard.assert_called_once()
         self.assertEqual(result, "https://docs.google.com/spreadsheets/d/test-sheet/edit#gid=7&range=A2")
         self.assertEqual([method for method, _, _ in session.calls], ["GET", "GET", "GET", "PUT", "POST"])
         resize = session.calls[-1][2]["json"]["requests"][0]["autoResizeDimensions"]["dimensions"]
@@ -109,11 +111,11 @@ class SyncTests(unittest.TestCase):
                     return Response({"values": [[HEADERS[0]]]})
                 if "/values/" in url:
                     return Response({"values": [HEADERS]})
-                return Response({"sheets": [{"properties": {"sheetId": 7, "title": "Заявки API"}}]})
+                return Response({"sheets": [{"properties": {"sheetId": 7, "title": "Заявки"}}]})
             def post(self, url, **kwargs):
                 self.calls.append(("POST", url, kwargs))
                 if url.endswith("!A:A:append"):
-                    return Response({"updates": {"updatedRange": "'Заявки API'!A2:A2"}})
+                    return Response({"updates": {"updatedRange": "'Заявки'!A2:A2"}})
                 return Response({})
             def put(self, url, **kwargs):
                 self.calls.append(("PUT", url, kwargs))
@@ -122,8 +124,10 @@ class SyncTests(unittest.TestCase):
         session = Session()
         values = ["synthetic-sync-new"] + [""] * 42
         with patch.dict(os.environ, {"GIM_GOOGLE_SPREADSHEET_ID": "test-sheet"}), \
-             patch("backend.google_sheets._client", return_value=session):
+             patch("backend.google_sheets._client", return_value=session), \
+             patch("backend.sheets_dashboard.ensure_dashboard") as dashboard:
             result = write_row(values[0], values)
+        dashboard.assert_called_once()
         self.assertTrue(result.endswith("range=A2"))
         self.assertTrue(session.calls[0][1].endswith("!A:A:append"))
         self.assertEqual(session.calls[0][2]["json"]["values"], [[values[0]]])
