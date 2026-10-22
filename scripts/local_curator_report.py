@@ -18,7 +18,7 @@ sys.path.insert(0, str(ROOT))
 from backend.curator import render_card
 
 
-def build(db: Path, destination: Path, limit: int = 40) -> int:
+def build(db: Path, destination: Path, limit: int = -1) -> int:
     if not db.is_file():
         raise FileNotFoundError(f"No local SQLite database: {db}")
     connection = sqlite3.connect(f"file:{db.as_posix()}?mode=ro", uri=True)
@@ -55,7 +55,11 @@ def build(db: Path, destination: Path, limit: int = 40) -> int:
           "Публичный сайт не показывает внутренние оценки кандидату.</p>"
           "<p>Создано "+escape(datetime.now().isoformat(timespec="seconds"))+
           "; заявок "+str(len(cards))+"</p>"+''.join(cards)+"</body></html>")
-    destination.write_text(html, encoding="utf-8")
+    import os
+    fd = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as stream:
+        stream.write(html)
+    destination.chmod(0o600)
     return len(cards)
 
 
@@ -63,7 +67,7 @@ def main():
     p=argparse.ArgumentParser()
     p.add_argument("--db",type=Path,default=ROOT/"data"/"gim.sqlite3")
     p.add_argument("--out",type=Path,default=ROOT/"reports"/"curator_local.html")
-    p.add_argument("--limit",type=int,default=40)
+    p.add_argument("--limit",type=int,default=-1)
     p.add_argument("--no-open",action="store_true")
     args=p.parse_args()
     count=build(args.db,args.out,args.limit)
@@ -74,3 +78,4 @@ def main():
 
 if __name__=="__main__":
     main()
+

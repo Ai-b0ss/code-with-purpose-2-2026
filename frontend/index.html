@@ -724,6 +724,7 @@
     </div>
 
     <form id="volunteerForm" novalidate>
+      <p>Это волонтёрская программа. График согласуется с координатором, места и трудоустройство не гарантированы. Для демонстрации используйте вымышленные данные.</p>
       <!-- STEP 1: ПРОФИЛЬ И КОНТАКТЫ -->
       <section class="step" data-step="0">
         <div class="step-header">
@@ -770,7 +771,7 @@
             <div class="field">
               <label class="title" for="university">ВУЗ / Учебное заведение</label>
               <select id="university" name="university">
-                <option value="">Выберите учебное заведение</option>
+                <option value="">Выберите учебное заведение</option><option value="Не учусь">Не учусь</option>
                 <option value="МГУ имени М.В. Ломоносова">МГУ имени М.В. Ломоносова</option>
                 <option value="Российский государственный гуманитарный университет (РГГУ)">РГГУ</option>
                 <option value="НИУ ВШЭ">НИУ «Высшая школа экономики»</option>
@@ -792,7 +793,7 @@
             <div class="field">
               <label class="title" for="course">Курс / Ступень обучения</label>
               <select id="course" name="course">
-                <option value="">Выберите курс</option>
+                <option value="">Выберите курс</option><option value="Не учусь">Не учусь</option>
                 <option value="1-й курс бакалавриата">1-й курс бакалавриата</option>
                 <option value="2-й курс бакалавриата">2-й курс бакалавриата</option>
                 <option value="3-й курс бакалавриата">3-й курс бакалавриата</option>
@@ -820,6 +821,9 @@
             <label class="chip"><input type="checkbox" name="foreign_languages" value="Китайский">Китайский</label>
             <label class="chip"><input type="checkbox" name="foreign_languages" value="Испанский">Испанский</label>
             <label class="chip"><input type="checkbox" name="foreign_languages" value="Итальянский">Итальянский</label>
+            <label class="chip"><input type="checkbox" name="foreign_languages" value="Нет B1+">Нет языков B1+</label>
+            <label class="chip"><input type="checkbox" name="foreign_languages" value="Другой язык B1+">Другой язык B1+</label>
+            <input id="language_other" type="text" placeholder="Другой язык и уровень, например: японский B2">
           </div>
         </div>
 
@@ -995,8 +999,8 @@
 
         <div id="clarificationsContainer">
           <div class="empty-clarifications" id="noClarificationsCard" hidden>
-            <h3>✨ Отличная анкета!</h3>
-            <p>Ваши ответы содержат всю необходимую информацию. Дополнительных уточнений перед отправкой не требуется.</p>
+            <h3>Дополнительных вопросов нет</h3>
+            <p>Можно отправить анкету. Оставшиеся вопросы координатор обсудит на собеседовании.</p>
           </div>
           <div class="clarification-list" id="clarificationsList"></div>
         </div>
@@ -1041,6 +1045,7 @@
       Благодарим за интерес к волонтёрской программе Государственного исторического музея! Ваша анкета передана кураторам направлений. Мы свяжемся с вами во ВКонтакте или по электронной почте для согласования даты и формата собеседования.
     </p>
 
+    <p id="candidateFeedback" role="status" style="line-height:1.55"></p>
     <div class="result-card">
       <div style="font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--gold-dark); margin-bottom: 6px;">Выбранное направление</div>
       <div class="result-direction" id="resDirection"></div>
@@ -1076,6 +1081,7 @@
 <script>
 (function() {
   const STORAGE_KEY = "gim_volunteer_form_draft_v1";
+  localStorage.removeItem(STORAGE_KEY); // remove persistent legacy personal draft
 
   const form = document.getElementById("volunteerForm");
   const steps = [...document.querySelectorAll(".step")];
@@ -1190,7 +1196,7 @@
   }
 
   function getSelectedLanguages() {
-    return [...document.querySelectorAll('input[name="foreign_languages"]:checked')].map(c => c.value);
+    return [...document.querySelectorAll('input[name="foreign_languages"]:checked')].map(c => c.value === 'Другой язык B1+' ? 'Другой язык: ' + byId('language_other').value.trim() : c.value);
   }
 
   function getSelectedDays() {
@@ -1266,6 +1272,14 @@
         byId("birth_date").focus();
         return false;
       }
+      const today = new Intl.DateTimeFormat('sv-SE', {timeZone: 'Europe/Moscow'}).format(new Date());
+      const born = byId("birth_date").value;
+      const cutoff = String(Number(today.slice(0,4)) - 18) + today.slice(4);
+      if (born > cutoff || born > today) {
+        showError("Участие доступно с 18 лет. Проверьте дату рождения.");
+        byId("birth_date").focus();
+        return false;
+      }
       if (!byId("age_over_18").checked) {
         showError("Для участия необходимо подтвердить возраст 18+.");
         byId("age_over_18").focus();
@@ -1278,6 +1292,20 @@
       }
     }
 
+    if (stepIdx === 0) {
+      for (const id of ["university", "faculty", "course", "scientific_interests"]) {
+        if (!byId(id).value.trim()) { showError("Заполните образование и интересы. Если не учитесь, укажите это явно; интересы могут быть «нет»."); byId(id).focus(); return false; }
+      }
+      if (byId("university").value === "Другое" && !byId("university_other").value.trim()) { showError("Укажите название другого вуза."); byId("university_other").focus(); return false; }
+      if (form.querySelector('input[name="foreign_languages"][value="Другой язык B1+"]:checked') && !byId('language_other').value.trim()) { showError("Укажите другой язык и уровень."); byId('language_other').focus(); return false; }
+      if (!form.querySelector('input[name="foreign_languages"]:checked')) { showError("Выберите языки или «Нет языков B1+»."); return false; }
+    }
+    if (stepIdx === 1) {
+      for (const id of ["expectations", "experience", "hobbies"]) {
+        if (!byId(id).value.trim()) { showError("Ответьте на обязательный вопрос. «Нет опыта» и «Не указываю» допустимы."); byId(id).focus(); return false; }
+      }
+      if (!form.querySelector('input[name="source"]:checked')) { showError("Укажите, откуда узнали о программе."); return false; }
+    }
     if (stepIdx === 1) {
       const mot = byId("motivation").value.trim();
       if (!mot || mot.length < 10) {
@@ -1371,14 +1399,14 @@
   function saveDraft() {
     try {
       const data = buildPayload();
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       draftInfo.hidden = false;
     } catch (_) {}
   }
 
   function restoreDraft() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = sessionStorage.getItem(STORAGE_KEY);
       if (!raw) return;
       const data = JSON.parse(raw);
       if (typeof data.application_id === "string" && data.application_id.length <= 90) applicationId = data.application_id;
@@ -1407,6 +1435,10 @@
 
       if (Array.isArray(data.foreign_languages)) {
         data.foreign_languages.forEach(lang => {
+          if (lang.startsWith('Другой язык: ')) {
+            byId('language_other').value = lang.slice('Другой язык: '.length);
+            lang = 'Другой язык B1+';
+          }
           const cb = document.querySelector(`input[name="foreign_languages"][value="${lang}"]`);
           if (cb) cb.checked = true;
         });
@@ -1464,7 +1496,7 @@
   }
 
   clearDraftBtn.addEventListener("click", () => {
-    localStorage.removeItem(STORAGE_KEY);
+    sessionStorage.removeItem(STORAGE_KEY);
     applicationId = null;
     form.reset();
     dayChips.forEach(c => c.classList.remove("active"));
@@ -1613,8 +1645,10 @@
         byId("resApplicationId").textContent = "Регистрационный номер заявки: " + res.application_id + " (сохранено в базе ГИМ)";
       }
 
+      byId("candidateFeedback").textContent = res.candidate_feedback || res.message;
+
       // Clear draft on success
-      localStorage.removeItem(STORAGE_KEY);
+      sessionStorage.removeItem(STORAGE_KEY);
 
       wizard.hidden = true;
       results.hidden = false;
@@ -1651,3 +1685,4 @@
 </script>
 </body>
 </html>
+

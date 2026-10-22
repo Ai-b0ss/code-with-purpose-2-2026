@@ -14,6 +14,7 @@ def candidate(**overrides):
     payload = dict(
         application_id="route-integration-test-1",
         applicant_name="Тестовый кандидат",
+        birth_date="2000-01-01",
         age_over_18=True,
         consent_personal_data=True,
         motivation="Хочу регулярно помогать музею в организации исторических мероприятий.",
@@ -23,7 +24,8 @@ def candidate(**overrides):
         desired_direction="organizational",
     )
     payload.update(overrides)
-    return ApplicationInput(**payload)
+    from test_smoke import applicant
+    return applicant(**payload)
 
 
 class APIRoutingTests(unittest.TestCase):
@@ -51,7 +53,8 @@ class APIRoutingTests(unittest.TestCase):
             second = save_application(candidate())
         self.assertTrue(first["created"])
         self.assertFalse(second["created"])
-        self.assertEqual(first["evaluation"], second["evaluation"])
+        self.assertNotIn("evaluation", first)
+        self.assertNotIn("evaluation", second)
         self.assertEqual(evaluator.call_count, 1)
 
     def test_actual_mode_is_routed_to_standalone_evaluator(self):
@@ -71,3 +74,4 @@ class APIRoutingTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

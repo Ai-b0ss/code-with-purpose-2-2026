@@ -1,0 +1,31 @@
+{
+  "sheets": [
+    {
+      "source_hash": "4e487c543309e90f3bcf7f3656a7489872cdc499d7735434faa2bb26e460b590",
+      "sheet": "Очно 30.10",
+      "count": 33
+    },
+    {
+      "source_hash": "4e487c543309e90f3bcf7f3656a7489872cdc499d7735434faa2bb26e460b590",
+      "sheet": "Дистант 29.10",
+      "count": 24
+    },
+    {
+      "source_hash": "e800164ba020e55d591ee477b411e61f6fe5a8ca3c08724cc2d101ae24ad723a",
+      "sheet": "Ответы на форму (1)",
+      "count": 55
+    }
+  ],
+  "total": 112,
+  "unique_fingerprints": 112,
+  "duplicate_rows": 0,
+  "expert_labels": {
+    "3": 15,
+    "2": 54,
+    "1": 16,
+    "0": 27
+  },
+  "accepted_unknown": 67,
+  "network_calls": 0,
+  "written": 0
+}

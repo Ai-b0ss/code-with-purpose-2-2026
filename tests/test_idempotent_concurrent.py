@@ -40,7 +40,8 @@ class ConcurrentSubmissionTests(TestCase):
 
             self.assertEqual(counter[0], 1)
             self.assertEqual([a["created"], b["created"]], [True, False])
-            self.assertEqual(a["evaluation"], b["evaluation"])
+            self.assertNotIn("evaluation", a)
+            self.assertNotIn("evaluation", b)
             with db_connection() as con:
                 self.assertEqual(con.execute("SELECT COUNT(*) FROM applications").fetchone()[0], 1)
                 self.assertEqual(con.execute("SELECT COUNT(*) FROM application_reservations").fetchone()[0], 0)
@@ -72,3 +73,4 @@ class ConcurrentSubmissionTests(TestCase):
             self.assertTrue(result["created"])
             with db_connection() as con:
                 self.assertEqual(con.execute("SELECT COUNT(*) FROM application_reservations").fetchone()[0], 0)
+

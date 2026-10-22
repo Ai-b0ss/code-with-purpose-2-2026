@@ -255,6 +255,8 @@ class VkBotUnitTests(unittest.TestCase):
         resp, kb = fsm.handle_message(user_id, "Опыта нет, но хочу научиться!")
         self.assertIn("хобби", resp)
         resp, kb = fsm.handle_message(user_id, "Чтение исторических книг")
+        self.assertIn("Откуда узнали", resp)
+        resp, kb = fsm.handle_message(user_id, "Социальные сети")
         self.assertIn("Направление и график", resp)
 
         # 13. Выбор направления -> Часы
@@ -398,7 +400,7 @@ class VkBotUnitTests(unittest.TestCase):
         self.assertIsInstance(payload["consent_personal_data"], bool)
         self.assertEqual(payload["status"], "Студент дневного отделения (пары до 16:00)")
         self.assertEqual(payload["availability_schedule_type"], "Гибкий")
-        self.assertEqual(payload["source"], "ВКонтакте, чат-бот ГИМ")
+        self.assertEqual(payload["source"], session.source)
 
     def test_submission_reuses_idempotency_key_after_transient_failure(self):
         """Повторная отправка после потери ответа не создаёт новую заявку."""
@@ -490,6 +492,7 @@ class VkBotUnitTests(unittest.TestCase):
         fsm.handle_message(uid, "Хочу помогать гостям и учиться музейной работе")
         fsm.handle_message(uid, "Проводил городские экскурсии 2 года")
         fsm.handle_message(uid, "Исторические книги")
+        fsm.handle_message(uid, "Рекомендации друзей")
 
         # Произвольное направление со смысловым словом 'архив'
         resp, _ = fsm.handle_message(uid, "Очень хочу в архивы и музейные фонды")
@@ -521,3 +524,4 @@ class VkBotUnitTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

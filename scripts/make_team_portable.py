@@ -10,10 +10,11 @@ FILES = (
     "START-TEAM.cmd", "team-start.ps1", "README-TEAM.md",
     "QA-4-CASES.cmd", "CURATOR-REPORT.cmd",
     "portable-start.ps1", "start-reformboss.ps1", "requirements.txt",
+    "docs/privacy-and-security.md", "docs/operations.md", "docs/gim-question-coverage.md",
     "backend/__init__.py", "backend/app.py", "backend/evaluator.py",
     "backend/availability_policy.py", "backend/clarification_agent.py",
-    "backend/google_sheets.py", "backend/curator.py", "frontend/index.html",
-    "vk_bot/__init__.py", "vk_bot/bot.py", "run_vk_bot.bat", "requirements-vk.txt",
+    "backend/google_sheets.py", "backend/curator.py", "backend/security.py", "backend/candidate_feedback.py", "backend/eligibility.py", "backend/analytics.py", "frontend/admin.html", "frontend/index.html",
+    "vk_bot/__init__.py", "vk_bot/session_store.py", "vk_bot/bot.py", "run_vk_bot.bat", "requirements-vk.txt",
     "scripts/check_reformboss.py", "scripts/check_google_sheets_live.py", "scripts/qa_four_live.py",
     "scripts/qa_agent_live.py",
     "scripts/local_curator_report.py", "qa/four_cases.json",
@@ -52,3 +53,4 @@ if __name__ == "__main__":
     print("ZIP=", p)
     print("SHA256=", hashlib.sha256(p.read_bytes()).hexdigest())
     with zipfile.ZipFile(p) as z: print("FILES=", len(z.namelist()), "ZIP_OK=", z.testzip() is None)
+
