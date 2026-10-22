@@ -119,3 +119,18 @@ def write_row(application_id: str, values: list) -> str:
         "dimensions": {"sheetId": gid, "dimension": "COLUMNS", "startIndex": 0, "endIndex": len(HEADERS)}
     }}]}, timeout=30))
     return _url(spreadsheet_id, gid, row_number)
+
+
+
+def clear_application(application_id: str):
+    """Clear every matching projection row; unknown prior append outcome is safe."""
+    spreadsheet_id = os.environ['GIM_GOOGLE_SPREADSHEET_ID'].strip()
+    title = os.getenv('GIM_GOOGLE_SHEET_NAME', 'Заявки API')
+    root = f'https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}'
+    session = _client()
+    ids = _json(session.get(root + '/values/' + _quoted(title) + '!A:A', timeout=30)).get('values', [])
+    if ids and ids[0] != [HEADERS[0]]:
+        raise SheetSyncError('sheet_header_mismatch')
+    for number, cells in enumerate(ids, 1):
+        if cells and cells[0] == application_id:
+            _json(session.post(root + '/values/' + _quoted(title) + f'!A{number}:{_column(len(HEADERS))}{number}:clear', json={}, timeout=30))

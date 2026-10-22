@@ -575,7 +575,7 @@ def _with_availability_risks(data: ApplicationInput, result: dict) -> dict:
     return result
 
 
-def evaluate(data: ApplicationInput | dict, *, mode: str | None = None,
+def _evaluate(data: ApplicationInput | dict, *, mode: str | None = None,
              adapter: LLMAdapter | None = None, fallback_to_demo: bool = False) -> dict:
     """Return a JSON-serializable result. LLM errors raise unless fallback is explicit.
 
@@ -593,7 +593,8 @@ def evaluate(data: ApplicationInput | dict, *, mode: str | None = None,
     if mode != "llm":
         raise EvaluationError("invalid_mode")
     adapter = adapter if adapter is not None else adapter_from_env()
-    answers = data.model_dump(exclude={"applicant_name", "application_id", "email", "vk_url", "birth_date"})
+    from backend.security import model_answers
+    answers = model_answers(data)
     answers.update(contact_available=bool(data.email.strip() or data.vk_url.strip()),
                    email_available=bool(data.email.strip()), vk_available=bool(data.vk_url.strip()))
     schema = evaluation_schema()
@@ -610,3 +611,24 @@ def evaluate(data: ApplicationInput | dict, *, mode: str | None = None,
         result = evaluate(data, mode="demo")
         result["evaluation_error"] = exc.code
         return result
+
+
+
+def evaluate(data, **kwargs):
+    """Attach provenance to the actual run; never retrofit legacy stored scores."""
+    import hashlib
+    import uuid
+    result = _evaluate(data, **kwargs)
+    mode = result.get("evaluation_mode", "unknown")
+    result["provenance"] = {
+        "evaluation_schema_version": "gim-evaluation-v2",
+        "score_rubric": result.get("score_rubric", "not_calibrated"),
+        "prompt_hash": hashlib.sha256(SYSTEM_PROMPT.encode()).hexdigest() if mode == "llm" else None,
+        "prompt_version": "gim-final-v2" if mode == "llm" else "rules-demo-v1",
+        "model": getattr(kwargs.get("adapter"), "model", None) or (os.getenv("GIM_LLM_MODEL", "configured_provider") if mode == "llm" else "rules_demo"),
+        "run_id": uuid.uuid4().hex,
+        "field_interpretation_version": "gim-fields-v1",
+        "temperature": 0 if mode == "llm" else None,
+        "score_status": result.get("score_status", "unknown"),
+    }
+    return result

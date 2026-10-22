@@ -54,3 +54,14 @@ def render_card(application_id: str, created_at: str, answers: dict, evaluation:
             "</p><details><summary>Полная анкета и проверяемые цитаты</summary><pre>" +
             text(json.dumps({"answers": answers, "evidence": e.get("evidence", [])}, ensure_ascii=False, indent=2)) +
             "</pre></details></article>")
+
+
+
+def stored_evaluation(raw):
+    """Annotate unversioned legacy records on read without changing their scores."""
+    import json
+    value = json.loads(raw)
+    if 'provenance' not in value:
+        value['provenance'] = {'evaluation_schema_version': 'legacy_unknown',
+                               'prompt_version': 'legacy_unknown', 'model': 'legacy_unknown'}
+    return value

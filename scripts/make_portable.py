@@ -15,7 +15,7 @@ FILES=(
     "CURATOR-REPORT.cmd",
     "portable-start.ps1",
     "start-reformboss.ps1",
-    "requirements.txt",
+    "requirements.txt", "docs/privacy-and-security.md", "docs/operations.md", "docs/gim-question-coverage.md",
     "README-ILYA.md",
     "backend/__init__.py",
     "backend/app.py",
@@ -23,7 +23,7 @@ FILES=(
     "backend/availability_policy.py",
     "backend/clarification_agent.py",
     "backend/google_sheets.py",
-    "backend/curator.py",
+    "backend/curator.py", "backend/security.py", "backend/candidate_feedback.py", "backend/eligibility.py", "backend/analytics.py", "frontend/admin.html",
     "frontend/index.html",
     "scripts/check_reformboss.py",
     "scripts/qa_four_live.py",
@@ -60,3 +60,4 @@ if __name__=="__main__":
     with zipfile.ZipFile(path) as archive:
         print("FILE COUNT:",len(archive.namelist()))
         print("ZIP VALID:",archive.testzip() is None)
+

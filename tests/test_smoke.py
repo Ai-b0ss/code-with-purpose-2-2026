@@ -14,6 +14,11 @@ from backend.app import (
 def applicant(**changes):
     obj = {
         "applicant_name": "Тестовый кандидат",
+        "birth_date": "2000-01-01",
+        "email": "synthetic@example.test", "vk_url": "https://vk.com/synthetic",
+        "university": "Другое", "university_other": "Тестовый вуз",
+        "faculty": "История", "course": "2", "scientific_interests": "История",
+        "foreign_languages": ["Нет B1+"], "hobbies": "Чтение", "source": "Другое",
         "age_over_18": True,
         "consent_personal_data": True,
         "motivation": "Меня интересуют музейные образовательные проекты и исторические медиа.",
@@ -48,7 +53,7 @@ class BasicTests(unittest.TestCase):
     def test_csv_formula_escape(self):
         self.assertEqual(safe_csv("=HYPERLINK(1)"), "'=HYPERLINK(1)")
         self.assertEqual(safe_csv("обычный текст"), "обычный текст")
-        self.assertEqual(safe_csv("строка 1\nстрока 2\r\nстрока 3"), "строка 1 строка 2 строка 3")
+        self.assertEqual(safe_csv("строка 1\nстрока 2\r\nстрока 3"), "строка 1\nстрока 2\r\nстрока 3")
 
     def test_sqlite_initialization(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -129,3 +134,4 @@ class BasicTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

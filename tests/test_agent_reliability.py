@@ -82,3 +82,31 @@ class AgentReliabilityTests(unittest.TestCase):
         never_called = FakeAdapter("invalid")
         self.assertEqual(questions_before_verdict(unknown, adapter=never_called)["questions"], [])
         self.assertFalse(never_called.calls)
+
+
+
+class ProvenanceTests(unittest.TestCase):
+    def test_run_versions_and_legacy_unknown_without_regrading(self):
+        from backend.curator import stored_evaluation
+        data = candidate()
+        result = evaluate(data, adapter=FakeAdapter(json.dumps(response(data))))
+        again = evaluate(data, adapter=FakeAdapter(json.dumps(response(data))))
+        self.assertEqual(result['provenance']['prompt_hash'], again['provenance']['prompt_hash'])
+        self.assertNotEqual(result['provenance']['run_id'], again['provenance']['run_id'])
+        self.assertEqual(result['score'],again['score'])
+        self.assertEqual(result['provenance']['evaluation_schema_version'],'gim-evaluation-v2')
+        old=stored_evaluation('{"score":0}')
+        self.assertEqual(old['score'],0)
+        self.assertEqual(old['provenance']['evaluation_schema_version'],'legacy_unknown')
+
+    def test_every_direction_demo_question_budget_and_no_repetition(self):
+        for direction in ('collections','project','organizational','media','inclusive','undecided'):
+            data = candidate().model_copy(update={'desired_direction':direction,'motivation':'Хочу помочь'})
+            first = questions_before_verdict(data,mode='demo')
+            self.assertLessEqual(len(first['questions']),2)
+            answered = data.model_copy(update={'followup_questions':first['questions'],
+                'followup_answers':{q['id']:'Пока не знаю' for q in first['questions']},'clarification_round':1})
+            second = questions_before_verdict(answered,mode='demo')
+            self.assertLessEqual(len(second['questions']),1)
+            self.assertFalse({q['id'] for q in first['questions']} & {q['id'] for q in second['questions']})
+            self.assertEqual(questions_before_verdict(answered.model_copy(update={'clarification_round':2}),mode='demo')['questions'],[])

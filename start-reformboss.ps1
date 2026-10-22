@@ -14,6 +14,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 Push-Location $PSScriptRoot
+$previousCoordinatorToken = $env:GIM_COORDINATOR_TOKEN
+$previousExternalPermission = $env:GIM_ALLOW_EXTERNAL_LLM
 try {
     Write-Host "GIM / ReformBoss live LLM"
     Write-Host "Model: $Model"
@@ -40,6 +42,12 @@ try {
     $env:GIM_LLM_ENDPOINT = "https://api.reformboss.com/v1/chat/completions"
     $env:GIM_LLM_MODEL = $Model
     $env:GIM_EVALUATION_MODE = "llm"
+    $env:GIM_ALLOW_EXTERNAL_LLM = "1"
+    if (-not $env:GIM_COORDINATOR_TOKEN) {
+        $env:GIM_COORDINATOR_TOKEN = python -c "import secrets; print(secrets.token_urlsafe(32))"
+        Write-Host "Coordinator key for this local session: $env:GIM_COORDINATOR_TOKEN"
+    }
+    Write-Host "Synthetic data only. External analysis enabled for this demonstration."
     $env:GIM_LLM_FALLBACK_TO_DEMO = "0"
     $env:GIM_LLM_TIMEOUT = [string]$TimeoutSeconds
     $env:GIM_LLM_JSON_MODE = if ($DisableJsonMode) { "0" } else { "1" }
@@ -84,6 +92,8 @@ try {
     if (Test-Path -LiteralPath (Join-Path $PSScriptRoot ".env")) { $serverEnvArgs = @("--env-file", ".env") }
     python -m uvicorn backend.app:app --host 127.0.0.1 --port $selectedPort @serverEnvArgs
 } finally {
+    if ($previousExternalPermission) { $env:GIM_ALLOW_EXTERNAL_LLM = $previousExternalPermission } else { Remove-Item Env:GIM_ALLOW_EXTERNAL_LLM -ErrorAction SilentlyContinue }
+    if ($previousCoordinatorToken) { $env:GIM_COORDINATOR_TOKEN = $previousCoordinatorToken } else { Remove-Item Env:GIM_COORDINATOR_TOKEN -ErrorAction SilentlyContinue }
     Remove-Item Env:GIM_LLM_API_KEY -ErrorAction SilentlyContinue
     Remove-Item Env:GIM_LLM_ENDPOINT -ErrorAction SilentlyContinue
     Remove-Item Env:GIM_LLM_MODEL -ErrorAction SilentlyContinue
@@ -93,3 +103,4 @@ try {
     Remove-Item Env:GIM_LLM_JSON_MODE -ErrorAction SilentlyContinue
     Pop-Location
 }
+

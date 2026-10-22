@@ -1,0 +1,29 @@
+# Проверка на подключённом Windows ПК
+
+22.10.2026, Windows WIN-2LK6007IEBP, PowerShell 5.1.19041.6456, Python 3.13, Microsoft Excel 16.0. Запуск через Windows Bridge в собственных процессах, без взаимодействия с окнами пользователя. Это проверка новой папки/venv на существующей ОС, а не новой установки Windows и не отдельного чистого ноутбука.
+
+Новый GIM_PRODUCT_LOCAL_DEMO_20261022.zip передан в уникальный каталог TEMP. SHA256 manifest каждого файла совпал. team-start.ps1 -Demo -Port 0 самостоятельно создал venv и установил зависимости, включая tzdata. Свежий Windows runtime: FastAPI 0.159.1/Pydantic 2.14.1, tzdata 2026.5. Никакие ключи реальных провайдеров не использовались. Исходные пользовательские репозитории/серверы не менялись.
+
+Результат:
+
+```
+WINDOWS_FRESH_KIT_MANIFEST_PASS
+WINDOWS_FIRST_RUN_HTTP_PASS
+WINDOWS_CLEAN_DIRECTORY_PASS fresh_venv=true launcher_demo=true clarification=true receipt=true coordinator_card=true csv=true restart=true duplicate=false total=1 external_ai_calls=0
+```
+
+Через реальный localhost HTTP: health rules_demo → уточнение → регистрация вымышленного кандидата → защищённая карточка → одиночный CSV. Остановлен только собственный Python сервер. Повторный запуск той же командой с той же базой: created=false и analytics.total=1. Созданные процессы сервера остановлены после проверки. Логи содержат синтетические данные и остаются только в тестовом TEMP, токен реальной модели не читался.
+
+CSV получен непосредственно из export_one приложения на изолированной SQLite: 43 заголовка и одна синтетическая анкета, experience=`История\nмузея; "тест" 🙂`, source начинается с пробела/таба/`=1+1`. В новом невидимом экземпляре Microsoft Excel выполнен Workbooks.Open исходного UTF-8 BOM CSV. Результат:
+
+```
+EXCEL=Microsoft Excel VERSION=16.0
+ROWS=2 COLUMNS=43
+EXCEL_CSV_PASS rows=2 columns=43 unicode=preserved multiline=preserved formula_executed=false
+```
+
+Сравнение строк Unicode выполнено программно, с нормализацией только CRLF/LF для сравнения. Исходные SQLite/CSV не менялись. Workbook закрыт без сохранения, Excel.Quit выполнен для созданного экземпляра. Код проверки для повторения — scripts/check_excel_csv.ps1. Это фактический COM-тест Excel, не заявление о ручной визуальной проверке в нём.
+
+Во время диагностики legacy Workbooks.OpenText разделял многострочный ответ на лишнюю строку. Этот старый путь импорта не считается поддержанным; обычный Workbooks.Open исходного CSV прошёл. Проверены конкретная версия и региональные настройки этого ПК; результат не переносится автоматически на все редакторы. Google Sheets RAW остаётся покрыт transport mocks, новый внешний Google smoke не запускался.
+
+#57 пока открыт: новый llm на Windows, реальные VK/Google и аварии внешних транспортов на этой версии не проверены. #31 пока открыт: автоматические проходы не являются 5–10 живыми пользователями. Не использовать этот протокол как разрешение публичного сбора реальных ПД.
