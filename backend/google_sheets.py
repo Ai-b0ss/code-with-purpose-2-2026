@@ -67,13 +67,13 @@ def _url(spreadsheet_id: str, gid: int, row_number: int) -> str:
 def write_row(application_id: str, values: list) -> str:
     """Find ID before every write, so a retry after an ambiguous timeout updates it."""
     spreadsheet_id = os.environ["GIM_GOOGLE_SPREADSHEET_ID"].strip()
-    title = os.getenv("GIM_GOOGLE_SHEET_NAME", "Заявки API")
+    title = os.getenv("GIM_GOOGLE_SHEET_NAME", "Заявки")
     root = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}"
     session = _client()
     if len(values) != len(HEADERS):
         raise SheetSyncError("sheet_values_mismatch")
     last = _column(len(HEADERS))
-    metadata = _json(session.get(root, params={"fields": "sheets(properties(sheetId,title,gridProperties(columnCount)))"}, timeout=30))
+    metadata = _json(session.get(root, params={"fields": "sheets(properties(sheetId,title,gridProperties(columnCount)),charts(chartId,spec(title)))"}, timeout=30))
     sheets = metadata.get("sheets", [])
     sheet = next((s["properties"] for s in sheets if s["properties"]["title"] == title), None)
     if sheet is None:
@@ -121,6 +121,8 @@ def write_row(application_id: str, values: list) -> str:
     _json(session.post(root + ":batchUpdate", json={"requests": [{"autoResizeDimensions": {
         "dimensions": {"sheetId": gid, "dimension": "COLUMNS", "startIndex": 0, "endIndex": len(HEADERS)}
     }}]}, timeout=30))
+    from backend.sheets_dashboard import ensure_dashboard
+    ensure_dashboard(session, root, title, sheets)
     return _url(spreadsheet_id, gid, row_number)
 
 
@@ -128,7 +130,7 @@ def write_row(application_id: str, values: list) -> str:
 def clear_application(application_id: str):
     """Clear every matching projection row; unknown prior append outcome is safe."""
     spreadsheet_id = os.environ['GIM_GOOGLE_SPREADSHEET_ID'].strip()
-    title = os.getenv('GIM_GOOGLE_SHEET_NAME', 'Заявки API')
+    title = os.getenv('GIM_GOOGLE_SHEET_NAME', 'Заявки')
     root = f'https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}'
     session = _client()
     ids = _json(session.get(root + '/values/' + _quoted(title) + '!A:A', timeout=30)).get('values', [])
