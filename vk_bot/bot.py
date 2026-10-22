@@ -537,7 +537,7 @@ class VolunteerBotFSM:
         self.session_ttl = session_ttl
         self.notifier = notifier
         self.sessions: dict[int, UserSession] = {}
-        self._last_processing_notice: dict[int, float] = {}
+        self._last_processing_notice: dict[tuple[int, str], float] = {}
         self.store = None
         if session_path:
             from vk_bot.session_store import SessionStore
@@ -547,19 +547,22 @@ class VolunteerBotFSM:
                 session = UserSession(**raw)
                 self.sessions[session.user_id] = session
 
-    def _notify_processing(self, user_id: int) -> None:
+    def _notify_processing(self, user_id: int, phase: str) -> None:
         # A notification is NOT proof of registration; it goes out before network I/O.
         now = time.monotonic()
-        if now - self._last_processing_notice.get(user_id, float("-inf")) < 12:
+        key = (user_id, phase)
+        if now - self._last_processing_notice.get(key, float("-inf")) < 12:
             return
-        self._last_processing_notice[user_id] = now
+        self._last_processing_notice[key] = now
         if self.notifier is not None:
             try:
-                self.notifier(
-                    user_id,
-                    "Проверяем ответы анкеты с помощью ИИ. Это может занять несколько минут. "
-                    "После завершения пришлём вопрос или подтверждение регистрации.",
+                message = (
+                    "ИИ проверяет, нужны ли уточняющие вопросы. Анкета пока не отправлена."
+                    if phase == "clarification" else
+                    "ИИ формирует итоговую оценку и сохраняет заявку. "
+                    "Не нажимайте повторно, пока не появится результат."
                 )
+                self.notifier(user_id, message)
             except Exception as exc:
                 logger.warning("Не удалось отправить статус обработки пользователю %s: %s", user_id, type(exc).__name__)
 
@@ -688,9 +691,13 @@ class VolunteerBotFSM:
             return self._fetch_clarifications_or_submit(session)
 
         elif session.state == DialogState.CHECK_RETRY:
+            if lower_text not in {"повторить", "повторить проверку"}:
+                return "Анкета пока не отправлена. Напишите «Повторить» для проверки уточнений.", VkKeyboards.empty()
             return self._fetch_clarifications_or_submit(session)
 
         elif session.state == DialogState.SUBMIT_RETRY:
+            if lower_text != "повторить отправку":
+                return "Ответы сохранены. Нажмите «Повторить отправку» для повторной попытки.", VkKeyboards.retry()
             return self._submit_final_application(session)
 
         elif session.state == DialogState.CLARIFICATION:
@@ -1117,7 +1124,7 @@ class VolunteerBotFSM:
         if session.clarification_round >= 2:
             return self._submit_final_application(session)
         payload = session.to_application_input()
-        self._notify_processing(session.user_id)
+        self._notify_processing(session.user_id, "clarification")
         try:
             res = self.api_client.get_clarifications(payload)
             session.clarification_round = res.get("round", session.clarification_round + 1)
@@ -1190,7 +1197,7 @@ class VolunteerBotFSM:
         payload = session.to_application_input()
         if self.store:
             self.store.save(session)
-        self._notify_processing(session.user_id)
+        self._notify_processing(session.user_id, "submission")
         try:
             res = self.api_client.submit_application(payload)
             app_id = res.get("application_id") or session.application_id
@@ -1208,10 +1215,32 @@ class VolunteerBotFSM:
             return msg, VkKeyboards.finished()
 
         except Exception as exc:
-            logger.error("submission_failed error_type=%s", type(exc).__name__)
+            detail = None
+            if isinstance(exc, requests.HTTPError) and exc.response is not None:
+                try:
+                    detail = exc.response.json().get("detail")
+                except (ValueError, AttributeError):
+                    pass
+            known_evaluator_codes = {
+                "evaluator_provider_timeout", "evaluator_provider_http_error",
+                "evaluator_provider_network_error", "evaluator_provider_dns_error",
+                "evaluator_provider_tls_error", "evaluator_provider_tls_certificate",
+                "evaluator_invalid_provider_response", "evaluator_incomplete_response",
+                "evaluator_invalid_model_json", "evaluator_invalid_configuration",
+                "evaluator_invalid_mode", "evaluator_response_too_large",
+            }
+            error_code = detail if isinstance(detail, str) and (
+                detail in known_evaluator_codes or re.fullmatch(r"evaluator_provider_http_[0-9]{3}", detail)
+            ) else "unknown"
+            logger.error("submission_failed stage=final code=%s error_type=%s", error_code, type(exc).__name__)
             session.state = DialogState.SUBMIT_RETRY
+            failure = (
+                "Не удалось завершить оценку ИИ."
+                if error_code != "unknown" else
+                "Не удалось отправить заявку."
+            )
             msg = (
-                "⚠️ Сервер музея временно недоступен, но ваши ответы сохранены в текущем диалоге.\n"
+                f"⚠️ {failure} Ответы сохранены, попробуйте кнопку «Повторить отправку».\n"
                 "Нажмите «Повторить отправку» — прежний номер заявки будет использован повторно. "
                 "Для начала заново используйте /reset."
             )
