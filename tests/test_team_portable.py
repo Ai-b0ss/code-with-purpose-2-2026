@@ -28,6 +28,7 @@ class TeamPackageTests(TestCase):
                 self.assertIn(b"preliminary_verdict", z.read(PREFIX+"backend/evaluator.py"))
                 self.assertIn(b"scorecard", z.read(PREFIX+"backend/evaluator.py"))
                 self.assertIn(b"pilot_unvalidated", z.read(PREFIX+"backend/evaluator.py"))
+                self.assertIn(b"class PerUserDispatcher", z.read(PREFIX+"vk_bot/dispatcher.py"))
 
     def test_launch_safe(self):
         entry=(ROOT/"team-start.ps1").read_text(encoding="utf-8-sig")
