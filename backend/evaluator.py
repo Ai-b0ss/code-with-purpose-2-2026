@@ -4,11 +4,13 @@ from __future__ import annotations
 import json
 import math
 import os
+import logging
+import time
 import ssl
 import socket
 import urllib.error
 import urllib.request
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Literal, Mapping, Protocol
 from urllib.parse import urlsplit
 
@@ -49,20 +51,21 @@ class CriterionRating(BaseModel):
 
 class Evaluation(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
-    score: None
-    score_status: Literal["not_calibrated"]
-    evaluation_mode: Literal["llm", "rules_demo"]
+    score: None = None
+    score_status: Literal["not_calibrated"] = "not_calibrated"
+    evaluation_mode: Literal["llm", "rules_demo"] = "llm"
     summary: str = Field(min_length=1, max_length=4000)
     strengths: list[str] = Field(max_length=12)
     possible_problems: list[str] = Field(max_length=12)
     recommended_direction: Direction
-    recommended_direction_label: str = Field(min_length=1)
+    recommended_direction_label: str = ""
     direction_reason: str = Field(min_length=1, max_length=4000)
     fit_for_museum: str = Field(min_length=1, max_length=4000)
     fit_for_candidate: str = Field(min_length=1, max_length=4000)
     # Legacy field retained for stored records; follow-up questions are asked
     # BEFORE the final evaluation via /api/v1/clarification.
-    interview_questions: list[str] = Field(max_length=12)
+    interview_questions: list[str] = Field(default_factory=list, max_length=12)
+    interview_focus: list[str] = Field(default_factory=list, max_length=2)
     preliminary_verdict: Literal[
         "suggest_interview", "manual_review", "not_recommended_for_interview",
         "insufficient_information"
@@ -168,6 +171,102 @@ score всегда null, score_status всегда not_calibrated: общий б
 сервер из scorecard; evaluation_mode всегда llm.
 Верни ровно один JSON-объект указанной схемы, без Markdown и текста вне JSON.
 """
+
+SYSTEM_PROMPT += """
+Уточнение строгого контракта:
+scorecard передавай ОБЪЕКТОМ с ровно пятью ключами motivation, skills,
+availability, form_and_contact, logistics. Внутри: level, rationale,
+evidence_question_ids. Не повторяй ключи и не добавляй criterion внутрь.
+Общий score, подпись направления и статусы вычисляет сервер — не выдавай их.
+Для цитаты из уточнения используй question_id followup_answers.<точный id>;
+reason — точная строка соответствующего ответа, без пересказа.
+При недостатке данных ставь level=null, а не 0. Пять записей обязательны.
+Одинаковые факты оценивай одинаково независимо от стиля, названия вуза,
+образования или характеристик, не относящихся к данному критерию.
+Для skills: 3 — конкретный релевантный пример задачи И действий кандидата;
+2 — применимые навыки или общий опыт без такого примера;
+1 — подтверждённый существенный риск выполнения задач;
+0 — прямой отказ учиться/выполнять инструкции или явное противоречие задачам;
+null — сведений о навыках недостаточно. Самоописание помечай как непроверенное,
+но не понижай за это уровень: все сведения этой анкеты являются самоописанием.
+Не требуй музейного опыта вместо релевантного опыта общения с посетителями.
+Для availability: конкретные свободные дни/часы и срок регулярного участия
+оцениваются по этим фактам; первый курс и работа сами по себе не доказывают
+конфликт. Риски сессии/работы укажи отдельно с учётом прямых исключений.
+Не переноси риск нагрузки в skills или motivation.
+В possible_problems включай только существенные риски конкретного кандидата
+для рекомендованной роли. Не перечисляй отсутствующие навыки чужих направлений
+или общие ограничения фондов для человека, который их не выбирал.
+Не называй никакие музейные смены типичными без переданных правил расписания.
+interview_focus — до двух коротких тем для КУРАТОРА на очном собеседовании:
+что проверить и почему, только оставшиеся риски, без повторения снятых уточнений.
+Это не новые вопросы кандидату в форме. Если проверять нечего — пустой список.
+Контакты скрыты: contact_available/email_available/vk_available — только признаки
+заполнения. При contact_available=true канал связи есть, не штрафуй за скрытый
+адрес и не требуй VK при доступной почте. Не требуй точную дату рождения при 18+.
+"""
+
+
+def evidence_sources(answers: dict) -> dict:
+    """Only the documented follow-up map is addressable, never arbitrary paths."""
+    sources = dict(answers)
+    followups = answers.get("followup_answers", {})
+    if isinstance(followups, dict):
+        for key, value in followups.items():
+            if isinstance(key, str) and isinstance(value, str):
+                sources["followup_answers." + key] = value
+    return sources
+
+
+def evaluation_schema() -> dict:
+    schema = Evaluation.model_json_schema()
+    for key in ("score", "score_status", "evaluation_mode", "recommended_direction_label", "interview_questions"):
+        schema["properties"].pop(key, None)
+        if key in schema.get("required", []):
+            schema["required"].remove(key)
+    rating = dict(schema["$defs"]["CriterionRating"])
+    rating["properties"] = {k: v for k, v in rating["properties"].items() if k != "criterion"}
+    rating["required"] = [k for k in rating["required"] if k != "criterion"]
+    schema["$defs"]["CriterionScore"] = rating
+    schema["properties"]["scorecard"] = {
+        "type": "object", "additionalProperties": False,
+        "required": list(CRITERION_IDS),
+        "properties": {k: {"$ref": "#/$defs/CriterionScore"} for k in CRITERION_IDS},
+    }
+    for key in ("scorecard", "preliminary_verdict", "verdict_comment", "interview_focus"):
+        if key not in schema["required"]:
+            schema["required"].append(key)
+    return schema
+
+
+def complete_validated(adapter, *, system: str, user: str, schema: dict, validate, stage: str) -> dict:
+    """One contract-repair attempt within the same transport time budget."""
+    started = time.monotonic()
+    request = user
+    for attempt in range(2):
+        current = adapter
+        if attempt and isinstance(adapter, ChatCompletionsAdapter):
+            remaining = adapter.timeout - (time.monotonic() - started)
+            if remaining < 1:
+                raise EvaluationError("provider_timeout")
+            current = replace(adapter, timeout=remaining)
+        raw = current.complete(system=system, user=request, schema=schema)
+        try:
+            result = validate(raw)
+            result["model_attempts"] = attempt + 1
+            return result
+        except EvaluationError as exc:
+            logging.getLogger(__name__).warning("model_contract stage=%s attempt=%s code=%s details=%s",
+                                               stage, attempt + 1, exc.code, exc.details)
+            if exc.code != "invalid_model_json" or attempt:
+                raise
+            payload = json.loads(user)
+            payload["contract_repair"] = {
+                "instruction": "Исправь только ошибки контракта. Не меняй факты и не придумывай оценки. Верни один объект по output_schema.",
+                "error_codes": list(exc.details), "previous_output": raw,
+            }
+            request = json.dumps(payload, ensure_ascii=False)
+    raise AssertionError("unreachable")
 
 
 class LLMAdapter(Protocol):
@@ -370,10 +469,18 @@ def validate_response(raw: str, answers: dict, *, allow_legacy: bool = False) ->
             if len(lines) >= 3 and lines[0].lower() in (ticks, ticks + "json") and lines[-1] == ticks:
                 text = "\n".join(lines[1:-1]).strip()
         decoded = json.loads(text, object_pairs_hook=_unique_object)
-        result = Evaluation.model_validate(_normalize_exact_evidence(decoded, answers))
+        if isinstance(decoded, dict) and isinstance(decoded.get("scorecard"), dict):
+            ratings = decoded["scorecard"]
+            if set(ratings) != set(CRITERION_IDS) or any(
+                not isinstance(v, dict) or "criterion" in v for v in ratings.values()
+            ):
+                raise EvaluationError("invalid_model_json", ("scorecard.groups_invalid",))
+            decoded["scorecard"] = [{"criterion": k, **ratings[k]} for k in CRITERION_IDS]
+        sources = evidence_sources(answers)
+        result = Evaluation.model_validate(_normalize_exact_evidence(decoded, sources))
         if result.evaluation_mode != "llm":
             raise EvaluationError("invalid_model_json", ("evaluation_mode_invalid",))
-        for name in ("strengths", "possible_problems", "interview_questions"):
+        for name in ("strengths", "possible_problems", "interview_questions", "interview_focus"):
             values = getattr(result, name)
             if any(not value.strip() or len(value) > 2000 for value in values):
                 raise EvaluationError("invalid_model_json", (f"{name}.blank_or_too_long",))
@@ -381,7 +488,7 @@ def validate_response(raw: str, answers: dict, *, allow_legacy: bool = False) ->
             if not getattr(result, name).strip():
                 raise EvaluationError("invalid_model_json", (f"{name}.blank",))
         for i, item in enumerate(result.evidence):
-            source = answers.get(item.question_id)
+            source = sources.get(item.question_id)
             if source is None:
                 raise EvaluationError("invalid_model_json", (f"evidence.{i}.source_absent",))
             if not item.reason.strip():
@@ -410,6 +517,13 @@ def validate_response(raw: str, answers: dict, *, allow_legacy: bool = False) ->
             output["score_raw"] = raw_mean
             output["score_rubric"] = RUBRIC_VERSION
             output["rated_criteria_count"] = graded_count
+            missing = [r.criterion for r in result.scorecard if r.level is None]
+            output["score_explanation"] = (
+                "Предварительный балл — округлённое среднее известных уровней пяти критериев; шкала не откалибрована."
+                if score is not None else
+                "Балл не рассчитан: нужны минимум три оценённых критерия, включая мотивацию и доступность. "
+                "Недостаточно сведений: " + ", ".join(missing) + ". Это не нулевая оценка кандидата."
+            )
         output["interview_questions"] = _prioritize_interview_questions(output["interview_questions"])
         output["recommended_direction_label"] = DIRECTIONS[result.recommended_direction]
         return output
@@ -479,17 +593,16 @@ def evaluate(data: ApplicationInput | dict, *, mode: str | None = None,
     if mode != "llm":
         raise EvaluationError("invalid_mode")
     adapter = adapter if adapter is not None else adapter_from_env()
-    answers = data.model_dump(exclude={"applicant_name", "application_id"})
-    schema = Evaluation.model_json_schema()
-    # Legacy fixtures accept omitted scorecards, but NEW model output must
-    # contain the five-group rubric. Make that explicit in the passed schema.
-    schema.setdefault("required", [])
-    for field_name in ("scorecard", "preliminary_verdict", "verdict_comment"):
-        if field_name not in schema["required"]:
-            schema["required"].append(field_name)
+    answers = data.model_dump(exclude={"applicant_name", "application_id", "email", "vk_url", "birth_date"})
+    answers.update(contact_available=bool(data.email.strip() or data.vk_url.strip()),
+                   email_available=bool(data.email.strip()), vk_available=bool(data.vk_url.strip()))
+    schema = evaluation_schema()
     user = json.dumps({"answers": answers, "output_schema": schema}, ensure_ascii=False)
     try:
-        result = validate_response(adapter.complete(system=SYSTEM_PROMPT, user=user, schema=schema), answers)
+        result = complete_validated(
+            adapter, system=SYSTEM_PROMPT, user=user, schema=schema,
+            validate=lambda raw: validate_response(raw, answers), stage="final",
+        )
         return _with_availability_risks(data, result)
     except EvaluationError as exc:
         if not fallback_to_demo:

@@ -585,6 +585,36 @@
       font-size: 12.5px;
       padding: 0;
     }
+    /* Status for both the optional clarification round and the final LLM call. */
+    .submit-loading {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-top: 18px;
+      padding: 14px 18px;
+      background: #fbf8f2;
+      border: 1px solid #ebdcc5;
+      border-radius: var(--radius);
+      color: var(--text);
+    }
+    .submit-loading[hidden] { display: none; }
+    .submit-loading-text { display: flex; flex-direction: column; gap: 3px; }
+    .submit-loading-text strong { color: var(--gim-red); font-size: 14px; }
+    .submit-loading-text span { color: var(--text-muted); font-size: 13px; }
+    .spinner {
+      width: 26px;
+      height: 26px;
+      border: 3px solid rgba(142, 24, 27, 0.2);
+      border-top-color: var(--gim-red);
+      border-radius: 50%;
+      animation: gim-submit-spin .85s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes gim-submit-spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) {
+      .spinner { animation: none; }
+    }
+
     .error-box {
       background: #fdf5f5;
       border: 1px solid #f2c2c2;
@@ -921,7 +951,7 @@
               <button type="button" class="preset-btn" data-hours="36">36+ ч / мес</button>
             </div>
           </div>
-          <div class="field-hint">Обычно участие в регулярных проектах музея требует от 8–12 часов в месяц.</div>
+          <div class="field-hint">Нагрузку и доступные смены согласуют с координатором; общего порога часов нет.</div>
         </div>
 
         <div class="field">
@@ -960,7 +990,7 @@
       <section class="step" data-step="3" hidden>
         <div class="step-header">
           <h2>4. Индивидуальные уточнения</h2>
-          <p>ИИ проверяет пять критериев по всей анкете. Если для предварительного заключения не хватает важной информации, он задаст вам до двух уточняющих вопросов прямо сейчас. Если всё ясно, дополнительных вопросов не будет.</p>
+          <p>ИИ проверяет пять критериев по всей анкете. При необходимости задаст до двух вопросов, а после ваших ответов — ещё один, если осталось важное противоречие. Всего не более трёх уточнений. Если всё ясно, вопросов не будет; можно ответить «Пока не знаю».</p>
         </div>
 
         <div id="clarificationsContainer">
@@ -982,6 +1012,13 @@
       </section>
 
       <div class="error-box" id="errorBox" role="alert" hidden></div>
+      <div class="submit-loading" id="submitLoading" hidden role="status" aria-live="polite">
+        <div class="spinner" aria-hidden="true"></div>
+        <div class="submit-loading-text">
+          <strong>ИИ анализирует ответы и формирует заключение…</strong>
+          <span>Обработка может занять несколько минут. Не отправляйте анкету повторно.</span>
+        </div>
+      </div>
 
       <!-- Action Buttons -->
       <div class="actions">
@@ -1069,6 +1106,7 @@
   let applicationId = null;
   let dynamicClarifications = [];
   let followupAnswers = {};
+  let clarificationRound = 0;
 
   const byId = id => document.getElementById(id);
 
@@ -1190,7 +1228,8 @@
       availability_days: getSelectedDays(),
       other_commitments: byId("other_commitments") ? byId("other_commitments").value.trim() : "",
       other_volunteer_programs: byId("other_volunteer_programs") ? byId("other_volunteer_programs").value.trim() : "",
-      followup_answer: combinedFollowup,
+      followup_answer: combinedFollowup.slice(0, 2000),
+      clarification_round: clarificationRound,
       followup_answers: followupAnswers,
       followup_questions: dynamicClarifications.map(q => ({
         id: q.id, category: q.category || "", question: q.question, reason: q.reason || ""
@@ -1342,6 +1381,7 @@
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
       const data = JSON.parse(raw);
+      if (typeof data.application_id === "string" && data.application_id.length <= 90) applicationId = data.application_id;
 
       if (data.applicant_name) byId("applicant_name").value = data.applicant_name;
       if (data.email) byId("email").value = data.email;
@@ -1412,8 +1452,12 @@
       if (data.other_volunteer_programs && byId("other_volunteer_programs")) byId("other_volunteer_programs").value = data.other_volunteer_programs;
 
       if (data.followup_answers) {
-        followupAnswers = data.followup_answers;
+        followupAnswers = (typeof data.followup_answers === "object" && !Array.isArray(data.followup_answers))
+          ? Object.fromEntries(Object.entries(data.followup_answers).filter(([, value]) => typeof value === "string")) : {};
       }
+      dynamicClarifications = Array.isArray(data.followup_questions)
+        ? data.followup_questions.filter(q => q && typeof q.id === "string" && typeof q.question === "string").slice(0, 3) : [];
+      clarificationRound = Math.max(0, Math.min(2, Number(data.clarification_round) || 0));
 
       draftInfo.hidden = false;
     } catch (_) {}
@@ -1421,10 +1465,13 @@
 
   clearDraftBtn.addEventListener("click", () => {
     localStorage.removeItem(STORAGE_KEY);
+    applicationId = null;
     form.reset();
     dayChips.forEach(c => c.classList.remove("active"));
     dirCards.forEach(c => c.classList.remove("selected"));
     followupAnswers = {};
+    dynamicClarifications = [];
+    clarificationRound = 0;
     draftInfo.hidden = true;
     currentStep = 0;
     renderStep();
@@ -1432,11 +1479,13 @@
 
   // Auto-save on form inputs
   function onFormEdited() {
+    applicationId = null;
     // An edit to the original questionnaire invalidates prior AI questions
     // and the old answers. We must re-assess the changed profile.
     if (currentStep < steps.length - 1) {
       dynamicClarifications = [];
       followupAnswers = {};
+      clarificationRound = 0;
     }
     saveDraft();
   }
@@ -1455,7 +1504,7 @@
       try {
         const err = await res.json();
         detail = err.detail ? (typeof err.detail === "string" ? err.detail : JSON.stringify(err.detail)) : detail;
-        if (detail === "evaluator_invalid_model_json") {
+        if (detail === "evaluator_invalid_model_json" || detail === "clarification_invalid_model_json") {
           detail = "Не удалось проверить ответ ИИ. Ваш черновик сохранён. Повторите отправку; если ошибка повторится, сообщите координатору код evaluator_invalid_model_json.";
         }
       } catch (_) {}
@@ -1475,15 +1524,18 @@
       // Stage 1: analyze ALL completed form answers by five criteria, BEFORE verdict.
       if (currentStep === 2) nextBtn.textContent = "ИИ изучает анкету...";
       // Transitioning to Step 4: request dynamic clarifications from API
-      if (currentStep === 2) {
+      if (currentStep === 2 && clarificationRound === 0) {
         const payload = buildPayload();
         const res = await api("/api/v1/clarification", payload);
         dynamicClarifications = res.questions || [];
+        clarificationRound = res.round || 1;
+        saveDraft();
         renderClarifications(dynamicClarifications);
 
         // No obsolete "one more question" when AI found no uncertainty.
         byId("legacyFallbackBlock").hidden = true;
       }
+      if (currentStep === 2) renderClarifications(dynamicClarifications);
 
       currentStep += 1;
       renderStep();
@@ -1505,15 +1557,38 @@
   // --- Form Submission ---
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
+    if (currentStep !== steps.length - 1) return;
     if (!validateStep(currentStep)) return;
 
+    // Keep the user on the same step until the entire two-stage process finishes.
+    // Disabling the back button prevents changing the payload during an in-flight request.
+    if (submitBtn.disabled) return;
     submitBtn.disabled = true;
+    prevBtn.disabled = true;
     const initialSubmitText = submitBtn.textContent;
+    const submitLoading = byId("submitLoading");
+    if (submitLoading) submitLoading.hidden = false;
+    errorBox.hidden = true;
     submitBtn.textContent = "ИИ формирует итоговое заключение...";
     try {
+      if (dynamicClarifications.length && clarificationRound < 2) {
+        submitBtn.textContent = "ИИ проверяет ответы на уточнения...";
+        const reviewed = await api("/api/v1/clarification", buildPayload());
+        clarificationRound = reviewed.round || 2;
+        const additional = reviewed.questions || [];
+        if (additional.length) {
+          dynamicClarifications = [...dynamicClarifications, ...additional].slice(0, 3);
+          renderClarifications(dynamicClarifications);
+          saveDraft();
+          return;
+        }
+        saveDraft();
+        submitBtn.textContent = "ИИ формирует итоговое заключение...";
+      }
       if (!applicationId) {
         applicationId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : "gim-" + Date.now();
       }
+      saveDraft();
 
       const payload = buildPayload();
       const res = await api("/api/v1/applications", payload);
@@ -1549,12 +1624,16 @@
     } finally {
       submitBtn.textContent = initialSubmitText;
       submitBtn.disabled = false;
+      prevBtn.disabled = false;
+      if (submitLoading) submitLoading.hidden = true;
     }
   });
 
   // --- Reset to fill another ---
   byId("resetBtn").addEventListener("click", () => {
     applicationId = null;
+    clarificationRound = 0;
+    dynamicClarifications = [];
     currentStep = 0;
     form.reset();
     dayChips.forEach(c => c.classList.remove("active"));

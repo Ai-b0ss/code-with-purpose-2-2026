@@ -12,6 +12,10 @@ HEADERS = [
     "Дни", "Другие обязательства", "Другие волонтерства", "Направление", "Источник",
     "Дополнительный ответ", "Оценка 0-3", "Саммари", "Возможные проблемы",
     "Рекомендуемое направление", "Почему направление", "Вопросы для собеседования",
+    "Предварительный вердикт", "Комментарий к вердикту",
+    "Мотивация 0-3", "Навыки 0-3", "Доступность 0-3", "Анкета и связь 0-3", "Логистика 0-3",
+    "Уточнения: вопросы и ответы", "Оценки критериев с обоснованием",
+    "Статус оценки", "Пояснение оценки",
 ]
 SCOPE = ["https://www.googleapis.com/auth/spreadsheets"]
 
@@ -66,7 +70,10 @@ def write_row(application_id: str, values: list) -> str:
     title = os.getenv("GIM_GOOGLE_SHEET_NAME", "Заявки API")
     root = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}"
     session = _client()
-    metadata = _json(session.get(root, params={"fields": "sheets(properties(sheetId,title))"}, timeout=30))
+    if len(values) != len(HEADERS):
+        raise SheetSyncError("sheet_values_mismatch")
+    last = _column(len(HEADERS))
+    metadata = _json(session.get(root, params={"fields": "sheets(properties(sheetId,title,gridProperties(columnCount)))"}, timeout=30))
     sheets = metadata.get("sheets", [])
     sheet = next((s["properties"] for s in sheets if s["properties"]["title"] == title), None)
     if sheet is None:
@@ -75,23 +82,32 @@ def write_row(application_id: str, values: list) -> str:
         ]}, timeout=30))
         sheet = created["replies"][0]["addSheet"]["properties"]
     gid = sheet["sheetId"]
+    if sheet.get("gridProperties", {}).get("columnCount", len(HEADERS)) < len(HEADERS):
+        _json(session.post(root + ":batchUpdate", json={"requests": [{"updateSheetProperties": {
+            "properties": {"sheetId": gid, "gridProperties": {"columnCount": len(HEADERS)}},
+            "fields": "gridProperties.columnCount",
+        }}]}, timeout=30))
     range_name = _quoted(title) + "!A:A"
     ids = _json(session.get(root + "/values/" + range_name, timeout=30)).get("values", [])
-    if not ids:
-        _json(session.put(root + "/values/" + _quoted(title) + "!A1:AF1",
-                          params={"valueInputOption": "RAW"}, json={"values": [HEADERS]}, timeout=30))
-        ids = [[HEADERS[0]]]
-    if ids[0] != [HEADERS[0]]:
+    if ids and ids[0] != [HEADERS[0]]:
         raise SheetSyncError("sheet_header_mismatch")
+    existing_header = (_json(session.get(root + "/values/" + _quoted(title) + f"!A1:{last}1", timeout=30)).get("values") or [[]])[0]
+    if existing_header and existing_header != HEADERS[:len(existing_header)]:
+        raise SheetSyncError("sheet_header_mismatch")
+    if existing_header != HEADERS:
+        _json(session.put(root + "/values/" + _quoted(title) + f"!A1:{last}1",
+                          params={"valueInputOption": "RAW"}, json={"values": [HEADERS]}, timeout=30))
+    if not ids:
+        ids = [[HEADERS[0]]]
     matches = [i + 1 for i, cells in enumerate(ids) if cells and cells[0] == application_id]
     if len(matches) > 1:
         raise SheetSyncError("duplicate_id_in_sheet")
     if matches:
         row_number = matches[0]
-        _json(session.put(root + "/values/" + _quoted(title) + f"!A{row_number}:AF{row_number}",
+        _json(session.put(root + "/values/" + _quoted(title) + f"!A{row_number}:{last}{row_number}",
                           params={"valueInputOption": "RAW"}, json={"values": [values]}, timeout=30))
     else:
-        result = _json(session.post(root + "/values/" + _quoted(title) + "!A:AF:append",
+        result = _json(session.post(root + "/values/" + _quoted(title) + f"!A:{last}:append",
                                     params={"valueInputOption": "RAW", "insertDataOption": "INSERT_ROWS"},
                                     json={"values": [values]}, timeout=30))
         updated = result.get("updates", {}).get("updatedRange", "")
