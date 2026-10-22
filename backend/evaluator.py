@@ -263,7 +263,9 @@ def complete_validated(adapter, *, system: str, user: str, schema: dict, validat
             payload = json.loads(user)
             payload["contract_repair"] = {
                 "instruction": "Исправь только ошибки контракта. Не меняй факты и не придумывай оценки. Верни один объект по output_schema.",
-                "error_codes": list(exc.details), "previous_output": raw,
+                # Never echo the untrusted raw model answer into another HTTP call:
+                # it may contain PII despite the original model-input allowlist.
+                "error_codes": list(exc.details),
             }
             request = json.dumps(payload, ensure_ascii=False)
     raise AssertionError("unreachable")
@@ -675,7 +677,11 @@ def evaluate(data, **kwargs):
         "score_rubric": result.get("score_rubric", "not_calibrated"),
         "prompt_hash": hashlib.sha256(SYSTEM_PROMPT.encode()).hexdigest() if mode == "llm" else None,
         "prompt_version": "gim-final-v2" if mode == "llm" else "rules-demo-v1",
-        "model": getattr(kwargs.get("adapter"), "model", None) or (os.getenv("GIM_LLM_MODEL", "configured_provider") if mode == "llm" else "rules_demo"),
+        # A rules_demo result (explicit demo or visible fallback) never ran the
+        # adapter's model, so it must not be labelled with it.
+        "model": ((getattr(kwargs.get("adapter"), "model", None)
+                   or os.getenv("GIM_LLM_MODEL", "configured_provider"))
+                  if mode == "llm" else "rules_demo"),
         "run_id": uuid.uuid4().hex,
         "field_interpretation_version": "gim-fields-v1",
         "temperature": 0 if mode == "llm" else None,

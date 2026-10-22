@@ -32,6 +32,9 @@ def model_answers(data):
                 value = re.sub(re.escape(identity), '[скрыто]', value, flags=re.I)
         value = re.sub(r'[\w.+-]+@[\w.-]+\.[\w-]+', '[email скрыт]', value)
         value = re.sub(r'https?://\S+|(?:vk\.com|t\.me)/\S+', '[ссылка скрыта]', value)
+        # Mask application identifiers pasted into free-text, not just structured fields.
+        value = re.sub(r'(?i)(?<!\w)(?:application[_ -]?id|id[ _-]*заявк[иа])'
+                       r'\s*[:=#]?\s*[\w-]{6,}', '[id заявки скрыт]', value)
         value = re.sub(r'(?<!\w)\+?\d[\d ()-]{8,}\d(?!\w)', '[номер скрыт]', value)
         return value
     answers = clean(data.model_dump(include=MODEL_FIELDS))
