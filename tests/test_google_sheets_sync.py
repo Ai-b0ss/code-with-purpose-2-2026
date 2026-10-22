@@ -8,7 +8,7 @@ from threading import Event
 from unittest.mock import patch
 
 from backend.app import db_connection, retry_sheet_sync, save_application
-from backend.google_sheets import SheetSyncError, write_row
+from backend.google_sheets import SheetSyncError, write_row, HEADERS
 from test_application_routing import candidate
 
 
@@ -76,6 +76,8 @@ class SyncTests(unittest.TestCase):
                 self.calls.append(("GET", url, kwargs))
                 if url.endswith("/values/'Заявки API'!A:A"):
                     return Response({"values": [["ID заявки"], ["synthetic-sync-1"]]})
+                if "/values/" in url:
+                    return Response({"values": [HEADERS]})
                 return Response({"sheets": [{"properties": {"sheetId": 7, "title": "Заявки API"}}]})
             def put(self, url, **kwargs):
                 self.calls.append(("PUT", url, kwargs))
@@ -87,11 +89,11 @@ class SyncTests(unittest.TestCase):
         session = Session()
         with patch.dict(os.environ, {"GIM_GOOGLE_SPREADSHEET_ID": "test-sheet"}), \
              patch("backend.google_sheets._client", return_value=session):
-            result = write_row("synthetic-sync-1", ["synthetic-sync-1"] + [""] * 31)
+            result = write_row("synthetic-sync-1", ["synthetic-sync-1"] + [""] * 42)
         self.assertEqual(result, "https://docs.google.com/spreadsheets/d/test-sheet/edit#gid=7&range=A2")
-        self.assertEqual([method for method, _, _ in session.calls], ["GET", "GET", "PUT", "POST"])
+        self.assertEqual([method for method, _, _ in session.calls], ["GET", "GET", "GET", "PUT", "POST"])
         resize = session.calls[-1][2]["json"]["requests"][0]["autoResizeDimensions"]["dimensions"]
-        self.assertEqual(resize["endIndex"], 32)
+        self.assertEqual(resize["endIndex"], 43)
 
 
 if __name__ == "__main__":

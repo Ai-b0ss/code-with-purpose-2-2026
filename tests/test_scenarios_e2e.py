@@ -226,7 +226,7 @@ class ScenariosVerificationTests(unittest.TestCase):
         self.assertIn("Дата рождения", columns)
         self.assertIn("Научные интересы", columns)
         self.assertIn("Хобби", columns)
-        self.assertEqual(len(columns), 32)
+        self.assertEqual(len(columns), 43)
 
 
 if __name__ == "__main__":
