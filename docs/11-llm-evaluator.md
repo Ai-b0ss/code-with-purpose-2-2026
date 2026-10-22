@@ -36,13 +36,13 @@ LLM-интервью: системный промпт просит выбрат�
 
 ## Выход
 
-JSON со следующими полями: `score: null`, `score_status: not_calibrated`, `evaluation_mode` (llm/rules_demo), `summary`, `strengths`, `possible_problems`, `recommended_direction`, `recommended_direction_label`, `direction_reason`, `fit_for_museum`, `fit_for_candidate`, `interview_questions` и `evidence`. Вызовы LLM проверяются по схеме Pydantic и дословным цитатам из переданных ответов. Текстовые ошибки провайдера не возвращаются пользователю в необработанном виде.
+JSON со следующими полями: `score` (0–3 либо `null` при недостатке данных), `score_status` (`pilot_unvalidated` либо `insufficient_evidence`), `evaluation_mode` (llm/rules_demo), `summary`, `strengths`, `possible_problems`, `recommended_direction`, `recommended_direction_label`, `direction_reason`, `fit_for_museum`, `fit_for_candidate`, `interview_questions`, `scorecard` и `evidence`. Вызовы LLM проверяются по схеме Pydantic и дословным цитатам из переданных ответов. Текстовые ошибки провайдера не возвращаются пользователю в необработанном виде.
 
 ### Продуктовое правило ГИМ по нагрузке
 
 **Первый курс бакалавриата, полная ставка и несколько параллельных волонтёрских проектов — отрицательные предварительные сигналы** по регулярности и риску недолгого участия. Логика `backend/availability_policy.py` добавляет их в `possible_problems` и `fit_for_museum` даже когда LLM недостаточно явно их выделила.
 
-При конкретных стабильных свободных часах/днях возможно **индивидуальное исключение**. Никаких жёстких автоматических отказов по статусу и выдуманных числовых штрафов; решение остаётся за куратором. Пока шкала 0–3 не откалибрована, `score` — `null`.
+При конкретных стабильных свободных часах/днях возможно **индивидуальное исключение**. Никаких жёстких автоматических отказов по статусу; решение остаётся за куратором. Шкала 0–3 остаётся пилотной и не откалибрована на исторической выборке.
 
 [Технический запуск](10-first-run.md) · [Ответы музея](06-gim-stakeholder-answers.md) · [Проверка](12-acceptance-20261021.md).
 
@@ -53,7 +53,7 @@ JSON со следующими полями: `score: null`, `score_status: not_c
 
 - **Base URL**: `https://api.reformboss.com/v1`
 - **Полный endpoint**: `https://api.reformboss.com/v1/chat/completions`
-- **Первый кандидат**: `deepseek-v4.1-flash` (**проверенный ID из авторизованного GET /v1/models в ReformBoss**; не путать с прежним неподтверждённым `deepseek-v4.1-flash-1017`)
+- **Первый кандидат**: `deepseek-v4.1-flash` (проверенный ID из авторизованного GET /v1/models в ReformBoss; вариант `deepseek-v4.1-flash-1017` также есть в каталоге, но launcher закрепляет основной ID).
 - Для сравнения: `deepseek-v4-flash`, `deepseek-v4-pro`.
 
 В PowerShell из корня клонированного репозитория:
