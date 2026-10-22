@@ -48,7 +48,7 @@ try {
     }
     Write-Host "Key will be typed in console, visible, and kept only in this process environment."
     Write-Host "No model probe is run on startup; first submit performs the live call."
-    & "$PSScriptRoot\start-reformboss.ps1" -SkipProbe -Port 8876 -TimeoutSeconds 180
+    & "$PSScriptRoot\start-reformboss.ps1" -SkipProbe -Port $Port -TimeoutSeconds 180
     if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "ReformBoss launcher failed with code $LASTEXITCODE" }
 } finally {
     $env:Path = $oldPath
