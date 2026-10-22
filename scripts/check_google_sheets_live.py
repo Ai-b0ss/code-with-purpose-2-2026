@@ -12,7 +12,7 @@ import uuid
 import argparse
 from pathlib import Path
 
-from backend.app import ApplicationInput, db_connection, retry_sheet_sync, save_application
+from backend.app import ApplicationInput, db_connection, get_application, retry_sheet_sync, save_application
 
 
 def main() -> int:
@@ -31,6 +31,12 @@ def main() -> int:
         candidate = ApplicationInput(
             application_id=application_id,
             applicant_name="Тестовый кандидат (вымышленный)",
+            birth_date="2000-01-01",
+            email="synthetic@example.test", vk_url="https://vk.com/synthetic",
+            university="Не учусь", faculty="Не учусь", course="Не учусь",
+            scientific_interests="История", foreign_languages=["Нет B1+"],
+            hobbies="Чтение", source="Синтетическая проверка",
+            experience="Нет опыта", expectations="Помогать музею без оплаты",
             age_over_18=True,
             consent_personal_data=True,
             motivation="Это синтетическая тестовая заявка для проверки записи в Google Sheets API.",
@@ -39,7 +45,8 @@ def main() -> int:
         )
         if args.exercise_failure:
             os.environ["GIM_GOOGLE_SPREADSHEET_ID"] = "invalid-sheet-for-synthetic-retry"
-        first = save_application(candidate)
+        save_application(candidate)
+        first = get_application(application_id)
         os.environ["GIM_GOOGLE_SPREADSHEET_ID"] = real_spreadsheet_id
         if first["sheet_sync"]["status"] == "failed":
             print(f"Initial Google status: {first['sheet_sync']['error']}")

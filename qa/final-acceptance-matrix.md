@@ -40,7 +40,9 @@
 | T34 | Unicode/переносы/формулы | PASS | Roundtrip/download и Microsoft Excel 16.0 Open: 2 записи, 43 поля, Unicode/переносы, HasFormula=false | qa/windows-excel-acceptance-20261022.md |
 | T35 | 112 строк | PASS | 33+24+55, 3 листа, хеши | qa/historical-import-summary.json |
 | T36 | пропуск приёма не отказ | PASS | 67 unknown сохранены, 27 нулей балла сохранены | test_historical_import.py |
-| T37 | аварийные состояния | BLOCKED | Concurrency/retry/deletion/restart unit PASS; полный live chaos не выполнен | #57 |
-| T38 | чистый Windows старт | BLOCKED | Свежая папка/venv на Windows, demo HTTP/restart PASS; отдельная чистая ОС и llm/live транспорт не выполнены | #57; qa/windows-excel-acceptance-20261022.md |
+| T37 | аварийные состояния | BLOCKED | Реальный HTTP-стенд Linux/Windows: ошибки/kill/restart PASS; browser lost receipt без дубля PASS; настоящий Sheets/VK не проверен | qa/autonomous-checks-20261022.md; #57 |
+| T38 | чистый Windows старт | BLOCKED | Свежая папка/venv demo ранее PASS; новый Windows recovery и TLS preflight PASS; отдельная чистая ОС и авторизованные внешние API не выполнены | #57; qa/autonomous-checks-20261022.md |
 | T39 | конфиденциальность | BLOCKED | Auth/receipt/LLM boundary/deletion negative tests PASS; внешние копии/основания не приняты | #28 |
 | T40 | точность holdout | BLOCKED | Метрики/split/baselines реализованы; нет реальных predictions | #55 |
+
+Дополнительный автономный прогон после PR #58: [протокол](autonomous-checks-20261022.md). Ошибки ID/графика в web и TLS Windows исправлены; новый авторизованный прогон внешних сервисов заблокирован отсутствием настроек.
