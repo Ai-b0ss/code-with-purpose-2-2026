@@ -14,7 +14,7 @@ FILES = (
     "backend/availability_policy.py", "backend/clarification_agent.py",
     "backend/google_sheets.py", "backend/curator.py", "frontend/index.html",
     "vk_bot/__init__.py", "vk_bot/bot.py", "run_vk_bot.bat", "requirements-vk.txt",
-    "scripts/check_reformboss.py", "scripts/qa_four_live.py",
+    "scripts/check_reformboss.py", "scripts/check_google_sheets_live.py", "scripts/qa_four_live.py",
     "scripts/qa_agent_live.py",
     "scripts/local_curator_report.py", "qa/four_cases.json",
     "docs/04-gim-requirements.md", "docs/06-gim-stakeholder-answers.md",
@@ -23,6 +23,7 @@ FILES = (
     "docs/20-gim-scoring-pilot-20261022.md",
     "docs/21-ai-clarification-before-verdict-20261022.md",
     "docs/23-agent-contract-and-vk-fix-20261022.md",
+    "docs/24-google-sheets-llm-vk-20261022.md",
 )
 FORBIDDEN = {".git", ".venv", ".env", "data", "reports", "secret", "credentials"}
 
