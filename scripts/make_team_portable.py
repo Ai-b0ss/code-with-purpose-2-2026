@@ -19,6 +19,8 @@ FILES = (
     "scripts/qa_agent_live.py",
     "qa/autonomous-checks-20261022.md", "qa/autonomous-source-sha256.txt",
     "tests/real_http_recovery.py", "tests/test_smoke.py", "tests/test_evaluator.py",
+    "tests/fixtures/evaluator/CAND-01-native-evidence.json",
+    "tests/fixtures/evaluator/CAND-06-native-evidence.json",
     "scripts/local_curator_report.py", "qa/four_cases.json",
     "docs/04-gim-requirements.md", "docs/06-gim-stakeholder-answers.md",
     "docs/09-delivery-roadmap.md", "docs/18-criteria-source-audit-20261021.md",
@@ -55,4 +57,3 @@ if __name__ == "__main__":
     print("ZIP=", p)
     print("SHA256=", hashlib.sha256(p.read_bytes()).hexdigest())
     with zipfile.ZipFile(p) as z: print("FILES=", len(z.namelist()), "ZIP_OK=", z.testzip() is None)
-
