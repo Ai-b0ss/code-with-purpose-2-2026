@@ -288,13 +288,16 @@ class ChatCompletionsAdapter:
     api_key: str = field(default="", repr=False)
     timeout: float = 30.0
     json_mode: bool = True
+    stream: bool = False
+    max_tokens: int | None = None
 
     def __post_init__(self):
         parsed = urlsplit(self.endpoint)
         if (parsed.scheme not in {"http", "https"} or not parsed.hostname
                 or parsed.username or parsed.password or parsed.query or parsed.fragment
                 or not self.model.strip() or not math.isfinite(self.timeout)
-                or not 0 < self.timeout <= 300):
+                or not 0 < self.timeout <= 300
+                or (self.max_tokens is not None and not 1 <= self.max_tokens <= 16384)):
             raise EvaluationError("invalid_configuration")
 
     def complete(self, *, system: str, user: str, schema: dict) -> str:
@@ -306,6 +309,10 @@ class ChatCompletionsAdapter:
         }
         if self.json_mode:
             body["response_format"] = {"type": "json_object"}
+        if self.stream:
+            body["stream"] = True
+        if self.max_tokens is not None:
+            body["max_tokens"] = self.max_tokens
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
@@ -317,6 +324,8 @@ class ChatCompletionsAdapter:
             # Refuse redirects so a key/answers cannot be forwarded to another host.
             opener = urllib.request.build_opener(_NoRedirect())
             with opener.open(request, timeout=self.timeout) as response:
+                if self.stream:
+                    return self._read_stream(response)
                 raw = response.read(1_000_001)
             if len(raw) > 1_000_000:
                 raise EvaluationError("response_too_large")
@@ -333,7 +342,8 @@ class ChatCompletionsAdapter:
             # rate limits and unsupported JSON modes are not masked as downtime.
             # Never display provider response bodies, URLs, headers or tokens.
             status = exc.code
-            if status in {400, 401, 403, 404, 405, 408, 409, 413, 422, 429, 500, 502, 503, 504}:
+            if status in {400, 401, 402, 403, 404, 405, 406, 408, 409, 413, 422, 429,
+                          451, 500, 502, 503, 504, 520, 521, 522, 523, 524, 530}:
                 raise EvaluationError(f"provider_http_{status}") from None
             raise EvaluationError("provider_http_error") from None
         except urllib.error.URLError as exc:
@@ -353,6 +363,44 @@ class ChatCompletionsAdapter:
             raise EvaluationError("provider_network_error") from None
         except (ValueError, KeyError, IndexError, TypeError, AttributeError):
             raise EvaluationError("invalid_provider_response") from None
+
+    @staticmethod
+    def _read_stream(response) -> str:
+        """Assemble OpenAI-compatible SSE without retaining reasoning or raw frames."""
+        parts: list[str] = []
+        total_bytes = 0
+        content_size = 0
+        finish_reason = None
+        for line in response:
+            total_bytes += len(line)
+            if total_bytes > 1_000_000:
+                raise EvaluationError("response_too_large")
+            if not line.startswith(b"data:"):
+                continue
+            payload = line[5:].strip()
+            if payload == b"[DONE]":
+                break
+            if not payload:
+                continue
+            frame = json.loads(payload)
+            # Some compatible APIs append a usage frame with choices=[].
+            choices = frame["choices"]
+            if choices == []:
+                continue
+            choice = choices[0]
+            delta = choice.get("delta") or {}
+            piece = delta.get("content")
+            if piece is not None:
+                if not isinstance(piece, str):
+                    raise EvaluationError("invalid_provider_response")
+                parts.append(piece)
+                content_size += len(piece)
+                if content_size > 100_000:
+                    raise EvaluationError("response_too_large")
+            finish_reason = choice.get("finish_reason") or finish_reason
+        if finish_reason != "stop":
+            raise EvaluationError("incomplete_response")
+        return "".join(parts)
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -550,6 +598,8 @@ def adapter_from_env(env: Mapping[str, str] | None = None) -> ChatCompletionsAda
             api_key=env.get("GIM_LLM_API_KEY", ""),
             timeout=float(env.get("GIM_LLM_TIMEOUT", "30")),
             json_mode=env.get("GIM_LLM_JSON_MODE", "1") == "1",
+            stream=env.get("GIM_LLM_STREAM", "0") == "1",
+            max_tokens=int(env["GIM_LLM_MAX_TOKENS"]) if env.get("GIM_LLM_MAX_TOKENS") else None,
         )
     except (KeyError, ValueError):
         raise EvaluationError("invalid_configuration") from None

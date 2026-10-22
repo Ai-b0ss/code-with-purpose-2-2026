@@ -1,13 +1,13 @@
 # ReformBoss OpenAI-compatible LLM for GIM. Nothing is saved to disk.
 # Default: DeepSeek V4.1 Flash, as returned by authenticated /v1/models.
 param(
-    [ValidateSet("deepseek-v4.1-flash", "glm-5.3", "kimi-k3")]
+    [ValidateSet("deepseek-v4-flash", "deepseek-v4-pro", "deepseek-v4.1-flash")]
     [string]$Model = "deepseek-v4.1-flash",
     [switch]$Compare,
     [switch]$DisableJsonMode,
     [switch]$SkipProbe,
     [ValidateRange(1, 300)]
-    [int]$TimeoutSeconds = 180,
+    [int]$TimeoutSeconds = 300,
     [ValidateRange(1024, 65535)]
     [int]$Port = 8765
 )
@@ -21,7 +21,7 @@ try {
     Write-Host "GIM / ReformBoss live LLM"
     Write-Host "Model: $Model"
     Write-Host "Endpoint: https://api.reformboss.com/v1/chat/completions"
-    Write-Host "Key will be VISIBLE while typing. Do not share a screenshot or terminal recording."
+    Write-Host "Using a key from the current process or local .env when available."
 
     # Use the maintained CA bundle when no operator override is configured.
     # Some Windows root stores contain an expired alternate chain. Certificate
@@ -40,11 +40,13 @@ try {
         return
     }
 
-    # Plain Read-Host intentionally avoids SecureString conversion because the
-    # same key successfully authenticated via direct Invoke-RestMethod.
-    # The value appears on screen while typing; it is NOT persisted to a file.
-    # The variable is cleared when this PowerShell process exits.
-    $env:GIM_LLM_API_KEY = (Read-Host "Enter ReformBoss API key (VISIBLE)").Trim()
+    if (-not $env:GIM_LLM_API_KEY -and (Test-Path -LiteralPath (Join-Path $PSScriptRoot ".env"))) {
+        $env:GIM_LLM_API_KEY = (& python -c "from dotenv import dotenv_values; print(dotenv_values('.env').get('GIM_LLM_API_KEY', ''))").Trim()
+    }
+    if (-not $env:GIM_LLM_API_KEY) {
+        Write-Host "Key will be visible while typing. Do not share a screenshot or terminal recording."
+        $env:GIM_LLM_API_KEY = (Read-Host "Enter ReformBoss API key (VISIBLE)").Trim()
+    }
     if ([string]::IsNullOrWhiteSpace($env:GIM_LLM_API_KEY)) {
         throw "No key provided."
     }
@@ -61,6 +63,9 @@ try {
     $env:GIM_LLM_FALLBACK_TO_DEMO = "0"
     $env:GIM_LLM_TIMEOUT = [string]$TimeoutSeconds
     $env:GIM_LLM_JSON_MODE = if ($DisableJsonMode) { "0" } else { "1" }
+    # Streaming keeps a long evaluation alive through the provider's edge proxy.
+    $env:GIM_LLM_STREAM = "1"
+    $env:GIM_LLM_MAX_TOKENS = "4096"
 
     if (-not $SkipProbe) {
         Write-Host "Checking actual model response with synthetic candidate..."
@@ -112,6 +117,8 @@ try {
     Remove-Item Env:GIM_LLM_FALLBACK_TO_DEMO -ErrorAction SilentlyContinue
     Remove-Item Env:GIM_LLM_TIMEOUT -ErrorAction SilentlyContinue
     Remove-Item Env:GIM_LLM_JSON_MODE -ErrorAction SilentlyContinue
+    Remove-Item Env:GIM_LLM_STREAM -ErrorAction SilentlyContinue
+    Remove-Item Env:GIM_LLM_MAX_TOKENS -ErrorAction SilentlyContinue
     Pop-Location
 }
 
