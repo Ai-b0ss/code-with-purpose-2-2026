@@ -17,6 +17,8 @@ FILES = (
     "vk_bot/__init__.py", "vk_bot/session_store.py", "vk_bot/bot.py", "run_vk_bot.bat", "requirements-vk.txt",
     "scripts/check_reformboss.py", "scripts/check_google_sheets_live.py", "scripts/qa_four_live.py",
     "scripts/qa_agent_live.py",
+    "qa/autonomous-checks-20261022.md", "qa/autonomous-source-sha256.txt",
+    "tests/real_http_recovery.py", "tests/test_smoke.py", "tests/test_evaluator.py",
     "scripts/local_curator_report.py", "qa/four_cases.json",
     "docs/04-gim-requirements.md", "docs/06-gim-stakeholder-answers.md",
     "docs/09-delivery-roadmap.md", "docs/18-criteria-source-audit-20261021.md",
