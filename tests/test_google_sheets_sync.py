@@ -96,6 +96,40 @@ class SyncTests(unittest.TestCase):
         resize = session.calls[-1][2]["json"]["requests"][0]["autoResizeDimensions"]["dimensions"]
         self.assertEqual(resize["endIndex"], 43)
 
+    def test_new_google_row_reserves_column_a_before_filling(self):
+        class Response:
+            ok = True
+            def __init__(self, data): self.data = data
+            def json(self): return self.data
+
+        class Session:
+            def __init__(self): self.calls = []
+            def get(self, url, **kwargs):
+                if url.endswith("!A:A"):
+                    return Response({"values": [[HEADERS[0]]]})
+                if "/values/" in url:
+                    return Response({"values": [HEADERS]})
+                return Response({"sheets": [{"properties": {"sheetId": 7, "title": "Заявки API"}}]})
+            def post(self, url, **kwargs):
+                self.calls.append(("POST", url, kwargs))
+                if url.endswith("!A:A:append"):
+                    return Response({"updates": {"updatedRange": "'Заявки API'!A2:A2"}})
+                return Response({})
+            def put(self, url, **kwargs):
+                self.calls.append(("PUT", url, kwargs))
+                return Response({})
+
+        session = Session()
+        values = ["synthetic-sync-new"] + [""] * 42
+        with patch.dict(os.environ, {"GIM_GOOGLE_SPREADSHEET_ID": "test-sheet"}), \
+             patch("backend.google_sheets._client", return_value=session):
+            result = write_row(values[0], values)
+        self.assertTrue(result.endswith("range=A2"))
+        self.assertTrue(session.calls[0][1].endswith("!A:A:append"))
+        self.assertEqual(session.calls[0][2]["json"]["values"], [[values[0]]])
+        self.assertTrue(session.calls[1][1].endswith("!A2:AQ2"))
+        self.assertEqual(session.calls[1][2]["json"]["values"], [values])
+
 
 if __name__ == "__main__":
     unittest.main()

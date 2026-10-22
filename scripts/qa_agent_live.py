@@ -39,7 +39,7 @@ def request(route,payload=None):
  if route.startswith('/api/v1/applications/') or route.endswith('/preview'):headers['Authorization']='Bearer '+os.getenv('GIM_COORDINATOR_TOKEN','')
  req=urllib.request.Request(BASE+route,data=data,headers=headers)
  try:
-  with urllib.request.urlopen(req,timeout=210) as r:return dict(status=r.status,seconds=round(time.monotonic()-t,3),body=json.loads(r.read()))
+  with urllib.request.urlopen(req,timeout=max(210,float(os.getenv('GIM_LLM_TIMEOUT','180'))+30)) as r:return dict(status=r.status,seconds=round(time.monotonic()-t,3),body=json.loads(r.read()))
  except urllib.error.HTTPError as e:return dict(status=e.code,seconds=round(time.monotonic()-t,3),body=json.loads(e.read()))
  except Exception as e:return dict(status=0,seconds=round(time.monotonic()-t,3),error=type(e).__name__)
 def answer(q,s):

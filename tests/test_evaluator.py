@@ -270,7 +270,7 @@ class EvaluatorTests(unittest.TestCase):
     def test_safe_http_and_tls_diagnostics(self):
         adapter = ChatCompletionsAdapter("https://example.org/v1/chat/completions", "test",
                                          api_key="do-not-print-secret")
-        for code in (400, 401, 403, 404, 422, 429, 500, 503):
+        for code in (400, 401, 402, 403, 404, 422, 429, 500, 503, 520, 524):
             with self.subTest(status=code):
                 error = HTTPError(adapter.endpoint, code, "private provider body", {}, None)
                 with patch("urllib.request.OpenerDirector.open", side_effect=error):
@@ -332,6 +332,36 @@ class EvaluatorTests(unittest.TestCase):
                 thread.join()
         self.assertEqual(captured[0]["model"], "local")
         self.assertEqual(captured[0]["response_format"], {"type": "json_object"})
+
+    def test_streamed_chat_completion_reassembles_content(self):
+        content = json.dumps(response(candidate()), ensure_ascii=False)
+        midpoint = len(content) // 2
+        frames = [
+            {"choices": [{"delta": {"reasoning_content": "internal"}, "finish_reason": None}]},
+            {"choices": [{"delta": {"content": content[:midpoint]}, "finish_reason": None}]},
+            {"choices": [{"delta": {"content": content[midpoint:]}, "finish_reason": None}]},
+            {"choices": [{"delta": {}, "finish_reason": "stop"}]},
+            {"choices": [], "usage": {"total_tokens": 100}},
+        ]
+        stream = b"".join(b"data: " + json.dumps(frame).encode() + b"\n\n" for frame in frames)
+        stream += b"data: [DONE]\n\n"
+        adapter = ChatCompletionsAdapter(
+            "http://localhost:1234/v1/chat/completions", "local",
+            stream=True, max_tokens=4096,
+        )
+        with patch("urllib.request.OpenerDirector.open", return_value=BytesIO(stream)) as opened:
+            result = evaluate(candidate(), adapter=adapter)
+        self.assertEqual(result["evaluation_mode"], "llm")
+        sent = json.loads(opened.call_args.args[0].data)
+        self.assertTrue(sent["stream"])
+        self.assertEqual(sent["max_tokens"], 4096)
+        self.assertNotIn("internal", result["summary"])
+
+        incomplete = b'data: {"choices":[{"delta":{"content":"{}"},"finish_reason":"length"}]}\n\n'
+        with patch("urllib.request.OpenerDirector.open", return_value=BytesIO(incomplete)):
+            with self.assertRaises(EvaluationError) as caught:
+                evaluate(candidate(), adapter=adapter)
+        self.assertEqual(caught.exception.code, "incomplete_response")
 
 
 class LiveEvaluatorTests(unittest.TestCase):

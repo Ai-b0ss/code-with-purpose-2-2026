@@ -19,7 +19,7 @@ from backend.app import ApplicationInput
 from backend.evaluator import ChatCompletionsAdapter, EvaluationError, evaluate
 
 ENDPOINT = "https://api.reformboss.com/v1/chat/completions"
-MODELS = ("deepseek-v4.1-flash", "glm-5.3", "kimi-k3")
+MODELS = ("deepseek-v4.1-flash", "deepseek-v4-flash", "deepseek-v4-pro")
 
 
 def sample_candidate() -> ApplicationInput:
@@ -87,6 +87,8 @@ def check_network(endpoint: str) -> bool:
 def explanation_for_failure(code: str) -> str:
     if code in {"provider_http_401", "provider_http_403"}:
         return "Сервер отклонил доступ: проверь действительность ключа, право на API и лимиты аккаунта."
+    if code == "provider_http_402":
+        return "Провайдер требует оплату или доступный баланс для API."
     if code in {"provider_http_400", "provider_http_422"}:
         return "Сервер отклонил формат запроса; попробуй повторный запуск с -DisableJsonMode."
     if code == "provider_http_404":
@@ -95,7 +97,9 @@ def explanation_for_failure(code: str) -> str:
         return "Достигнут лимит/частота запросов API (не путать с лимитом Telegram-бота)."
     if code == "provider_tls_certificate":
         return "Проблема с доверием к HTTPS-сертификату в Python. Не выключай SSL verification."
-    if code in {"provider_http_500", "provider_http_502", "provider_http_503", "provider_http_504"}:
+    if code in {"provider_http_500", "provider_http_502", "provider_http_503", "provider_http_504",
+                "provider_http_520", "provider_http_521", "provider_http_522", "provider_http_523",
+                "provider_http_524", "provider_http_530"}:
         return "Ошибка сервера провайдера: можно попробовать позже или другую модель."
     if code.startswith("provider_http_"):
         return "Провайдер вернул HTTP-ошибку; код выше, ответ сервера не логируется."
@@ -131,7 +135,7 @@ def probe_model(name: str, endpoint: str, key: str, json_mode: bool,
                 timeout: float = 180.0) -> bool:
     adapter = ChatCompletionsAdapter(
         endpoint=endpoint, model=name, api_key=key,
-        timeout=timeout, json_mode=json_mode,
+        timeout=timeout, json_mode=json_mode, stream=True, max_tokens=4096,
     )
     started = time.monotonic()
     try:
@@ -145,15 +149,15 @@ def probe_model(name: str, endpoint: str, key: str, json_mode: bool,
         return False
 
     seconds = time.monotonic() - started
-    risk = any("Первый курс" in str(x) for x in result["possible_problems"])
     is_llm = result.get("evaluation_mode") == "llm"
-    no_score = result.get("score") is None
     evidence = bool(result.get("evidence"))
-    contract_ok = all((risk, is_llm, no_score, evidence))
+    scorecard = result.get("scorecard") or []
+    score = result.get("score")
+    contract_ok = is_llm and evidence and len(scorecard) == 5 and (score is None or isinstance(score, int) and 0 <= score <= 3)
     print(f"[{'PASS' if contract_ok else 'REVIEW'}] {name}: "
           f"{seconds:.1f} с, формат={result['evaluation_mode']}, "
-          f"evidence={len(result['evidence'])}, score=null={no_score}, "
-          f"риск 1 курса={risk}")
+          f"evidence={len(result['evidence'])}, score={score}, "
+          f"scorecard={len(scorecard)}")
     print("Саммари:", result.get("summary", "")[:400])
     print("Соответствие музею:", result.get("fit_for_museum", "")[:600])
     print("Вопросы интервью:", " | ".join(result.get("interview_questions", [])[:3]))
@@ -171,7 +175,7 @@ def main() -> int:
                         help="Unauthenticated TLS/HTTP check; no key required")
     parser.add_argument("--disable-json-mode", action="store_true")
     parser.add_argument("--timeout", type=float,
-                        default=os.environ.get("GIM_LLM_TIMEOUT", "180"),
+                        default=os.environ.get("GIM_LLM_TIMEOUT", "300"),
                         help="Provider timeout in seconds (1–300; env GIM_LLM_TIMEOUT)")
     parser.add_argument("--endpoint", default=ENDPOINT,
                         help="Full chat/completions URL (default ReformBoss)")

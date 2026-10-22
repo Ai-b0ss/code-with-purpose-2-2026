@@ -19,7 +19,7 @@ class ReformBossLauncherTests(unittest.TestCase):
     def test_probe_uses_the_same_timeout_as_server_environment(self):
         from scripts import check_reformboss
         for configured, arguments, expected in (
-            (None, [], 180.0),
+            (None, [], 300.0),
             ("120", [], 120.0),
             ("120", ["--timeout", "240"], 240.0),
         ):
