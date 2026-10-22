@@ -1110,6 +1110,7 @@
 
   let currentStep = 0;
   let applicationId = null;
+  let lastSavedContent = "";
   let dynamicClarifications = [];
   let followupAnswers = {};
   let clarificationRound = 0;
@@ -1158,7 +1159,7 @@
   dayChips.forEach(chip => {
     chip.addEventListener("click", () => {
       chip.classList.toggle("active");
-      saveDraft();
+      onFormEdited();
     });
   });
 
@@ -1166,7 +1167,7 @@
   document.querySelectorAll(".preset-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       byId("availability_hours_month").value = btn.dataset.hours;
-      saveDraft();
+      onFormEdited();
     });
   });
 
@@ -1384,7 +1385,6 @@
       textarea.value = followupAnswers[q.id] || "";
       textarea.addEventListener("input", (e) => {
         followupAnswers[q.id] = e.target.value.trim();
-        saveDraft();
       });
 
       card.appendChild(meta);
@@ -1395,11 +1395,17 @@
     });
   }
 
-  // --- LocalStorage Draft Persistence ---
+  function contentFingerprint(payload) {
+    const {application_id, ...answers} = payload;
+    return JSON.stringify(answers);
+  }
+
+  // --- Session draft persistence ---
   function saveDraft() {
     try {
       const data = buildPayload();
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      lastSavedContent = contentFingerprint(data);
       draftInfo.hidden = false;
     } catch (_) {}
   }
@@ -1490,6 +1496,7 @@
       dynamicClarifications = Array.isArray(data.followup_questions)
         ? data.followup_questions.filter(q => q && typeof q.id === "string" && typeof q.question === "string").slice(0, 3) : [];
       clarificationRound = Math.max(0, Math.min(2, Number(data.clarification_round) || 0));
+      lastSavedContent = contentFingerprint(buildPayload());
 
       draftInfo.hidden = false;
     } catch (_) {}
@@ -1498,6 +1505,7 @@
   clearDraftBtn.addEventListener("click", () => {
     sessionStorage.removeItem(STORAGE_KEY);
     applicationId = null;
+    lastSavedContent = "";
     form.reset();
     dayChips.forEach(c => c.classList.remove("active"));
     dirCards.forEach(c => c.classList.remove("selected"));
@@ -1511,6 +1519,9 @@
 
   // Auto-save on form inputs
   function onFormEdited() {
+    // Re-entering the same value after a lost receipt must retain the saved ID.
+    // A substantive edit starts a new submission and, for profile edits, review.
+    if (contentFingerprint(buildPayload()) === lastSavedContent) return;
     applicationId = null;
     // An edit to the original questionnaire invalidates prior AI questions
     // and the old answers. We must re-assess the changed profile.
@@ -1669,6 +1680,7 @@
     clarificationRound = 0;
     dynamicClarifications = [];
     currentStep = 0;
+    lastSavedContent = "";
     form.reset();
     dayChips.forEach(c => c.classList.remove("active"));
     dirCards.forEach(c => c.classList.remove("selected"));
