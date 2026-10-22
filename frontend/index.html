@@ -585,6 +585,36 @@
       font-size: 12.5px;
       padding: 0;
     }
+    /* Status for both the optional clarification round and the final LLM call. */
+    .submit-loading {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-top: 18px;
+      padding: 14px 18px;
+      background: #fbf8f2;
+      border: 1px solid #ebdcc5;
+      border-radius: var(--radius);
+      color: var(--text);
+    }
+    .submit-loading[hidden] { display: none; }
+    .submit-loading-text { display: flex; flex-direction: column; gap: 3px; }
+    .submit-loading-text strong { color: var(--gim-red); font-size: 14px; }
+    .submit-loading-text span { color: var(--text-muted); font-size: 13px; }
+    .spinner {
+      width: 26px;
+      height: 26px;
+      border: 3px solid rgba(142, 24, 27, 0.2);
+      border-top-color: var(--gim-red);
+      border-radius: 50%;
+      animation: gim-submit-spin .85s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes gim-submit-spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) {
+      .spinner { animation: none; }
+    }
+
     .error-box {
       background: #fdf5f5;
       border: 1px solid #f2c2c2;
@@ -982,6 +1012,13 @@
       </section>
 
       <div class="error-box" id="errorBox" role="alert" hidden></div>
+      <div class="submit-loading" id="submitLoading" hidden role="status" aria-live="polite">
+        <div class="spinner" aria-hidden="true"></div>
+        <div class="submit-loading-text">
+          <strong>ИИ анализирует ответы и формирует заключение…</strong>
+          <span>Обработка может занять несколько минут. Не отправляйте анкету повторно.</span>
+        </div>
+      </div>
 
       <!-- Action Buttons -->
       <div class="actions">
@@ -1523,8 +1560,15 @@
     if (currentStep !== steps.length - 1) return;
     if (!validateStep(currentStep)) return;
 
+    // Keep the user on the same step until the entire two-stage process finishes.
+    // Disabling the back button prevents changing the payload during an in-flight request.
+    if (submitBtn.disabled) return;
     submitBtn.disabled = true;
+    prevBtn.disabled = true;
     const initialSubmitText = submitBtn.textContent;
+    const submitLoading = byId("submitLoading");
+    if (submitLoading) submitLoading.hidden = false;
+    errorBox.hidden = true;
     submitBtn.textContent = "ИИ формирует итоговое заключение...";
     try {
       if (dynamicClarifications.length && clarificationRound < 2) {
@@ -1580,6 +1624,8 @@
     } finally {
       submitBtn.textContent = initialSubmitText;
       submitBtn.disabled = false;
+      prevBtn.disabled = false;
+      if (submitLoading) submitLoading.hidden = true;
     }
   });
 

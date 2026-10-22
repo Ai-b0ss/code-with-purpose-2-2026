@@ -24,6 +24,7 @@ FILES = (
     "docs/21-ai-clarification-before-verdict-20261022.md",
     "docs/23-agent-contract-and-vk-fix-20261022.md",
     "docs/24-google-sheets-llm-vk-20261022.md",
+    "docs/25-ilya-ux-release-check-20261022.md",
 )
 FORBIDDEN = {".git", ".venv", ".env", "data", "reports", "secret", "credentials"}
 
