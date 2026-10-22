@@ -2,7 +2,7 @@
 
 ## Область проверки
 
-- Исходная основа: `main@31c36a91ae1ff9b2b841cc1a7a563fc354035588`, PR #64 уже включён.
+- Исходная основа: `main@31c36a91ae1ff9b2b841cc1a7a563fc354035588`; дополнительно в ветку слит свежий `main@a0aaec89ae2599be44c57a7a88b5dc2ccbe05994` с проверенной после #64 упаковкой PR #65.
 - Изолированная новая рабочая копия на `Windows 10 19045`, Python `3.13.9`; действующие процессы команды, рабочая SQLite и Google-таблицы не изменялись.
 - Только вымышленные данные, localhost и controlled fake provider; реальные ключи, внешние платные API, настоящий VK Long Poll и реальная Google Sheets **не использовались**.
 - Ветка: `fix/issue-57-release-recovery`.
@@ -21,8 +21,8 @@
 | `python -m pytest -q` | **157 PASS, 1 SKIP, 146 subtests PASS** | SKIP — разрешаемый только явно live-тест модели |
 | `python tests/run_local_smoke.py` | **173 PASS / 1 SKIP** на ветке #57 после изменений | Вывод не заменяет full E2E браузера |
 | `python tests/real_http_recovery.py` | **11 сценариев PASS** на ветке #57 после изменений | Контролируемый локальный HTTP провайдер |
-| `python -m scripts.check_portable_boot` | **PASS**: 52 ZIP entries, 4 группы проверок | Режим demo, сеть для pip может потребоваться |
-| ZIP path | `releases/GIM_TEAM_QA_AGENT_FIXED_20261022.zip` | Пересобран из исходного дерева ветки #57 |\n| ZIP SHA256 | `d68241fe77e8ca15a483ac79aab5010ca9007c9c9ac1bc54507d5319572dbc1d` | Архив создаётся заново на фактическом source tree |
+| `python -m scripts.check_portable_boot` | **PASS**: 54 ZIP entries, 4 группы проверок | Режим demo, сеть для pip может потребоваться |
+| ZIP path | `releases/GIM_TEAM_QA_AGENT_FIXED_20261022.zip` | Пересобран из исходного дерева ветки #57 |\n| ZIP SHA256 | `abc19bb5960bff03c8ffe0124998e9f35efbe68bd3618a3fe3cd3dfd1b23d928` | Архив создаётся заново на фактическом source tree |
 | `git diff --check` | PASS | Проверка whitespace |
 
 ## Фактически проверено переносным тестом
