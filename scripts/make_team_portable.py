@@ -14,7 +14,7 @@ FILES = (
     "backend/__init__.py", "backend/app.py", "backend/evaluator.py",
     "backend/availability_policy.py", "backend/clarification_agent.py",
     "backend/google_sheets.py", "backend/curator.py", "backend/security.py", "backend/candidate_feedback.py", "backend/eligibility.py", "backend/analytics.py", "frontend/admin.html", "frontend/index.html",
-    "vk_bot/__init__.py", "vk_bot/session_store.py", "vk_bot/bot.py", "run_vk_bot.bat", "requirements-vk.txt",
+    "vk_bot/__init__.py", "vk_bot/session_store.py", "vk_bot/dispatcher.py", "vk_bot/bot.py", "run_vk_bot.bat", "requirements-vk.txt",
     "scripts/check_reformboss.py", "scripts/check_google_sheets_live.py", "scripts/qa_four_live.py",
     "scripts/qa_agent_live.py",
     "scripts/local_curator_report.py", "qa/four_cases.json",
