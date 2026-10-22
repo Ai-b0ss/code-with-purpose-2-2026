@@ -14,15 +14,20 @@ import sqlite3
 import math
 import time
 import uuid
+import hashlib
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, Response
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.responses import FileResponse, Response, JSONResponse
+from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, Field
 from backend import google_sheets
-from backend.curator import VERDICT_LABELS, followup_pairs, interview_topics
+from backend.security import require_coordinator, public_receipt
+from backend.eligibility import validate_birth_date
+from backend.curator import VERDICT_LABELS, followup_pairs, interview_topics, stored_evaluation, render_card
 
 ROOT = Path(__file__).resolve().parent.parent
 FRONTEND = ROOT / "frontend" / "index.html"
@@ -97,6 +102,8 @@ def db_connection():
             started_at REAL NOT NULL
         )"""
     )
+    connection.execute("CREATE TABLE IF NOT EXISTS revoked_applications (id_hash TEXT PRIMARY KEY, revoked_at TEXT NOT NULL)")
+    connection.execute("PRAGMA secure_delete=ON")
     columns = {row[1] for row in connection.execute("PRAGMA table_info(applications)")}
     for name, definition in {
         "sheet_sync_status": "TEXT NOT NULL DEFAULT 'pending'",
@@ -179,6 +186,11 @@ def clarifications_for(data: ApplicationInput) -> list[dict]:
             "reason": "Музейные мероприятия делятся по целевым аудиториям.",
         })
 
+    elif data.desired_direction == "inclusive" and not data.followup_answers.get("inclusive_tasks"):
+        items.append({"id": "inclusive_tasks", "category": "Инклюзивное направление",
+                      "question": "Какие задачи сопровождения посетителей вам интересны и какая подготовка может понадобиться?",
+                      "reason": "Нужно сопоставить интересы и необходимую подготовку, не предполагая обязательного опыта."})
+
     # Доступность и совмещение
     if data.availability_hours_month < 8 and not data.followup_answers.get("availability_boost"):
         items.append({
@@ -187,7 +199,7 @@ def clarifications_for(data: ApplicationInput) -> list[dict]:
             "question": "При каких условиях вы могли бы выделять больше времени для участия (например, в выходные или на спецпроектах)?",
             "reason": "Необходимо уточнить, подходит ли заявленный график для выбранного направления. Числовой минимум не подтверждён.",
         })
-    elif data.other_volunteer_programs.strip() and not data.followup_answers.get("other_volunteering"):
+    elif data.other_volunteer_programs.strip().casefold() not in {"", "нет", "не состою", "нет других программ"} and not data.followup_answers.get("other_volunteering"):
         items.append({
             "id": "other_volunteering",
             "category": "Совмещение волонтерства",
@@ -205,6 +217,7 @@ def clarifications_for(data: ApplicationInput) -> list[dict]:
         "project_format": 4,
         "media_tasks": 4,
         "audience_type": 4,
+        "inclusive_tasks": 4,
     }
     return sorted(items, key=lambda item: priorities.get(item["id"], 5))[:3]
 
@@ -227,7 +240,7 @@ def evaluate_demo(data: ApplicationInput) -> dict:
 
     strengths = ["Кандидат указал интерес к программе музея."]
     if data.experience.strip():
-        strengths.append("Кандидат описал предыдущий опыт.")
+        strengths.append("Кандидат ответил на вопрос об опыте; содержание требует проверки.")
     if data.availability_hours_month >= 8:
         strengths.append("Кандидат указал конкретное доступное время.")
 
@@ -282,7 +295,56 @@ def evaluate_application(data: ApplicationInput) -> dict:
         raise HTTPException(status_code=503, detail=f"evaluator_{exc.code}") from None
 
 
+
+def validate_submission(data):
+    if not data.consent_personal_data:
+        raise HTTPException(422, "Необходимо явное согласие на обработку персональных данных.")
+    try:
+        validate_birth_date(data.birth_date)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from None
+    if not data.age_over_18:
+        raise HTTPException(422, "Подтвердите возраст 18+.")
+    required = {
+        "applicant_name": "ФИО", "email": "Электронная почта", "vk_url": "Ссылка ВК",
+        "status": "Статус", "university": "Вуз (или «не учусь»)", "faculty": "Факультет (или «не учусь»)",
+        "course": "Курс (или «не учусь»)", "scientific_interests": "Научные интересы (можно «нет»)",
+        "experience": "Опыт (можно «нет опыта»)", "motivation": "Мотивация", "expectations": "Ожидания",
+        "hobbies": "Хобби (можно «не указываю»)", "source": "Источник информации",
+    }
+    missing = [label for field, label in required.items() if not getattr(data, field).strip()]
+    if not data.foreign_languages or any(not v.strip() for v in data.foreign_languages):
+        missing.append("Языки (можно «нет B1+»)")
+    if data.university.casefold() in {"другое", "other"} and not data.university_other.strip():
+        missing.append("Название другого вуза")
+    if missing:
+        raise HTTPException(422, "Заполните обязательные вопросы: " + ", ".join(missing))
+    if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", data.email):
+        raise HTTPException(422, "Проверьте адрес электронной почты.")
+    if not re.fullmatch(r"https://(?:www\.)?vk\.com/[A-Za-z0-9_.-]+/?", data.vk_url):
+        raise HTTPException(422, "Укажите ссылку https://vk.com/имя_профиля.")
+    if os.getenv("GIM_EVALUATION_MODE", "demo") == "llm" and os.getenv("GIM_ALLOW_EXTERNAL_LLM", "0") != "1":
+        raise HTTPException(503, "Внешний анализ отключён до настройки обработки данных оператором.")
+
+
 app = FastAPI(title="ГИМ — Музейный компас", version="0.1.0")
+
+
+@app.exception_handler(RequestValidationError)
+async def safe_validation_error(request, exc):
+    return JSONResponse(status_code=422, content={"detail": [
+        {"loc": list(e["loc"]), "msg": e["msg"], "type": e["type"]} for e in exc.errors()
+    ]})
+
+
+@app.middleware("http")
+async def private_response_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["X-Frame-Options"] = "DENY"
+    return response
 
 
 @app.get("/")
@@ -302,6 +364,7 @@ def health():
 
 @app.post("/api/v1/clarification")
 def clarification(data: ApplicationInput):
+    validate_submission(data)
     if os.getenv("GIM_EVALUATION_MODE", "demo") == "llm" and not data.consent_personal_data:
         raise HTTPException(status_code=422, detail="Согласие на обработку данных обязательно до анализа ИИ.")
     # In live mode, ask the model to review five criteria BEFORE a final
@@ -313,11 +376,14 @@ def clarification(data: ApplicationInput):
     except EvaluationError as exc:
         # Do not silently switch from LLM to heuristic questions in live mode.
         raise HTTPException(status_code=503, detail=f"clarification_{exc.code}") from None
-    return {"question": None, **result}
+    return {"question": None, "questions": result.get("questions", []),
+            "round": result.get("round", min(2, data.clarification_round + 1)),
+            "evaluation_mode": result.get("evaluation_mode")}
 
 
-@app.post("/api/v1/preview")
+@app.post("/api/v1/preview", dependencies=[Depends(require_coordinator)])
 def preview(data: ApplicationInput):
+    validate_submission(data)
     return {"evaluation": evaluate_application(data)}
 
 
@@ -334,6 +400,7 @@ def save_application(data: ApplicationInput):
     if not data.consent_personal_data:
         raise HTTPException(status_code=422, detail="Необходимо явное согласие на обработку персональных данных.")
 
+    validate_submission(data)
     token = uuid.uuid4().hex
     created_at = datetime.now(timezone.utc).isoformat()
     try:
@@ -345,19 +412,21 @@ def save_application(data: ApplicationInput):
     deadline = time.monotonic() + min(360, max(30, max_wait))
 
     def duplicate(row):
-        return {
-            "application_id": application_id,
-            "created_at": row["created_at"],
-            "evaluation": json.loads(row["evaluation"]),
-            "created": False,
-            "sheet_sync": sheet_sync_view(row),
-        }
+        old = json.loads(row["payload"])
+        current = data.model_dump()
+        old.pop("application_id", None)
+        current.pop("application_id", None)
+        if old != current:
+            raise HTTPException(409, "ID заявки уже занят другим содержимым.")
+        return public_receipt(application_id, False, data)
 
     # Keep each SQLite write transaction short; no DB-wide lock during LLM.
     while True:
         owner = False
         with db_connection() as con:
             con.execute("BEGIN IMMEDIATE")
+            if con.execute("SELECT 1 FROM revoked_applications WHERE id_hash=?", (hashlib.sha256(application_id.encode()).hexdigest(),)).fetchone():
+                raise HTTPException(409, "Регистрация с этим ID отменена.")
             row = con.execute(
                 "SELECT * FROM applications WHERE id = ?",
                 (application_id,),
@@ -432,17 +501,11 @@ def save_application(data: ApplicationInput):
             pass
         raise
 
-    sync = sync_application(application_id)
-    return {
-        "application_id": application_id,
-        "created_at": created_at,
-        "evaluation": evaluation,
-        "created": True,
-        "sheet_sync": sync,
-    }
+    sync_application(application_id)
+    return public_receipt(application_id, True, data)
 
 
-@app.get("/api/v1/applications")
+@app.get("/api/v1/applications", dependencies=[Depends(require_coordinator)])
 def list_applications():
     with db_connection() as con:
         records = con.execute(
@@ -455,7 +518,7 @@ def list_applications():
                 "application_id": row["id"],
                 "created_at": row["created_at"],
                 "applicant_name": row["applicant_name"],
-                "evaluation": json.loads(row["evaluation"]),
+                "evaluation": stored_evaluation(row["evaluation"]),
                 "sheet_sync": sheet_sync_view(row),
             }
             for row in records
@@ -463,7 +526,7 @@ def list_applications():
     }
 
 
-@app.get("/api/v1/applications/{application_id}")
+@app.get("/api/v1/applications/{application_id}", dependencies=[Depends(require_coordinator)])
 def get_application(application_id: str):
     with db_connection() as con:
         row = con.execute(
@@ -476,7 +539,8 @@ def get_application(application_id: str):
         "application_id": row["id"],
         "created_at": row["created_at"],
         "answers": json.loads(row["payload"]),
-        "evaluation": json.loads(row["evaluation"]),
+        "evaluation": stored_evaluation(row["evaluation"]),
+        "card_html": render_card(row["id"], row["created_at"], json.loads(row["payload"]), stored_evaluation(row["evaluation"])),
         "sheet_sync": sheet_sync_view(row),
     }
 
@@ -484,9 +548,8 @@ def get_application(application_id: str):
 def safe_csv(value: object) -> str:
     if value is None:
         return ""
-    text = str(value).strip()
-    text = " ".join(text.splitlines())
-    if text.startswith(("=", "+", "-", "@")):
+    text = str(value)
+    if text.lstrip().startswith(("=", "+", "-", "@")) or text.startswith(("\t", "\r")):
         return "'" + text
     return text
 
@@ -538,6 +601,8 @@ def sync_application(application_id: str) -> dict:
         row = con.execute("SELECT * FROM applications WHERE id=?", (application_id,)).fetchone()
         if row is None:
             raise HTTPException(status_code=404, detail="Заявка не найдена")
+        if con.execute("SELECT 1 FROM revoked_applications WHERE id_hash=?", (hashlib.sha256(application_id.encode()).hexdigest(),)).fetchone():
+            raise HTTPException(409, "Синхронизация отозванной заявки запрещена.")
         if row["sheet_sync_status"] == "synced":
             return sheet_sync_view(row)
         if row["sheet_sync_status"] == "syncing" and time.time() - (row["sheet_sync_started_at"] or 0) < 180:
@@ -566,12 +631,12 @@ def sync_application(application_id: str) -> dict:
     return sheet_sync_view(result)
 
 
-@app.post("/api/v1/applications/{application_id}/sync")
+@app.post("/api/v1/applications/{application_id}/sync", dependencies=[Depends(require_coordinator)])
 def retry_sheet_sync(application_id: str):
     return {"application_id": application_id, "sheet_sync": sync_application(application_id)}
 
 
-@app.get("/api/v1/export.csv")
+@app.get("/api/v1/export.csv", dependencies=[Depends(require_coordinator)])
 def export_csv():
     output = io.StringIO()
     writer = csv.writer(output, delimiter=";", quoting=csv.QUOTE_MINIMAL)
@@ -588,3 +653,80 @@ def export_csv():
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": 'attachment; filename="gim-applications.csv"'},
     )
+
+
+# Coordinator endpoints share one permission boundary. No static candidate data.
+@app.get('/admin')
+def admin_page():
+    return FileResponse(ROOT / 'frontend' / 'admin.html', media_type='text/html', headers={'Cache-Control': 'no-store'})
+
+
+@app.get('/api/v1/admin/applications', dependencies=[Depends(require_coordinator)])
+def ranked_applications(sort: Literal['score_desc', 'score_asc', 'created_at'] = 'score_desc',
+                        queue: Literal['all', 'rated', 'unrated'] = 'all',
+                        page: int = 1, page_size: int = 50,
+                        direction: Direction | None = None, mode: Literal['llm', 'rules_demo'] | None = None,
+                        score_status: str | None = None, date_from: str | None = None, date_to: str | None = None):
+    from backend.analytics import select_records, ranked
+    if page < 1 or not 1 <= page_size <= 200:
+        raise HTTPException(422, 'Недопустимая страница или размер страницы.')
+    with db_connection() as con:
+        rows = select_records(con, direction, mode, score_status, date_from, date_to)
+    rows = ranked(rows, sort, queue)
+    start = (page - 1) * page_size
+    return {'items': rows[start:start+page_size], 'total': len(rows), 'page': page,
+            'page_size': page_size, 'warning': 'pilot_unvalidated: шкала не утверждена ГИМ. Решение принимает координатор.'}
+
+
+@app.get('/api/v1/admin/analytics', dependencies=[Depends(require_coordinator)])
+def analytics(direction: Direction | None = None, mode: Literal['llm', 'rules_demo'] | None = None,
+              score_status: str | None = None, date_from: str | None = None, date_to: str | None = None):
+    from backend.analytics import select_records, aggregate
+    with db_connection() as con:
+        result = aggregate(select_records(con, direction, mode, score_status, date_from, date_to))
+    return {**result, 'generated_at': datetime.now(timezone.utc).isoformat()}
+
+
+@app.get('/api/v1/admin/applications/{application_id}/export.csv', dependencies=[Depends(require_coordinator)])
+def export_one(application_id: str):
+    with db_connection() as con:
+        row = con.execute('SELECT * FROM applications WHERE id=?', (application_id,)).fetchone()
+    if row is None:
+        raise HTTPException(404, 'Заявка не найдена')
+    output = io.StringIO(newline='')
+    writer = csv.writer(output, delimiter=';')
+    writer.writerow(google_sheets.HEADERS)
+    writer.writerow(sheet_values(row))
+    return Response('\ufeff' + output.getvalue(), media_type='text/csv; charset=utf-8',
+                    headers={'Content-Disposition': 'attachment; filename="gim-application.csv"'})
+
+@app.delete('/api/v1/admin/applications/{application_id}', dependencies=[Depends(require_coordinator)])
+def delete_application(application_id: str):
+    # Refuse to race a Sheets writer. Revocation invalidates an in-flight LLM
+    # reservation immediately; the old worker can no longer commit the payload.
+    digest = hashlib.sha256(application_id.encode()).hexdigest()
+    with db_connection() as con:
+        con.execute('BEGIN IMMEDIATE')
+        row = con.execute('SELECT * FROM applications WHERE id=?', (application_id,)).fetchone()
+        if row is not None and row['sheet_sync_status'] == 'syncing':
+            raise HTTPException(409, 'Дождитесь завершения синхронизации и повторите удаление.')
+        if row is not None and row['sheet_sync_status'] == 'deleting':
+            raise HTTPException(409, 'Удаление уже выполняется. При сбое повторите после перезапуска.')
+        con.execute('INSERT OR IGNORE INTO revoked_applications VALUES(?,?)', (digest, datetime.now(timezone.utc).isoformat()))
+        con.execute('DELETE FROM application_reservations WHERE id=?', (application_id,))
+        if row is not None:
+            con.execute("UPDATE applications SET sheet_sync_status='deleting' WHERE id=?", (application_id,))
+    try:
+        if google_sheets.configured():
+            google_sheets.clear_application(application_id)
+    except Exception:
+        with db_connection() as con:
+            con.execute("UPDATE applications SET sheet_sync_status='delete_failed', sheet_sync_error='deletion_pending' WHERE id=?", (application_id,))
+        raise HTTPException(503, 'Очистка Google не подтверждена. Данные заблокированы для синхронизации; повторите удаление.') from None
+    session_db = Path(os.getenv('GIM_VK_SESSION_DB', str(ROOT / 'data' / 'vk-sessions.sqlite3')))
+    if session_db.exists():
+        from vk_bot.session_store import SessionStore
+        SessionStore(session_db).delete_application(application_id)
+    with db_connection() as con:
+        con.execute('DELETE FROM applications WHERE id=?', (application_id,))
+    return {'status': 'deleted', 'external_copies': 'Экспорты, резервные копии и VK удаляются оператором по журналу копий.'}

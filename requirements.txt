@@ -4,3 +4,5 @@ pydantic>=2,<3
 google-auth>=2,<3
 requests>=2,<3
 python-dotenv>=1,<2
+
+tzdata>=2025.2; sys_platform == "win32"

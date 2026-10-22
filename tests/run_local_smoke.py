@@ -108,6 +108,8 @@ def get_db_file_hash(path: Path) -> str | None:
 def http_request(base_url: str, path: str, method: str = "GET", payload: dict | None = None) -> tuple[int, bytes, dict]:
     raw_data = None
     headers = {}
+    if path != "/api/v1/health" and path != "/" and (method == "GET" or path.endswith("/preview") or path.endswith("/sync")):
+        headers["Authorization"] = "Bearer synthetic-smoke-coordinator-key-at-least-32-chars"
     if payload is not None:
         raw_data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         headers["Content-Type"] = "application/json; charset=utf-8"
@@ -194,6 +196,9 @@ def run_integration_tests(tracker: TestTracker) -> bool:
     print_section("ЗАПУСК ЛОКАЛЬНОГО FASTAPI СЕРВЕРА", step="3/5")
 
     env = os.environ.copy()
+    env["GIM_COORDINATOR_TOKEN"] = "synthetic-smoke-coordinator-key-at-least-32-chars"
+    env["GIM_EVALUATION_MODE"] = "demo"
+    env["GIM_GOOGLE_SPREADSHEET_ID"] = ""
     env["GIM_DB_PATH"] = str(temp_db_path)
     env["PYTHONUNBUFFERED"] = "1"
     # Ensure current repo root is in PYTHONPATH
@@ -279,6 +284,10 @@ def run_integration_tests(tracker: TestTracker) -> bool:
         sample_app = {
             "application_id": "smoke-test-candidate-001",
             "applicant_name": "Тестовый Кандидат",
+            "birth_date": "2000-01-01", "email": "synthetic@example.test",
+            "vk_url": "https://vk.com/synthetic", "university": "Тестовый вуз",
+            "faculty": "История", "course": "2", "scientific_interests": "История",
+            "foreign_languages": ["Нет B1+"], "hobbies": "Чтение", "source": "Другое",
             "age_over_18": True,
             "consent_personal_data": True,
             "motivation": "Мне интересно создавать исторический медиаконтент и помогать музею.",
@@ -308,7 +317,7 @@ def run_integration_tests(tracker: TestTracker) -> bool:
                 status == 201
                 and data.get("created") is True
                 and data.get("application_id") == sample_app["application_id"]
-                and data.get("evaluation", {}).get("recommended_direction") == "media"
+                and "evaluation" not in data and data.get("status") == "registered"
             ):
                 tracker.pass_test(
                     "Анкета сохраняется: POST /api/v1/applications",
@@ -428,7 +437,8 @@ def run_integration_tests(tracker: TestTracker) -> bool:
         # 4.9 Run existing tests/smoke_http.py against the isolated server
         try:
             from tests import smoke_http
-            smoke_http.run_smoke(base_url=base_url)
+            with unittest.mock.patch.dict(os.environ, {"GIM_COORDINATOR_TOKEN": "synthetic-smoke-coordinator-key-at-least-32-chars"}):
+                smoke_http.run_smoke(base_url=base_url)
             tracker.pass_test("Сквозной модуль tests/smoke_http.py", "полный цикл проверен")
         except Exception as exc:
             tracker.fail_test("Сквозной модуль tests/smoke_http.py", str(exc))
@@ -529,3 +539,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+

@@ -384,6 +384,7 @@ class DialogState(str, Enum):
     EXPECTATIONS = "EXPECTATIONS"
     EXPERIENCE = "EXPERIENCE"
     HOBBIES = "HOBBIES"
+    SOURCE = "SOURCE"
     DIRECTION = "DIRECTION"
     HOURS = "HOURS"
     SCHEDULE = "SCHEDULE"
@@ -462,6 +463,7 @@ class UserSession:
     expectations: str = ""
     experience: str = ""
     hobbies: str = ""
+    source: str = ""
     other_volunteer_programs: str = ""
     desired_direction: str = "undecided"
     availability_hours_month: int = 16
@@ -507,7 +509,7 @@ class UserSession:
             "availability_schedule_type": self.availability_schedule_type,
             "availability_days": self.availability_days,
             "other_volunteer_programs": self.other_volunteer_programs,
-            "source": "ВКонтакте, чат-бот ГИМ",
+            "source": self.source,
             "followup_answers": self.followup_answers,
             "followup_questions": self.followup_questions,
             "clarification_round": self.clarification_round,
@@ -529,12 +531,21 @@ class VolunteerBotFSM:
         api_client: GimApiClient,
         session_ttl: int = 86400,
         notifier: Callable[[int, str], None] | None = None,
+        session_path: str | None = None,
     ):
         self.api_client = api_client
         self.session_ttl = session_ttl
         self.notifier = notifier
         self.sessions: dict[int, UserSession] = {}
         self._last_processing_notice: dict[int, float] = {}
+        self.store = None
+        if session_path:
+            from vk_bot.session_store import SessionStore
+            self.store = SessionStore(session_path, session_ttl)
+            for raw in self.store.load():
+                raw['state'] = DialogState(raw['state'])
+                session = UserSession(**raw)
+                self.sessions[session.user_id] = session
 
     def _notify_processing(self, user_id: int) -> None:
         # A notification is NOT proof of registration; it goes out before network I/O.
@@ -576,7 +587,14 @@ class VolunteerBotFSM:
         self.sessions[user_id] = session
         return session
 
-    def handle_message(
+    def handle_message(self, user_id, text, user_name=None):
+        try:
+            return self._handle_message(user_id, text, user_name)
+        finally:
+            if self.store and user_id in self.sessions:
+                self.store.save(self.sessions[user_id])
+
+    def _handle_message(
         self,
         user_id: int,
         text: str,
@@ -593,6 +611,9 @@ class VolunteerBotFSM:
 
         is_new_user = user_id not in self.sessions
         session = self.get_or_create_session(user_id, user_name)
+
+        if not clean_text:
+            return "Ответ пустой. Напишите ответ на текущий вопрос или /reset.", VkKeyboards.empty()
 
         # Если пользователь пишет боту впервые — отправляем приветствие со стартовой кнопкой
         if is_new_user:
@@ -640,6 +661,9 @@ class VolunteerBotFSM:
 
         elif session.state == DialogState.EXPERIENCE:
             return self._step_handle_experience(session, clean_text, lower_text)
+
+        elif session.state == DialogState.SOURCE:
+            return self._step_handle_source(session, clean_text)
 
         elif session.state == DialogState.HOBBIES:
             return self._step_handle_hobbies(session, clean_text)
@@ -774,6 +798,12 @@ class VolunteerBotFSM:
             )
             return msg, VkKeyboards.empty()
 
+        from backend.eligibility import validate_birth_date
+        try:
+            validate_birth_date(bdate)
+        except ValueError as exc:
+            return str(exc) + " Укажите исправленную дату или начните заново.", VkKeyboards.empty()
+
         session.birth_date = bdate
         session.state = DialogState.EMAIL
         msg = (
@@ -836,8 +866,10 @@ class VolunteerBotFSM:
     def _step_handle_university(
         self, session: UserSession, clean_text: str, lower_text: str
     ) -> tuple[str, str]:
+        if lower_text in {"другое", "other"}:
+            return "Напишите название другого учебного заведения.", VkKeyboards.empty()
         if lower_text in {"пропустить", "нет", "-", "—"}:
-            session.university = ""
+            session.university = "Не учусь"
         else:
             session.university = clean_text[:200]
 
@@ -853,7 +885,7 @@ class VolunteerBotFSM:
         self, session: UserSession, clean_text: str, lower_text: str
     ) -> tuple[str, str]:
         if lower_text in {"пропустить", "нет", "-", "—"}:
-            session.faculty = ""
+            session.faculty = "Не указываю"
         else:
             session.faculty = clean_text[:200]
 
@@ -899,7 +931,7 @@ class VolunteerBotFSM:
         self, session: UserSession, clean_text: str, lower_text: str
     ) -> tuple[str, str]:
         if lower_text in {"пропустить", "нет", "-", "—"}:
-            session.scientific_interests = ""
+            session.scientific_interests = "Нет"
         else:
             session.scientific_interests = clean_text[:2000]
 
@@ -975,6 +1007,13 @@ class VolunteerBotFSM:
 
     def _step_handle_hobbies(self, session: UserSession, clean_text: str) -> tuple[str, str]:
         session.hobbies = clean_text[:2000]
+        session.state = DialogState.SOURCE
+        return "Откуда узнали о программе: социальные сети, друзья, сайт Исторического музея или другое?", VkKeyboards.empty()
+
+    def _step_handle_source(self, session: UserSession, clean_text: str) -> tuple[str, str]:
+        if not clean_text.strip():
+            return "Укажите источник информации о программе.", VkKeyboards.empty()
+        session.source = clean_text[:200]
         session.state = DialogState.DIRECTION
         msg = (
             "Направление и график ⏰\n\n"
@@ -1149,6 +1188,8 @@ class VolunteerBotFSM:
         if not session.application_id:
             session.application_id = f"vk-{session.user_id}-{uuid.uuid4().hex}"
         payload = session.to_application_input()
+        if self.store:
+            self.store.save(session)
         self._notify_processing(session.user_id)
         try:
             res = self.api_client.submit_application(payload)
@@ -1163,6 +1204,7 @@ class VolunteerBotFSM:
                 f"в личных сообщениях ВКонтакте (или по почте {session.email}).\n\n"
                 "Спасибо за интерес к Государственному историческому музею! ✨"
             )
+            msg += "\n\n" + res.get("candidate_feedback", "Решение принимает координатор после собеседования.")
             return msg, VkKeyboards.finished()
 
         except Exception as exc:
@@ -1297,7 +1339,7 @@ def run_bot() -> None:
             "Убедитесь, что запущен backend (run.bat)", config.backend_url
         )
 
-    fsm = VolunteerBotFSM(api_client=api_client)
+    fsm = VolunteerBotFSM(api_client=api_client, session_path=os.getenv("GIM_VK_SESSION_DB", str(Path(__file__).resolve().parents[1] / "data" / "vk-sessions.sqlite3")))
 
     logger.info("Подключение к Bots Long Poll сообщества %s...", group_id)
     longpoll = VkBotLongPoll(vk_session, group_id)
@@ -1328,3 +1370,4 @@ def run_bot() -> None:
 
 if __name__ == "__main__":
     run_bot()
+

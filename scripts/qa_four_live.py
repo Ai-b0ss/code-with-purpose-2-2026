@@ -7,6 +7,7 @@ Do not count syntactic/model-contract PASS as expert-quality approval.
 from __future__ import annotations
 
 import argparse
+import os
 from datetime import datetime, timezone
 from html import escape
 import json
@@ -27,6 +28,8 @@ def request(base: str, route: str, payload: dict | None = None, timeout: int = 2
     url = base.rstrip("/") + route
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8") if payload is not None else None
     headers = {"Content-Type": "application/json"} if body else {}
+    if route.startswith("/api/v1/applications/") or route.endswith("preview"):
+        headers["Authorization"] = "Bearer " + os.getenv("GIM_COORDINATOR_TOKEN", "")
     req = urllib.request.Request(url, data=body, headers=headers,
                                  method="POST" if body else "GET")
     try:
@@ -130,8 +133,14 @@ def main() -> int:
         try:
             status, output = request(args.base_url, "/api/v1/applications", payload, args.timeout)
             elapsed = round(perf_counter() - begin, 2)
-            result = output.get("evaluation", {}) if isinstance(output, dict) else {}
-            passed = (status == 201 and output.get("created") is True
+            result = {}
+            receipt = output
+            if status == 201:
+                stored_status, stored = request(args.base_url, "/api/v1/applications/" + payload["application_id"])
+                if stored_status == 200:
+                    result = stored.get("evaluation", {})
+                    output = {"receipt": receipt, "evaluation": result}
+            passed = (status == 201 and receipt.get("created") is True
                       and isinstance(result, dict)
                       and result.get("evaluation_mode") == "llm"
                       and isinstance(result.get("score"), int)
@@ -142,9 +151,9 @@ def main() -> int:
             duplicate_status = "not_checked"
             if passed:
                 restatus, again = request(args.base_url, "/api/v1/applications", payload, 12)
-                duplicate_status = ("PASS: created=false, identical evaluation"
+                duplicate_status = ("PASS: created=false, no internal evaluation disclosed"
                                     if restatus == 201 and again.get("created") is False
-                                    and again.get("evaluation") == result
+                                    and "evaluation" not in again
                                     else f"FAIL: repeated POST HTTP {restatus}")
                 passed = passed and duplicate_status.startswith("PASS")
             row = {
@@ -185,3 +194,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
