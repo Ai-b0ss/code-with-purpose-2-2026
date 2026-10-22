@@ -12,6 +12,7 @@ import logging
 import os
 import re
 import sys
+import threading
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -30,6 +31,8 @@ from vk_api.utils import get_random_id
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+
+from vk_bot.dispatcher import PerUserDispatcher
 
 # Обеспечиваем безопасный вывод UTF-8 в Windows-консоли (защита от краша charmap/cp1251 на эмодзи)
 if hasattr(sys.stdout, "reconfigure"):
@@ -1222,31 +1225,66 @@ class VolunteerBotFSM:
 # 5. ОБРАБОТКА СОБЫТИЯ И ЦИКЛ LONG POLL
 # -----------------------------------------------------------------------------
 
+class ThreadLocalVkClient:
+    """Lazily create a VK session/API per worker, separate from Long Poll."""
+
+    def __init__(self, token: str):
+        self.token = token
+        self._local = threading.local()
+
+    def get_api(self) -> Any:
+        if not hasattr(self._local, "api"):
+            session = vk_api.VkApi(token=self.token)
+            self._local.api = session.get_api()
+            self._local.session = session
+        return self._local.api
+
+
+def _event_message(event: Any) -> Any:
+    event_type = getattr(event, "type", None)
+    if event_type != VkBotEventType.MESSAGE_NEW and event_type != VkBotEventType.MESSAGE_NEW.value:
+        return None
+    message = getattr(event, "message", None) or getattr(event, "obj", {})
+    return message if callable(getattr(message, "get", None)) else None
+
+
+def event_user_id(event: Any) -> int | None:
+    """Extract a valid user ID without profile requests or FSM access."""
+    message = _event_message(event)
+    if message is None:
+        return None
+    raw_id = message.get("from_id") or message.get("user_id")
+    if isinstance(raw_id, bool) or not isinstance(raw_id, (int, str)):
+        return None
+    try:
+        user_id = int(raw_id)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return user_id if user_id > 0 else None
+
+
+def _send_processing_status(vk: Any, user_id: int, status_text: str) -> None:
+    try:
+        vk.messages.setActivity(type="typing", peer_id=user_id)
+    except Exception:
+        pass
+    vk.messages.send(user_id=user_id, random_id=get_random_id(), message=status_text)
+
+
 def process_vk_message_event(
     event: Any,
     vk: Any,
     fsm: VolunteerBotFSM,
     user_name_cache: dict[int, str],
 ) -> None:
-    """Обрабатывает одно событие, не прерывая Long Poll из-за одного сбоя."""
-    event_type = getattr(event, "type", None)
-    if event_type != VkBotEventType.MESSAGE_NEW and event_type != VkBotEventType.MESSAGE_NEW.value:
+    """Process one event; callers configure any status notifier once on the FSM."""
+    from_id = event_user_id(event)
+    if from_id is None:
         return
-
-    msg_obj = getattr(event, "message", None) or getattr(event, "obj", {})
-    if not hasattr(msg_obj, "get"):
-        logger.warning("Пропущено событие message_new с неожиданным форматом: %r", msg_obj)
-        return
-
-    from_id = msg_obj.get("from_id") or msg_obj.get("user_id")
+    msg_obj = _event_message(event)
     text = msg_obj.get("text", "")
-    if not from_id:
-        return
 
     try:
-        from_id = int(from_id)
-        if from_id < 0:
-            return
         if from_id not in user_name_cache:
             try:
                 u_data = vk.users.get(user_ids=from_id)[0]
@@ -1258,26 +1296,11 @@ def process_vk_message_event(
                 logger.warning("Не удалось получить профиль пользователя %s: %s", from_id, err)
                 user_name_cache[from_id] = f"Волонтёр #{from_id}"
 
-        # Status is scoped to this VK event, not persisted as a global callback.
-        old_notifier = fsm.notifier
-        def status_notifier(uid: int, status_text: str) -> None:
-            try:
-                vk.messages.setActivity(type="typing", peer_id=uid)
-            except Exception:
-                pass
-            vk.messages.send(user_id=uid, random_id=get_random_id(), message=status_text)
-
-        if old_notifier is None:
-            fsm.notifier = status_notifier
-        try:
-            reply_text, keyboard = fsm.handle_message(
-                user_id=from_id,
-                text=str(text or ""),
-                user_name=user_name_cache[from_id],
-            )
-        finally:
-            if old_notifier is None:
-                fsm.notifier = None
+        reply_text, keyboard = fsm.handle_message(
+            user_id=from_id,
+            text=str(text or ""),
+            user_name=user_name_cache[from_id],
+        )
         send_kwargs: dict[str, Any] = {
             "user_id": from_id,
             "random_id": get_random_id(),
@@ -1339,33 +1362,53 @@ def run_bot() -> None:
             "Убедитесь, что запущен backend (run.bat)", config.backend_url
         )
 
-    fsm = VolunteerBotFSM(api_client=api_client, session_path=os.getenv("GIM_VK_SESSION_DB", str(Path(__file__).resolve().parents[1] / "data" / "vk-sessions.sqlite3")))
+    worker_vk = ThreadLocalVkClient(config.token)
+
+    def status_notifier(user_id: int, status_text: str) -> None:
+        _send_processing_status(worker_vk.get_api(), user_id, status_text)
+
+    fsm = VolunteerBotFSM(
+        api_client=api_client,
+        notifier=status_notifier,
+        session_path=os.getenv("GIM_VK_SESSION_DB", str(Path(__file__).resolve().parents[1] / "data" / "vk-sessions.sqlite3")),
+    )
 
     logger.info("Подключение к Bots Long Poll сообщества %s...", group_id)
     longpoll = VkBotLongPoll(vk_session, group_id)
     user_name_cache: dict[int, str] = {}
 
+    def process_event(event: Any) -> None:
+        process_vk_message_event(event, worker_vk.get_api(), fsm, user_name_cache)
+
+    # Single-process invariant: every event for a user goes through this dispatcher.
+    # The shared FSM and caches are safe only with that per-user serialization.
+    dispatcher = PerUserDispatcher(process_event, max_workers=16)
     logger.info("🚀 Бот волонтёрской программы ГИМ успешно запущен и ожидает сообщений!")
 
-    while True:
-        try:
-            for event in longpoll.listen():
-                try:
-                    process_vk_message_event(event, vk, fsm, user_name_cache)
-                except Exception as exc:
-                    # Защитный барьер на уровне цикла: ошибка одного события
-                    # не должна завершать генератор Long Poll.
-                    logger.error("Ошибка обработки события Long Poll: %s", exc, exc_info=True)
+    try:
+        while True:
+            try:
+                for event in longpoll.listen():
+                    try:
+                        user_id = event_user_id(event)
+                        if user_id is not None:
+                            dispatcher.submit(user_id, event)
+                    except Exception as exc:
+                        # Защитный барьер на уровне цикла: ошибка одного события
+                        # не должна завершать генератор Long Poll.
+                        logger.error("Ошибка обработки события Long Poll: %s", exc, exc_info=True)
 
-        except requests.exceptions.ReadTimeout:
-            # Штатный таймаут опроса Long Poll
-            continue
-        except requests.exceptions.ConnectionError:
-            logger.warning("Потеря связи с сервером VK Long Poll. Переподключение через 5 сек...")
-            time.sleep(5)
-        except Exception as exc:
-            logger.error("Непредвиденная ошибка в основном цикле бота: %s", exc, exc_info=True)
-            time.sleep(2)
+            except requests.exceptions.ReadTimeout:
+                # Штатный таймаут опроса Long Poll
+                continue
+            except requests.exceptions.ConnectionError:
+                logger.warning("Потеря связи с сервером VK Long Poll. Переподключение через 5 сек...")
+                time.sleep(5)
+            except Exception as exc:
+                logger.error("Непредвиденная ошибка в основном цикле бота: %s", exc, exc_info=True)
+                time.sleep(2)
+    finally:
+        dispatcher.close()
 
 
 if __name__ == "__main__":
