@@ -99,6 +99,26 @@ def report_html(rows: list[dict], base: str, created: str) -> str:
             ''.join(cards) + '</body></html>')
 
 
+def complete_synthetic_form(answers: dict) -> dict:
+    """Derived v2 fixture: complete mandatory administrative answers explicitly.
+
+    Original expert inputs stay unchanged in qa/four_cases.json. These additions
+    make this a new technical dataset; old expert expectations are not approvals.
+    """
+    payload = dict(answers)
+    defaults = {
+        "birth_date": "2000-01-01", "email": "synthetic@example.test",
+        "vk_url": "https://vk.com/synthetic", "university": "Не учусь",
+        "university_other": "Тестовый вуз", "faculty": "Не учусь", "course": "Не учусь",
+        "scientific_interests": "Не указаны", "hobbies": "Не указываю",
+        "source": "Синтетическая проверка", "foreign_languages": ["Нет B1+"],
+    }
+    for key, value in defaults.items():
+        if not payload.get(key):
+            payload[key] = value
+    return payload
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Four REAL DeepSeek assessments via local GIM server")
     parser.add_argument("--base-url", default="http://127.0.0.1:8876")
@@ -126,7 +146,7 @@ def main() -> int:
     rows = []
     print(f"REAL GIM server: {args.base_url} | model: deepseek-v4.1-flash")
     for case in cases:
-        payload = dict(case["answers"])
+        payload = complete_synthetic_form(case["answers"])
         payload["application_id"] = "qa27-" + case["case_id"].lower() + "-" + uuid.uuid4().hex[:12]
         print("START", case["case_id"], flush=True)
         begin = perf_counter()
@@ -180,7 +200,7 @@ def main() -> int:
               case["case_id"], f'{row["seconds"]}s', flush=True)
     REPORTS.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_utc")
-    payload = {"created_at_utc": stamp, "base_url": args.base_url, "cases": rows,
+    payload = {"dataset_version": "four-cases-mandatory-v2", "created_at_utc": stamp, "base_url": args.base_url, "cases": rows,
                "note": "Provisional numeric score only; expert evaluation and statistical calibration not performed"}
     json_path = REPORTS / f"issue27_{stamp}.json"
     html_path = REPORTS / f"issue27_{stamp}.html"

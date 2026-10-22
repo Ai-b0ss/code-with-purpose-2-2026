@@ -16,11 +16,21 @@ $ErrorActionPreference = "Stop"
 Push-Location $PSScriptRoot
 $previousCoordinatorToken = $env:GIM_COORDINATOR_TOKEN
 $previousExternalPermission = $env:GIM_ALLOW_EXTERNAL_LLM
+$previousCaFile = $env:SSL_CERT_FILE
 try {
     Write-Host "GIM / ReformBoss live LLM"
     Write-Host "Model: $Model"
     Write-Host "Endpoint: https://api.reformboss.com/v1/chat/completions"
     Write-Host "Key will be VISIBLE while typing. Do not share a screenshot or terminal recording."
+
+    # Use the maintained CA bundle when no operator override is configured.
+    # Some Windows root stores contain an expired alternate chain. Certificate
+    # and hostname verification stay enabled, including during the preflight.
+    if (-not $env:SSL_CERT_FILE -and -not $env:SSL_CERT_DIR) {
+        $trustedCaFile = python -c "import certifi; print(certifi.where())"
+        if ($LASTEXITCODE -ne 0) { throw "Install requirements.txt before starting the live server." }
+        $env:SSL_CERT_FILE = $trustedCaFile.Trim()
+    }
 
     # No secret is requested or sent until Python can establish a valid
     # HTTPS connection. HTTP 401 here is normal: the probe has no API key.
@@ -92,6 +102,7 @@ try {
     if (Test-Path -LiteralPath (Join-Path $PSScriptRoot ".env")) { $serverEnvArgs = @("--env-file", ".env") }
     python -m uvicorn backend.app:app --host 127.0.0.1 --port $selectedPort @serverEnvArgs
 } finally {
+    if ($previousCaFile) { $env:SSL_CERT_FILE = $previousCaFile } else { Remove-Item Env:SSL_CERT_FILE -ErrorAction SilentlyContinue }
     if ($previousExternalPermission) { $env:GIM_ALLOW_EXTERNAL_LLM = $previousExternalPermission } else { Remove-Item Env:GIM_ALLOW_EXTERNAL_LLM -ErrorAction SilentlyContinue }
     if ($previousCoordinatorToken) { $env:GIM_COORDINATOR_TOKEN = $previousCoordinatorToken } else { Remove-Item Env:GIM_COORDINATOR_TOKEN -ErrorAction SilentlyContinue }
     Remove-Item Env:GIM_LLM_API_KEY -ErrorAction SilentlyContinue
