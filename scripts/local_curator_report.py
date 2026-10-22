@@ -39,9 +39,12 @@ def build(db: Path, destination: Path, limit: int = 40) -> int:
             return escape(json.dumps(value, indent=2, ensure_ascii=False))
         fields = [
             ("Режим", evaluation.get("evaluation_mode", "?")),
+            ("Модель / попытки", str(evaluation.get("provider_model", "?"))+" / "+str(evaluation.get("provider_models_attempted", []))),
             ("Рекомендованное направление", evaluation.get("recommended_direction_label", "?")),
             ("Выбранное кандидатом", answers.get("desired_direction", "?")),
             ("score / статус", str(evaluation.get("score"))+" / "+str(evaluation.get("score_status"))),
+            ("Основа / итог после поправок", str(evaluation.get("score_raw"))+" / "+str(evaluation.get("score_detailed"))),
+            ("Медиана полей / статус", str(evaluation.get("field_median_delta"))+" / "+str(evaluation.get("field_median_status"))),
             ("Предварительный вердикт (не решение о приёме)", evaluation.get("preliminary_verdict") or "нет"),
             ("Почему этот вердикт", evaluation.get("verdict_comment") or "нет данных"),
             ("Саммари", evaluation.get("summary", "")),
@@ -58,6 +61,12 @@ def build(db: Path, destination: Path, limit: int = 40) -> int:
                      obj(evaluation.get("possible_problems",[]))+
                      "</pre><h3>Пилотные оценки пяти критериев (не откалиброваны)</h3><pre>"+
                      obj(evaluation.get("scorecard",[]))+
+                     "</pre><h3>Категории ответов по полям</h3><pre>"+
+                     obj(evaluation.get("field_reviews",[]))+
+                     "</pre><h3>Содержательные поправки по полям</h3><pre>"+
+                     obj(evaluation.get("content_signal_contributions",[]))+
+                     "</pre><h3>Использованные факты и источники</h3><pre>"+
+                     obj(evaluation.get("knowledge_facts_used",[]))+
                      "</pre><h3>Уточняющие вопросы и ответы ДО заключения</h3><pre>"+
                      obj([{"question": q.get("question", ""),
                            "answer": answers.get("followup_answers", {}).get(q.get("id", ""), "")}

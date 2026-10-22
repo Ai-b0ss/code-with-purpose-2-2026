@@ -35,9 +35,9 @@ class BasicTests(unittest.TestCase):
         self.assertIsNone(result["score"])
         self.assertTrue(result["interview_questions"])
 
-    def test_clarification_on_short_answer(self):
+    def test_short_answer_alone_does_not_trigger_length_rule(self):
         data = applicant(motivation="Хочу помочь")
-        self.assertIsNotNone(clarification_for(data))
+        self.assertIsNone(clarification_for(data))
         self.assertIsNone(clarification_for(applicant()))
 
     def test_full_time_commitments_do_not_auto_reject(self):
@@ -97,20 +97,19 @@ class BasicTests(unittest.TestCase):
         self.assertEqual(len(app.availability_days), 3)
 
     def test_dynamic_clarifications_multiple(self):
-        # 1. Underage + short motivation + collections direction -> multiple distinct clarifications
+        # 1. Underage + no available hours + collections direction -> sourced clarifications
         data = applicant(
             age_over_18=False,
             motivation="Хочу в фонд",
             desired_direction="collections",
-            availability_hours_month=4,
+            availability_hours_month=0,
         )
         questions = clarifications_for(data)
         self.assertEqual(len(questions), 3)
         categories = [q["category"] for q in questions]
         self.assertIn("Возраст и регламент", categories)
-        self.assertIn("Мотивация", categories)
+        self.assertIn("Фондовое направление", categories)
         self.assertIn("График и занятость", categories)
-        self.assertNotIn("Фондовое направление", categories)
 
         # 2. When answers are provided in followup_answers, questions are cleared
         answered = applicant(

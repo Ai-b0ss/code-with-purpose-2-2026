@@ -1,0 +1,32 @@
+{
+  "source_files": [
+    "materials/gim/Анкеты 2024 осень.xlsx",
+    "materials/gim/2025 весна Хакатон ВШЭ.xlsx"
+  ],
+  "score_header_contains": "Сколько баллов",
+  "accepted_header_contains": "Взяли ли",
+  "direction_header_contains": "Интересующие виды волонт",
+  "field_headers_contain": {
+    "course": "Курс",
+    "faculty": "Факультет",
+    "scientific_interests": "Сфера научных интересов",
+    "experience": "Опыт работы, стажировки",
+    "expectations": "Чего Вы ожидаете",
+    "hobbies": "Ваше хобби",
+    "superpower": "В чем Ваша суперсила"
+  },
+  "nested_fields": {
+    "superpower": "followup_answers.superpower"
+  },
+  "accepted_values": {
+    "ДА": true,
+    "—": false
+  },
+  "direction_groups": {
+    "funds_marker": "фонд",
+    "other_markers": [
+      "организац", "проектн", "инклюз", "медиа", "пока не",
+      "не определ", "экскурс", "мероприяти"
+    ]
+  }
+}

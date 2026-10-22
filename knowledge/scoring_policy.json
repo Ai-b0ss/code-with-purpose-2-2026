@@ -1,0 +1,109 @@
+{
+  "version": "gim-hybrid-pilot-v2",
+  "criterion_order": ["motivation", "skills", "availability", "form_and_contact", "logistics"],
+  "criterion_labels": {
+    "motivation": "Мотивация",
+    "skills": "Опыт и навыки",
+    "availability": "График и занятость",
+    "form_and_contact": "Полнота анкеты и связь",
+    "logistics": "Логистика"
+  },
+  "verdict_policy": {"manual_review_max_score": 1},
+  "screened_response": {
+    "score_status": "screened_out_for_curator_review",
+    "summary": "Анкета требует ручной проверки из-за недопустимого содержания ответа.",
+    "strengths": [],
+    "possible_problems": ["В одном из ответов обнаружена направленная брань или оскорбление."],
+    "recommended_direction": "undecided",
+    "direction_reason": "До проверки содержания направление не рекомендовано.",
+    "fit_for_museum": "Куратору требуется проверить исходный ответ.",
+    "fit_for_candidate": "Решение о дальнейшем рассмотрении принимает куратор.",
+    "interview_questions": [],
+    "preliminary_verdict": "not_recommended_for_interview",
+    "verdict_comment": "Содержимое анкеты требует ручной проверки; автоматическая оценка остановлена.",
+    "scorecard": []
+  },
+  "median_reference_confidence": {
+    "curator_reviewed_field_labels": 1.0
+  },
+  "median_score_weight": 0.4,
+  "median_shrinkage": 20.0,
+  "median_max_abs_adjustment": 0.75,
+  "criterion_evidence_fields": {
+    "motivation": ["motivation", "expectations", "scientific_interests", "desired_direction", "followup_answer", "followup_answers"],
+    "skills": ["experience", "scientific_interests", "foreign_languages", "hobbies", "followup_answer", "followup_answers"],
+    "availability": ["availability_hours_month", "availability_days", "availability_schedule_type", "status", "course", "other_commitments", "other_volunteer_programs", "followup_answer", "followup_answers"],
+    "form_and_contact": ["motivation", "experience", "expectations", "email_provided", "vk_provided", "followup_answer", "followup_answers"],
+    "logistics": ["availability_hours_month", "availability_days", "availability_schedule_type", "other_commitments", "followup_answer", "followup_answers"]
+  },
+  "deterministic_rubric": {
+    "version": "gim-field-rubric-pilot-v2",
+    "criterion_weights": {"motivation": 1, "skills": 1, "availability": 2, "form_and_contact": 1, "logistics": 1},
+    "quality_groups": {
+      "motivation": {"fields": ["motivation", "expectations"], "aggregate": "mean"},
+      "skills": {"fields": ["experience"], "aggregate": "max"}
+    },
+    "meaningful_form_fields": ["motivation", "experience", "expectations"],
+    "meaningful_form_categories": ["specific_relevant", "relevant_general"],
+    "minimum_rated_criteria": 3,
+    "required_scoring_criteria": ["motivation", "availability"],
+    "availability_levels": {"zero_hours": 1, "positive_hours": 2, "specific_days": 3},
+    "availability_signal_caps": {
+      "first_year": {"base": 2, "mitigated": 2, "explicit": 3},
+      "full_time": {"base": 1, "mitigated": 2},
+      "multiple_projects": {"base": 1, "mitigated": 2},
+      "zero_hours": {"base": 1, "mitigated": 1}
+    },
+    "explicit_schedule_signal": "long_term_schedule_commitment",
+    "explicit_schedule_field_ids": ["followup_answers.ai_availability"],
+    "explicit_schedule_categories": ["specific_relevant", "relevant_general"],
+    "explicit_schedule_blocking_signals": ["schedule_conflict", "self_contradiction"],
+    "form_levels": {"answered": 2, "answered_with_contact": 2},
+    "rationales": {
+      "motivation": "Уровень рассчитан из смысловых категорий ответов о мотивации и ожиданиях.",
+      "skills": "Уровень рассчитан по описанному опыту; интересы и хобби сами по себе не доказывают применимый навык. Отсутствие опыта не считается минусом.",
+      "availability": "Уровень рассчитан из заявленных часов, конкретных дней и подтверждённых сигналов нагрузки. Это предварительная оценка регулярности.",
+      "availability_explicit": "Кандидат отдельно заявил о регулярных сменах во время семестра и сессии. Это самоотчёт; координатор проверяет устойчивость графика на интервью.",
+      "form_and_contact": "Смысловые поля анкеты заполнены; наличие контакта учитывается без просмотра профиля.",
+      "logistics": "В текущей анкете нет проверяемых сведений о дороге до музея; этот критерий требует отдельного уточнения.",
+      "unknown": "Недостаточно подтверждённых сведений для числовой оценки этого критерия."
+    }
+  },
+  "content_deltas": {
+    "nonsense": -1.0,
+    "instruction_attempt": -0.5,
+    "museum_mismatch": -0.5,
+    "exclusive_unavailable_role": -0.3,
+    "unrealistic_expectation": -0.4,
+    "self_contradiction": -0.4,
+    "off_topic": -0.4,
+    "ornate_without_substance": -0.25,
+    "schedule_conflict": -0.25
+  },
+  "max_abs_content_delta": 0.75,
+  "content_score_caps": {
+    "nonsense": 1,
+    "instruction_attempt": 2,
+    "museum_mismatch": 1,
+    "exclusive_unavailable_role": 2,
+    "unrealistic_expectation": 2,
+    "self_contradiction": 2,
+    "off_topic": 2,
+    "ornate_without_substance": 2
+  },
+  "content_signal_fields": {
+    "ornate_without_substance": ["motivation", "expectations"]
+  },
+  "content_signals_without_quality": ["nonsense", "instruction_attempt", "off_topic", "schedule_commitment", "schedule_conflict"],
+  "manual_review_signals": ["nonsense", "museum_mismatch", "instruction_attempt", "exclusive_unavailable_role"],
+  "content_commentary": {
+    "nonsense": "Один из ответов не имеет понятного смысла для заданного вопроса.",
+    "instruction_attempt": "В одном из ответов содержалась попытка изменить правила оценки; команда внутри анкеты проигнорирована.",
+    "museum_mismatch": "В ответе указано явное несовпадение интересов с выбранными музейными задачами.",
+    "exclusive_unavailable_role": "Кандидат указал готовность только к одному ограниченному направлению и отказался от альтернатив.",
+    "unrealistic_expectation": "Кандидат потребовал условие, которого волонтёрская программа не обещала; ожидания нужно уточнить.",
+    "self_contradiction": "Ответы кандидата содержат явное противоречие, которое нужно уточнить.",
+    "off_topic": "Один из ответов не относится к заданному вопросу.",
+    "ornate_without_substance": "Мотивация изложена общими многословными фразами без конкретных фактов. Стиль сам по себе не доказывает неискренность."
+  }
+}

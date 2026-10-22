@@ -2,14 +2,14 @@
 import json
 import unittest
 
-from backend.evaluator import EvaluationError, evaluate, validate_response
+from backend.evaluator import EvaluationError, evaluate_legacy_contract, validate_response
 from test_evaluator import FakeAdapter, candidate, response
 
 
 class PilotRubricTests(unittest.TestCase):
     def evaluate_case(self, busy=False):
         data = candidate(busy)
-        return evaluate(data, adapter=FakeAdapter(json.dumps(response(data), ensure_ascii=False)))
+        return evaluate_legacy_contract(data, adapter=FakeAdapter(json.dumps(response(data), ensure_ascii=False)))
 
     def test_ordinal_score_is_computed_not_llm_supplied(self):
         strong = self.evaluate_case()
@@ -89,7 +89,7 @@ class PilotRubricTests(unittest.TestCase):
             adapter = FakeAdapter(json.dumps(response(data), ensure_ascii=False))
             with patch.dict(os.environ, {"GIM_DB_PATH": str(db)}), patch(
                 "backend.app.evaluate_application",
-                side_effect=lambda value: evaluate(value, adapter=adapter),
+                side_effect=lambda value: evaluate_legacy_contract(value, adapter=adapter),
             ):
                 first = save_application(data)
                 repeat = save_application(data)

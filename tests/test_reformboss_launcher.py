@@ -52,12 +52,13 @@ class ReformBossLauncherTests(unittest.TestCase):
         self.assertNotIn(b"Traceback", completed.stderr)
 
     def test_default_model_matches_authenticated_reformboss_catalog(self):
-        from scripts.check_reformboss import MODELS
-        self.assertEqual(MODELS[0], "deepseek-v4.1-flash")
-        self.assertNotIn("deepseek-v4.1-flash-1017", MODELS)
+        from scripts.check_reformboss import CATALOG, ENDPOINT, MODELS
+        from urllib.parse import urlsplit
+        self.assertEqual(MODELS, tuple(CATALOG[urlsplit(ENDPOINT).hostname]))
+        self.assertIn(CATALOG["_default_model"], MODELS)
         launcher = (ROOT / "start-reformboss.ps1").read_text(encoding="utf-8")
-        self.assertIn('[string]$Model = "deepseek-v4.1-flash"', launcher)
-        self.assertNotIn("deepseek-v4.1-flash-1017", launcher)
+        self.assertIn('knowledge/provider_models.json', launcher)
+        self.assertIn('$availableModels', launcher)
 
     def test_launcher_plain_input_without_securestring_conversion(self):
         launcher = (ROOT / "start-reformboss.ps1").read_text(encoding="utf-8")
@@ -77,10 +78,7 @@ class ReformBossLauncherTests(unittest.TestCase):
 
     def test_powershell_launcher_uses_module_execution(self):
         launcher = (ROOT / "start-reformboss.ps1").read_text(encoding="utf-8")
-        self.assertIn(
-            '$probe = @("-m", "scripts.check_reformboss", "--model", $Model)',
-            launcher,
-        )
+        self.assertIn('python -m scripts.probe_live_harness', launcher)
 
 
 if __name__ == "__main__":

@@ -121,7 +121,7 @@ def main() -> int:
     if args.only:
         cases = [case for case in cases if case["case_id"] == args.only]
     rows = []
-    print(f"REAL GIM server: {args.base_url} | model: deepseek-v4.1-flash")
+    print(f"REAL GIM server: {args.base_url} | configured cloud models with optional local fallback")
     for case in cases:
         payload = dict(case["answers"])
         payload["application_id"] = "qa27-" + case["case_id"].lower() + "-" + uuid.uuid4().hex[:12]
@@ -136,8 +136,11 @@ def main() -> int:
                       and result.get("evaluation_mode") == "llm"
                       and isinstance(result.get("score"), int)
                       and 0 <= result["score"] <= 3
-                      and result.get("score_status") == "pilot_unvalidated"
+                      and result.get("score_status") in {
+                          "pilot_deterministic_unvalidated", "pilot_hybrid_unvalidated"
+                      }
                       and len(result.get("scorecard") or []) == 5
+                      and len(result.get("field_reviews") or []) > 0
                       and len(result.get("evidence") or []) > 0)
             duplicate_status = "not_checked"
             if passed:
@@ -150,7 +153,7 @@ def main() -> int:
             row = {
                 "case_id": case["case_id"], "goal": case["goal"],
                 "expected_signals": case.get("expected_signals", []),
-                "model": "deepseek-v4.1-flash", "seconds": elapsed,
+                "model": "configured_failover", "seconds": elapsed,
                 "http_status": status, "technical_pass": passed,
                 "duplicate_status": duplicate_status,
                 "input": payload, "result": output,
@@ -159,7 +162,7 @@ def main() -> int:
         except (TimeoutError, OSError, ValueError) as exc:
             row = {
                 "case_id": case["case_id"], "goal": case["goal"],
-                "model": "deepseek-v4.1-flash",
+                "model": "configured_failover",
                 "seconds": round(perf_counter() - begin, 2),
                 "http_status": None, "technical_pass": False,
                 "duplicate_status": "not_checked", "input": payload,

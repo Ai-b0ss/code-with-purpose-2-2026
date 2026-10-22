@@ -1,0 +1,62 @@
+{
+  "version": "gim-demo-questions-v1",
+  "max_questions": 3,
+  "rules": [
+    {
+      "id": "age_terms", "priority": 0, "group": "age",
+      "when": {"field": "age_over_18", "operator": "equals", "value": false},
+      "category": "Возраст и регламент",
+      "question": "Вам ещё нет 18 лет. Хотите уточнить условия участия у координатора?",
+      "reason": "В анкете указано, что заявителю нет 18 лет; координатору нужно уточнить условия участия.",
+      "source_field_id": "age_over_18"
+    },
+    {
+      "id": "availability_boost", "priority": 1, "group": "availability",
+      "when": {"field": "availability_hours_month", "operator": "equals", "value": 0},
+      "category": "График и занятость",
+      "question": "Сможете ли вы выделить регулярное время для участия в программе?",
+      "reason": "В анкете указано ноль доступных часов; координатору нужен реальный график.",
+      "source_fact_id": "k07"
+    },
+    {
+      "id": "other_volunteering", "priority": 2, "group": "availability",
+      "when": {"field": "other_volunteer_programs", "operator": "nonempty"},
+      "category": "Совмещение волонтерства",
+      "question": "Как планируете распределять нагрузку с участием в других волонтерских объединениях?",
+      "reason": "Музею важно убедиться в отсутствии конфликта графиков в дни ключевых событий.",
+      "source_fact_id": "k07"
+    },
+    {
+      "id": "collections_focus", "priority": 4, "group": "direction",
+      "when": {"field": "desired_direction", "operator": "equals", "value": "collections"},
+      "category": "Фондовое направление",
+      "question": "Какие именно фонды вас привлекают и готовы ли вы рассмотреть другие направления, если мест в фондах будет недостаточно?",
+      "reason": "Места в фондах строго ограничены; кураторам важно знать вашу гибкость.",
+      "source_fact_id": "k04"
+    },
+    {
+      "id": "project_format", "priority": 4, "group": "direction",
+      "when": {"field": "desired_direction", "operator": "equals", "value": "project"},
+      "category": "Проектное направление",
+      "question": "Какие форматы вам ближе: мастер-классы, исторические квесты, тематические экскурсии или образовательные игры?",
+      "reason": "Поможет распределить вас в проектную группу с релевантными задачами.",
+      "source_fact_id": "k12"
+    },
+    {
+      "id": "media_tasks", "priority": 4, "group": "direction",
+      "when": {"field": "desired_direction", "operator": "equals", "value": "media"},
+      "category": "Медиа-направление",
+      "question": "Какая деятельность внутри направления вам интереснее: фото, видео, посты, контент-план или дизайн?",
+      "reason": "Поможет уточнить подходящий тип задач; наличие таких задач подтвердит координатор.",
+      "source_fact_id": "k19"
+    },
+    {
+      "id": "audience_type", "priority": 4, "group": "direction",
+      "when": {"field": "desired_direction", "operator": "equals", "value": "organizational"},
+      "category": "Организационное направление",
+      "question": "С какой категорией посетителей вы предпочитаете взаимодействовать: дети, молодёжь, семейная аудитория или пожилые люди?",
+      "reason": "Поможет координатору подобрать задачи на музейных мероприятиях.",
+      "source_fact_id": "k11"
+    }
+  ]
+}

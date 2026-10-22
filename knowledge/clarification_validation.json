@@ -1,0 +1,40 @@
+{
+  "version": "gim-clarification-validation-v1",
+  "rejected_answer_categories": ["nonsense", "off_topic", "instruction_attempt"],
+  "redundant_known_fact_questions": {
+    "availability_days_and_hours": "какие.{0,30}дни.{0,30}час|какие.{0,30}часы.{0,30}дни",
+    "experience_general": "какие.{0,35}(навыки и опыт|опыт и навыки).{0,30}(у вас есть|имеются)"
+  },
+  "private_location_question": "(место жительства|домашн(?:ий|его) адрес|где вы живете)",
+  "priority_followups": {
+    "exclusive_collections": {
+      "selection": {
+        "priority": 2,
+        "direction": "collections",
+        "trigger_field_candidates": ["motivation"],
+        "review_signal": "exclusive_unavailable_role",
+        "exclude_categories": ["nonsense", "off_topic", "instruction_attempt"]
+      },
+      "criterion": "motivation",
+      "question": "Какие конкретно фонды ГИМ и задачи работы с коллекцией вас интересуют?",
+      "reason": "Кандидат указал интерес только к фондам, где число мест ограничено; нужно уточнить конкретные задачи.",
+      "decision_impact": "Ответ поможет сопоставить интерес кандидата с доступными фондовыми задачами и обсудить альтернативы с координатором.",
+      "source_fact_ids": ["k21"],
+      "trigger_field_ids": ["motivation"]
+    },
+    "multiple_projects": {
+      "selection": {
+        "priority": 1,
+        "availability_signal": "multiple_projects",
+        "trigger_field_candidates": ["other_volunteer_programs", "other_commitments"],
+        "include_categories": ["specific_relevant", "relevant_general"]
+      },
+      "criterion": "availability",
+      "question": "Какой проект вы поставите в приоритет, если смена в ГИМ совпадёт с обязанностями в другом проекте?",
+      "reason": "Кандидат указал несколько параллельных проектов; приоритет при пересечении графиков пока неизвестен.",
+      "decision_impact": "Ответ поможет оценить устойчивость регулярных смен и согласовать график с координатором.",
+      "source_fact_ids": ["k07"],
+      "trigger_field_ids": ["other_volunteer_programs"]
+    }
+  }
+}
