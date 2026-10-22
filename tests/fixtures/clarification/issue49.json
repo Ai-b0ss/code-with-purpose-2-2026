@@ -1,0 +1,166 @@
+{
+  "description": "Fictional profiles for issue #49. Expected topics are curator hypotheses, not observed LLM output.",
+  "cases": [
+    {
+      "id": "T09-collections",
+      "direction": "collections",
+      "changes": {
+        "desired_direction": "collections",
+        "motivation": "Хочу изучать музейные коллекции и помогать описывать предметы."
+      },
+      "uncertainty": "Какие задачи в фондах интересны и возможны ли альтернативы"
+    },
+    {
+      "id": "T10-project",
+      "direction": "project",
+      "changes": {
+        "desired_direction": "project",
+        "motivation": "Хочу проводить исторические проекты для посетителей."
+      },
+      "uncertainty": "Предпочтительный формат проекта"
+    },
+    {
+      "id": "T11-organizational",
+      "direction": "organizational",
+      "changes": {
+        "desired_direction": "organizational",
+        "motivation": "Хочу помогать посетителям на музейных мероприятиях."
+      },
+      "uncertainty": "Предпочтительная аудитория"
+    },
+    {
+      "id": "T12-media",
+      "direction": "media",
+      "changes": {
+        "desired_direction": "media",
+        "motivation": "Хочу делать видео о музейных выставках."
+      },
+      "uncertainty": "Тип контента"
+    },
+    {
+      "id": "T13-inclusive",
+      "direction": "inclusive",
+      "changes": {
+        "desired_direction": "inclusive",
+        "motivation": "Хочу помогать посетителям на инклюзивных мероприятиях."
+      },
+      "uncertainty": "Задачи сопровождения и подготовка без требования стажа"
+    },
+    {
+      "id": "T14-undecided",
+      "direction": "undecided",
+      "changes": {
+        "desired_direction": "undecided",
+        "motivation": "Хочу помогать музею, но пока не понимаю, в каких задачах смогу быть полезным."
+      },
+      "uncertainty": "Интересы и предпочтения для выбора направления"
+    },
+    {
+      "id": "T15-weak-motivation",
+      "direction": "media",
+      "changes": {
+        "motivation": "Я давно люблю историю и хочу получить полезный опыт. Мне нравится атмосфера музея, поэтому я хотел бы попробовать себя в качестве волонтёра и быть полезным команде."
+      },
+      "uncertainty": "Конкретная причина выбора задач ГИМ"
+    },
+    {
+      "id": "T16-strong-concise",
+      "direction": "media",
+      "changes": {
+        "motivation": "Хочу монтировать видео о коллекции ГИМ.",
+        "followup_answers": {
+          "media_tasks": "Монтаж коротких видео."
+        }
+      },
+      "uncertainty": "Нет существенного пробела"
+    },
+    {
+      "id": "T17-full-time-weekends",
+      "direction": "organizational",
+      "changes": {
+        "desired_direction": "organizational",
+        "other_commitments": "Работаю 5/2 полный день, свободны суббота и воскресенье.",
+        "availability_days": [
+          "суббота",
+          "воскресенье"
+        ],
+        "availability_hours_month": 24
+      },
+      "uncertainty": "Устойчивость регулярного графика, без автоматического отказа"
+    },
+    {
+      "id": "T18-first-year",
+      "direction": "project",
+      "changes": {
+        "desired_direction": "project",
+        "course": "1 курс бакалавриата",
+        "availability_days": [
+          "суббота"
+        ],
+        "availability_hours_month": 24
+      },
+      "uncertainty": "График в течение семестра, без автоматического отказа"
+    },
+    {
+      "id": "T19-other-museum",
+      "direction": "organizational",
+      "changes": {
+        "desired_direction": "organizational",
+        "other_volunteer_programs": "Помогаю в другом музее по воскресеньям."
+      },
+      "uncertainty": "Пересечение смен и приоритет"
+    },
+    {
+      "id": "T21-no-experience",
+      "direction": "inclusive",
+      "changes": {
+        "desired_direction": "inclusive",
+        "experience": "Опыта волонтёрства пока нет."
+      },
+      "uncertainty": "Готовность учиться конкретным задачам, без выдуманного стажа"
+    },
+    {
+      "id": "X1-masters",
+      "direction": "project",
+      "changes": {
+        "desired_direction": "project",
+        "course": "1 курс магистратуры",
+        "other_commitments": "Учёба по вечерам."
+      },
+      "uncertainty": "Не путать магистратуру с 1 курсом бакалавриата"
+    },
+    {
+      "id": "X2-known-schedule",
+      "direction": "organizational",
+      "changes": {
+        "desired_direction": "organizational",
+        "availability_days": [
+          "суббота"
+        ],
+        "availability_hours_month": 20
+      },
+      "uncertainty": "Не переспрашивать известные дни и часы"
+    },
+    {
+      "id": "X3-verbose-vague",
+      "direction": "project",
+      "changes": {
+        "desired_direction": "project",
+        "motivation": "История очень важна для общества и для каждого человека. Мне давно нравится атмосфера музеев, их особое настроение и возможность прикоснуться к прошлому. Я бы хотел получить хороший опыт и быть полезным."
+      },
+      "uncertainty": "Конкретные задачи за многословным общим текстом"
+    },
+    {
+      "id": "X4-conflicting-schedule",
+      "direction": "organizational",
+      "changes": {
+        "desired_direction": "organizational",
+        "availability_days": [
+          "суббота"
+        ],
+        "other_commitments": "По субботам всегда работаю до 14:00."
+      },
+      "uncertainty": "Противоречие между выбранной субботой и работой до 14:00"
+    }
+  ]
+}
