@@ -98,7 +98,8 @@ class PilotRubricTests(unittest.TestCase):
             self.assertTrue(first["created"])
             self.assertFalse(repeat["created"])
             self.assertEqual(len(adapter.calls), 1)
-            self.assertEqual(first["evaluation"]["score"], 2)
+            self.assertNotIn("evaluation", first)
+            self.assertIn(";2;", csv_text)
             self.assertIn("Оценка 0-3", csv_text)
             self.assertIn(";2;", csv_text)
             self.assertEqual(count, 1)
@@ -120,3 +121,4 @@ class PilotRubricTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

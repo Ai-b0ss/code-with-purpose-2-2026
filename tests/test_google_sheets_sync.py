@@ -48,8 +48,9 @@ class SyncTests(unittest.TestCase):
             with patch("backend.google_sheets.write_row", side_effect=SheetSyncError("google_http_503")):
                 first = save_application(candidate(application_id="synthetic-sync-1"))
             self.assertTrue(first["created"])
-            self.assertEqual(first["sheet_sync"]["status"], "failed")
-            self.assertEqual(first["sheet_sync"]["error"], "google_http_503")
+            with db_connection() as con:
+                row = con.execute("SELECT sheet_sync_status, sheet_sync_error FROM applications").fetchone()
+                self.assertEqual(tuple(row), ("failed", "google_http_503"))
             with db_connection() as con:
                 self.assertEqual(con.execute("SELECT COUNT(*) FROM applications").fetchone()[0], 1)
             row_url = "https://docs.google.com/spreadsheets/d/test-sheet/edit#gid=7&range=A2"
@@ -98,3 +99,4 @@ class SyncTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

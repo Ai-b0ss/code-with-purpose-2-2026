@@ -17,10 +17,13 @@ BASE = os.environ.get("GIM_TEST_URL") or (sys.argv[1] if len(sys.argv) > 1 else 
 
 def request(path: str, payload: dict | None = None, base_url: str = BASE) -> tuple[int, bytes]:
     raw = None if payload is None else json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    headers = {} if raw is None else {"Content-Type": "application/json"}
+    if raw is None and path.startswith("/api/v1/") and path != "/api/v1/health":
+        headers["Authorization"] = "Bearer " + os.environ.get("GIM_COORDINATOR_TOKEN", "")
     req = urllib.request.Request(
         base_url + path,
         data=raw,
-        headers={} if raw is None else {"Content-Type": "application/json"},
+        headers=headers,
     )
     with urllib.request.urlopen(req, timeout=8) as response:
         return response.status, response.read()
@@ -37,7 +40,11 @@ def run_smoke(base_url: str = BASE) -> None:
     entry = {
         "application_id": app_id,
         "applicant_name": "Тестовый кандидат",
-        "age_over_18": True,
+        "birth_date": "2000-01-01", "email": "synthetic@example.test",
+            "vk_url": "https://vk.com/synthetic", "university": "Тестовый вуз",
+            "faculty": "История", "course": "2", "scientific_interests": "История",
+            "foreign_languages": ["Нет B1+"], "hobbies": "Чтение", "source": "Другое",
+            "age_over_18": True,
         "consent_personal_data": True,
         "motivation": "Мне интересно создавать исторический медиаконтент и помогать музею.",
         "experience": "Делал видео для университетского кружка.",
@@ -57,7 +64,8 @@ def run_smoke(base_url: str = BASE) -> None:
         assert status == 201
         assert result["application_id"] == entry["application_id"]
         assert result["created"] is (i == 0)
-        assert result["evaluation"]["recommended_direction"] == "media"
+        assert "evaluation" not in result
+        assert result["status"] == "registered"
 
     status, body = request("/api/v1/applications", base_url=base_url)
     matching = [v for v in json.loads(body)["items"] if v["application_id"] == entry["application_id"]]
@@ -87,3 +95,4 @@ def run_smoke(base_url: str = BASE) -> None:
 
 if __name__ == "__main__":
     run_smoke()
+

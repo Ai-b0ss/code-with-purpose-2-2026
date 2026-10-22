@@ -90,19 +90,19 @@ class ClarificationFlowTests(unittest.TestCase):
     def test_endpoint_uses_llm_and_does_not_fallback_silently(self):
         mock = FakeAdapter(plan(question()))
         with patch("backend.clarification_agent.adapter_from_env", return_value=mock), patch.dict(
-                "os.environ", {"GIM_EVALUATION_MODE": "llm"}):
+                "os.environ", {"GIM_EVALUATION_MODE": "llm", "GIM_ALLOW_EXTERNAL_LLM": "1"}):
             result = clarification(candidate())
             self.assertIsNone(result["question"])
             self.assertEqual(result["evaluation_mode"], "llm")
             self.assertEqual(len(result["questions"]), 1)
         with patch("backend.clarification_agent.adapter_from_env", return_value=FakeAdapter("INVALID")), patch.dict(
-                "os.environ", {"GIM_EVALUATION_MODE": "llm"}):
+                "os.environ", {"GIM_EVALUATION_MODE": "llm", "GIM_ALLOW_EXTERNAL_LLM": "1"}):
             with self.assertRaises(HTTPException) as ctx:
                 clarification(candidate())
             self.assertEqual(ctx.exception.status_code, 503)
 
     def test_preliminary_llm_cannot_receive_data_without_consent(self):
-        with patch.dict("os.environ", {"GIM_EVALUATION_MODE": "llm"}):
+        with patch.dict("os.environ", {"GIM_EVALUATION_MODE": "llm", "GIM_ALLOW_EXTERNAL_LLM": "1"}):
             with self.assertRaises(HTTPException) as ctx:
                 clarification(candidate().model_copy(update={"consent_personal_data": False}))
             self.assertEqual(ctx.exception.status_code, 422)
@@ -133,3 +133,4 @@ class ClarificationFlowTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

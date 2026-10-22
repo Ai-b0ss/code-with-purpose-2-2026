@@ -1,7 +1,11 @@
+param([switch]$Demo, [int]$Port = 8876)
 # Local-only team smoke kit. No Git/admin access or stored credentials.
 $ErrorActionPreference = "Stop"
 Push-Location $PSScriptRoot
 $oldPath = $env:Path
+$oldMode = $env:GIM_EVALUATION_MODE
+$oldExternalPermission = $env:GIM_ALLOW_EXTERNAL_LLM
+$oldCoordinatorToken = $env:GIM_COORDINATOR_TOKEN
 try {
     Write-Host "GIM / TEAM QA: local site, DeepSeek via ReformBoss"
     Write-Host "Requires Python 3.11+ and internet for dependency installation and AI calls."
@@ -31,11 +35,26 @@ try {
     $env:Path = (Join-Path $PSScriptRoot ".venv\Scripts") + ";" + $oldPath
     Write-Host "Demo/test-only: use fictitious candidates. NO real personal data."
     Write-Host "API binds to 127.0.0.1 only. No external/public access."
+    if ($Demo) {
+        $env:GIM_EVALUATION_MODE = "demo"
+        $env:GIM_ALLOW_EXTERNAL_LLM = "0"
+        if (-not $env:GIM_COORDINATOR_TOKEN) {
+            $env:GIM_COORDINATOR_TOKEN = & $venvPython -c "import secrets; print(secrets.token_urlsafe(32))"
+            Write-Host "Coordinator key for this demo session: $env:GIM_COORDINATOR_TOKEN"
+        }
+        Write-Host "Demo: http://127.0.0.1:$Port ; coordinator: /admin ; no external AI calls."
+        & $venvPython -m uvicorn backend.app:app --host 127.0.0.1 --port $Port
+        return
+    }
     Write-Host "Key will be typed in console, visible, and kept only in this process environment."
     Write-Host "No model probe is run on startup; first submit performs the live call."
     & "$PSScriptRoot\start-reformboss.ps1" -SkipProbe -Port 8876 -TimeoutSeconds 180
     if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "ReformBoss launcher failed with code $LASTEXITCODE" }
 } finally {
     $env:Path = $oldPath
+    $env:GIM_EVALUATION_MODE = $oldMode
+    $env:GIM_ALLOW_EXTERNAL_LLM = $oldExternalPermission
+    $env:GIM_COORDINATOR_TOKEN = $oldCoordinatorToken
     Pop-Location
 }
+
