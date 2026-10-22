@@ -1,8 +1,7 @@
 # ReformBoss OpenAI-compatible LLM for GIM. Nothing is saved to disk.
-# Default: DeepSeek V4.1 Flash, as returned by authenticated /v1/models.
+# Model names and endpoint are read from knowledge/provider_models.json.
 param(
-    [ValidateSet("deepseek-v4.1-flash", "glm-5.3", "kimi-k3")]
-    [string]$Model = "deepseek-v4.1-flash",
+    [string]$Model = "",
     [switch]$Compare,
     [switch]$DisableJsonMode,
     [switch]$SkipProbe,
@@ -15,17 +14,23 @@ param(
 $ErrorActionPreference = "Stop"
 Push-Location $PSScriptRoot
 try {
+    $catalog = Get-Content -LiteralPath (Join-Path $PSScriptRoot "knowledge/provider_models.json") -Raw -Encoding UTF8 | ConvertFrom-Json
+    $endpoint = [string]$catalog._default_endpoint
+    $providerHost = ([uri]$endpoint).Host
+    $modelProperty = $catalog.PSObject.Properties[$providerHost]
+    if ($null -eq $modelProperty) { throw "No model catalog for configured endpoint host." }
+    $availableModels = @($modelProperty.Value)
+    if ([string]::IsNullOrWhiteSpace($Model)) { $Model = [string]$catalog._default_model }
+    if ($Model -notin $availableModels) { throw "Requested model is absent from knowledge/provider_models.json." }
     Write-Host "GIM / ReformBoss live LLM"
     Write-Host "Model: $Model"
-    Write-Host "Endpoint: https://api.reformboss.com/v1/chat/completions"
+    Write-Host "Endpoint: $endpoint"
     Write-Host "Key will be VISIBLE while typing. Do not share a screenshot or terminal recording."
 
-    # No secret is requested or sent until Python can establish a valid
-    # HTTPS connection. HTTP 401 here is normal: the probe has no API key.
+    # HTTP 401 here is normal: the network probe has no API key.
     python -m scripts.check_reformboss --check-network
     if ($LASTEXITCODE -ne 0) {
-        Write-Warning "TLS/network preflight failed. API key was not requested."
-        return
+        Write-Warning "Cloud network preflight failed. Configured local fallback can still be used."
     }
 
     # Plain Read-Host intentionally avoids SecureString conversion because the
@@ -37,22 +42,25 @@ try {
         throw "No key provided."
     }
 
-    $env:GIM_LLM_ENDPOINT = "https://api.reformboss.com/v1/chat/completions"
+    $env:GIM_LLM_ENDPOINT = $endpoint
     $env:GIM_LLM_MODEL = $Model
+    $env:GIM_LLM_BACKUP_MODELS = ($availableModels | Where-Object { $_ -ne $Model }) -join ","
     $env:GIM_EVALUATION_MODE = "llm"
     $env:GIM_LLM_FALLBACK_TO_DEMO = "0"
     $env:GIM_LLM_TIMEOUT = [string]$TimeoutSeconds
     $env:GIM_LLM_JSON_MODE = if ($DisableJsonMode) { "0" } else { "1" }
 
     if (-not $SkipProbe) {
-        Write-Host "Checking actual model response with synthetic candidate..."
-        $probe = @("-m", "scripts.check_reformboss", "--model", $Model)
-        if ($Compare) { $probe += "--compare" }
-        if ($DisableJsonMode) { $probe += "--disable-json-mode" }
-        python @probe
+        Write-Host "Checking production harness with a synthetic candidate and model failover..."
+        python -m scripts.probe_live_harness
         if ($LASTEXITCODE -ne 0) {
-            Write-Warning "Live LLM probe failed. The safe error code above identifies TLS, HTTP, or response format. Server NOT started."
+            Write-Warning "Live harness probe failed. The safe error code above identifies the failure. Server NOT started."
             return
+        }
+        if ($Compare) {
+            $comparison = @("-m", "scripts.check_reformboss", "--compare")
+            if ($DisableJsonMode) { $comparison += "--disable-json-mode" }
+            python @comparison
         }
     }
     # Bind-and-release probes avoid accidentally killing an existing server.
@@ -87,6 +95,7 @@ try {
     Remove-Item Env:GIM_LLM_API_KEY -ErrorAction SilentlyContinue
     Remove-Item Env:GIM_LLM_ENDPOINT -ErrorAction SilentlyContinue
     Remove-Item Env:GIM_LLM_MODEL -ErrorAction SilentlyContinue
+    Remove-Item Env:GIM_LLM_BACKUP_MODELS -ErrorAction SilentlyContinue
     Remove-Item Env:GIM_EVALUATION_MODE -ErrorAction SilentlyContinue
     Remove-Item Env:GIM_LLM_FALLBACK_TO_DEMO -ErrorAction SilentlyContinue
     Remove-Item Env:GIM_LLM_TIMEOUT -ErrorAction SilentlyContinue

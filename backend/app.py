@@ -7,37 +7,30 @@ from __future__ import annotations
 
 import csv
 from contextlib import contextmanager
+import hashlib
+import hmac
 import io
 import json
 import os
+import secrets
 import sqlite3
 import math
 import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Literal
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 from backend import google_sheets
 
 ROOT = Path(__file__).resolve().parent.parent
 FRONTEND = ROOT / "frontend" / "index.html"
 DEFAULT_DB = ROOT / "data" / "gim.sqlite3"
-DIRECTIONS = {
-    "organizational": "Организационное",
-    "project": "Проектное",
-    "collections": "Фондовое",
-    "inclusive": "Инклюзивное",
-    "media": "Медиа",
-    "undecided": "Пока не определился",
-}
-Direction = Literal[
-    "organizational", "project", "collections",
-    "inclusive", "media", "undecided",
-]
+_DIRECTION_CATALOG = json.loads((ROOT / "knowledge" / "directions.json").read_text(encoding="utf-8"))
+_WEEKDAY_CATALOG = json.loads((ROOT / "knowledge" / "availability_rules.json").read_text(encoding="utf-8"))["weekday_options"]
+DIRECTIONS = {entry["id"]: entry["label"] for entry in _DIRECTION_CATALOG["directions"]}
 
 
 class ApplicationInput(BaseModel):
@@ -49,7 +42,7 @@ class ApplicationInput(BaseModel):
     expectations: str = Field(default="", max_length=4000)
     availability_hours_month: int = Field(ge=0, le=400)
     other_commitments: str = Field(default="", max_length=1500)
-    desired_direction: Direction
+    desired_direction: str
     followup_answer: str = Field(default="", max_length=2000)
 
     # Расширенные поля официальной анкеты ГИМ
@@ -71,6 +64,23 @@ class ApplicationInput(BaseModel):
     source: str = Field(default="", max_length=200)
     followup_answers: dict[str, str] = Field(default_factory=dict)
     followup_questions: list[dict[str, str]] = Field(default_factory=list, max_length=3)
+    followup_signature: str = Field(default="", max_length=64)
+
+    @field_validator("desired_direction")
+    @classmethod
+    def known_direction(cls, value: str) -> str:
+        if value not in DIRECTIONS:
+            raise ValueError("Неизвестное направление волонтёрства")
+        return value
+
+    @model_validator(mode="after")
+    def remove_legacy_followup_duplicate(self):
+        # Older forms copied every structured follow-up into the legacy text
+        # field, causing one answer to influence classification twice.
+        combined = "\n".join(f"{key}: {value}" for key, value in self.followup_answers.items())
+        if combined and self.followup_answer.strip() == combined.strip():
+            self.followup_answer = ""
+        return self
 
 
 @contextmanager
@@ -95,6 +105,9 @@ def db_connection():
             started_at REAL NOT NULL
         )"""
     )
+    connection.execute(
+        "CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+    )
     columns = {row[1] for row in connection.execute("PRAGMA table_info(applications)")}
     for name, definition in {
         "sheet_sync_status": "TEXT NOT NULL DEFAULT 'pending'",
@@ -114,119 +127,96 @@ def db_connection():
         connection.close()
 
 
+def _followup_message(data: ApplicationInput) -> bytes:
+    base = data.model_dump(exclude={
+        "application_id", "followup_answer", "followup_answers",
+        "followup_questions", "followup_signature",
+    })
+    questions = [
+        {key: question.get(key, "") for key in ("id", "question", "category", "reason")}
+        for question in data.followup_questions
+    ]
+    return json.dumps({"base": base, "questions": questions},
+                      ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+def _followup_secret() -> bytes:
+    with db_connection() as connection:
+        connection.execute(
+            "INSERT OR IGNORE INTO app_settings(key, value) VALUES (?, ?)",
+            ("followup_signing_secret", secrets.token_hex(32)),
+        )
+        value = connection.execute(
+            "SELECT value FROM app_settings WHERE key = ?", ("followup_signing_secret",)
+        ).fetchone()[0]
+    return bytes.fromhex(value)
+
+
+def sign_followup_questions(data: ApplicationInput) -> str:
+    return hmac.new(_followup_secret(), _followup_message(data), hashlib.sha256).hexdigest()
+
+
+def verify_followup_questions(data: ApplicationInput) -> None:
+    if not data.followup_questions and not data.followup_answers:
+        return
+    ids = [item.get("id") for item in data.followup_questions]
+    if (not data.followup_signature or not ids or len(ids) != len(set(ids))
+            or any(not item.get("question") for item in data.followup_questions)
+            or set(data.followup_answers) != set(ids)):
+        raise HTTPException(status_code=422, detail="Уточнения устарели. Вернитесь на предыдущий шаг и получите вопросы заново.")
+    expected = sign_followup_questions(data)
+    if not hmac.compare_digest(data.followup_signature, expected):
+        raise HTTPException(status_code=422, detail="Анкета изменилась после уточнений. Получите вопросы заново.")
+
+
 def clarification_for(data: ApplicationInput) -> str | None:
-    if not data.age_over_18:
-        return "Участие предполагает возраст 18+. Вы хотите уточнить условия у координатора?"
-    if len(data.motivation.strip()) < 65 and not data.followup_answer.strip():
-        return "Что именно в работе Исторического музея вам интересно и почему?"
-    if data.availability_hours_month < 8 and not data.followup_answer.strip():
-        return "При каких условиях вы могли бы выделять больше времени для участия?"
-    if data.desired_direction == "collections" and not data.followup_answer.strip():
-        return "Готовы ли вы рассмотреть другие направления, если мест в фондах не будет?"
+    for item in clarifications_for(data):
+        if item["id"] == "age_terms" or (
+            item["id"] in {"availability_boost", "collections_focus"}
+            and not data.followup_answer.strip()
+        ):
+            return item["question"]
     return None
 
 
 def clarifications_for(data: ApplicationInput) -> list[dict]:
+    rules = json.loads((ROOT / "knowledge" / "demo_clarification_rules.json").read_text(encoding="utf-8"))
     items: list[dict] = []
-
-    # Возраст
-    if not data.age_over_18:
-        items.append({
-            "id": "age_terms",
-            "category": "Возраст и регламент",
-            "question": "Участие предполагает возраст 18+. Вы хотите уточнить условия у координатора?",
-            "reason": "По правилам музея большинство программ рассчитаны на совершеннолетних волонтёров.",
-        })
-
-    # Мотивация
-    if len(data.motivation.strip()) < 65 and not data.followup_answer.strip() and not data.followup_answers.get("motivation_detail"):
-        items.append({
-            "id": "motivation_detail",
-            "category": "Мотивация",
-            "question": "Что именно в работе Исторического музея вам наиболее интересно и почему?",
-            "reason": "Кураторам важно понимать конкретные причины выбора ГИМ среди других музеев.",
-        })
-
-    # Специфика выбранного направления (из официальных материалов ГИМ)
-    if data.desired_direction == "collections" and not data.followup_answers.get("collections_focus"):
-        items.append({
-            "id": "collections_focus",
-            "category": "Фондовое направление",
-            "question": "Какие именно фонды вас привлекают и готовы ли вы рассмотреть другие направления, если мест в фондах будет недостаточно?",
-            "reason": "Места в фондах строго ограничены; кураторам важно знать вашу гибкость.",
-        })
-    elif data.desired_direction == "project" and not data.followup_answers.get("project_format"):
-        items.append({
-            "id": "project_format",
-            "category": "Проектное направление",
-            "question": "Какие форматы вам ближе: мастер-классы, исторические квесты, тематические экскурсии или образовательные игры?",
-            "reason": "Поможет распределить вас в проектную группу с релевантными задачами.",
-        })
-    elif data.desired_direction == "media" and not data.followup_answers.get("media_tasks"):
-        items.append({
-            "id": "media_tasks",
-            "category": "Медиа-направление",
-            "question": "Какая деятельность внутри направления вам интереснее: фото, видео, посты, контент-план или дизайн?",
-            "reason": "Медиа-служба музея формирует команды под конкретный тип контента.",
-        })
-    elif data.desired_direction == "organizational" and not data.followup_answers.get("audience_type"):
-        items.append({
-            "id": "audience_type",
-            "category": "Организационное направление",
-            "question": "С какой категорией посетителей вы предпочитаете взаимодействовать: дети, молодёжь, семейная аудитория или пожилые люди?",
-            "reason": "Музейные мероприятия делятся по целевым аудиториям.",
-        })
-
-    # Доступность и совмещение
-    if data.availability_hours_month < 8 and not data.followup_answers.get("availability_boost"):
-        items.append({
-            "id": "availability_boost",
-            "category": "График и занятость",
-            "question": "При каких условиях вы могли бы выделять больше времени для участия (например, в выходные или на спецпроектах)?",
-            "reason": "Необходимо уточнить, подходит ли заявленный график для выбранного направления. Числовой минимум не подтверждён.",
-        })
-    elif data.other_volunteer_programs.strip() and not data.followup_answers.get("other_volunteering"):
-        items.append({
-            "id": "other_volunteering",
-            "category": "Совмещение волонтерства",
-            "question": "Как планируете распределять нагрузку с участием в других волонтерских объединениях?",
-            "reason": "Музею важно убедиться в отсутствии конфликта графиков в дни ключевых событий.",
-        })
-
-    # At most three actionable form questions; risk/eligibility before role detail.
-    priorities = {
-        "age_terms": 0,
-        "availability_boost": 1,
-        "other_volunteering": 2,
-        "motivation_detail": 3,
-        "collections_focus": 4,
-        "project_format": 4,
-        "media_tasks": 4,
-        "audience_type": 4,
-    }
-    return sorted(items, key=lambda item: priorities.get(item["id"], 5))[:3]
+    used_groups: set[str] = set()
+    for rule in sorted(rules["rules"], key=lambda item: (item["priority"], item["id"])):
+        if rule["group"] in used_groups or str(data.followup_answers.get(rule["id"], "")).strip():
+            continue
+        condition = rule["when"]
+        value = getattr(data, condition["field"])
+        matches = (
+            value == condition["value"] if condition["operator"] == "equals"
+            else bool(str(value).strip()) if condition["operator"] == "nonempty"
+            else False
+        )
+        if matches:
+            items.append({key: rule[key] for key in ("id", "category", "question", "reason")})
+            used_groups.add(rule["group"])
+        if len(items) >= rules["max_questions"]:
+            break
+    return items
 
 
 def evaluate_demo(data: ApplicationInput) -> dict:
     """Deterministic example for wiring UI/API/Sheets; not museum scoring."""
     direction = data.desired_direction
-    if direction == "undecided":
-        direction = "project" if "квест" in data.motivation.lower() else "organizational"
 
     possible_problems = []
-    if data.availability_hours_month < 8:
-        possible_problems.append("Уточнить регулярность и достаточность доступного времени.")
+    if data.availability_hours_month == 0:
+        possible_problems.append("Не указано доступных часов для регулярного участия.")
     if data.other_commitments.strip():
         possible_problems.append("Уточнить совместимость с другими обязательствами.")
     if not data.age_over_18:
         possible_problems.append("Нужно уточнить формальное требование возраста 18+.")
-    if len(data.motivation.strip()) < 65:
-        possible_problems.append("Мотивация требует более конкретного примера.")
 
     strengths = ["Кандидат указал интерес к программе музея."]
     if data.experience.strip():
         strengths.append("Кандидат описал предыдущий опыт.")
-    if data.availability_hours_month >= 8:
+    if data.availability_hours_month > 0:
         strengths.append("Кандидат указал конкретное доступное время.")
 
     return {
@@ -243,6 +233,8 @@ def evaluate_demo(data: ApplicationInput) -> dict:
         "recommended_direction": direction,
         "recommended_direction_label": DIRECTIONS[direction],
         "direction_reason": (
+            "Кандидат пока не выбрал направление; его следует обсудить с координатором."
+            if direction == "undecided" else
             "Предварительная рекомендация по заявленному интересу. "
             "Окончательная оценка будет добавлена после калибровки по анкетам кураторов."
         ),
@@ -288,6 +280,16 @@ def home():
     return FileResponse(FRONTEND, media_type="text/html")
 
 
+@app.get("/api/v1/directions")
+def directions():
+    return _DIRECTION_CATALOG
+
+
+@app.get("/api/v1/weekdays")
+def weekdays():
+    return [{"id": option["id"], "label": option["label"]} for option in _WEEKDAY_CATALOG]
+
+
 @app.get("/api/v1/health")
 def health():
     mode = os.getenv("GIM_EVALUATION_MODE", "demo")
@@ -302,6 +304,7 @@ def health():
 def clarification(data: ApplicationInput):
     if os.getenv("GIM_EVALUATION_MODE", "demo") == "llm" and not data.consent_personal_data:
         raise HTTPException(status_code=422, detail="Согласие на обработку данных обязательно до анализа ИИ.")
+    verify_followup_questions(data)
     # In live mode, ask the model to review five criteria BEFORE a final
     # evaluation. Do not confuse questions asked now with interview notes.
     from backend.clarification_agent import questions_before_verdict
@@ -311,11 +314,15 @@ def clarification(data: ApplicationInput):
     except EvaluationError as exc:
         # Do not silently switch from LLM to heuristic questions in live mode.
         raise HTTPException(status_code=503, detail=f"clarification_{exc.code}") from None
-    return {"question": None, **result}
+    questions = result.get("questions", [])
+    signed = data.model_copy(update={"followup_questions": questions})
+    return {"question": None, **result,
+            "followup_signature": sign_followup_questions(signed) if questions else ""}
 
 
 @app.post("/api/v1/preview")
 def preview(data: ApplicationInput):
+    verify_followup_questions(data)
     return {"evaluation": evaluate_application(data)}
 
 
@@ -331,6 +338,7 @@ def save_application(data: ApplicationInput):
     application_id = data.application_id or uuid.uuid4().hex
     if not data.consent_personal_data:
         raise HTTPException(status_code=422, detail="Необходимо явное согласие на обработку персональных данных.")
+    verify_followup_questions(data)
 
     token = uuid.uuid4().hex
     created_at = datetime.now(timezone.utc).isoformat()
@@ -413,7 +421,8 @@ def save_application(data: ApplicationInput):
                 "INSERT INTO applications(id, created_at, applicant_name, payload, evaluation) "
                 "VALUES(?, ?, ?, ?, ?)",
                 (application_id, created_at, data.applicant_name,
-                 data.model_dump_json(), json.dumps(evaluation, ensure_ascii=False)),
+                 data.model_dump_json(exclude={"followup_signature"}),
+                 json.dumps(evaluation, ensure_ascii=False)),
             )
             con.execute(
                 "DELETE FROM application_reservations WHERE id = ? AND token = ?",

@@ -1,89 +1,62 @@
-"""Conservative, reviewable availability signals based on the GIM curator interview.
-
-These are negative *signals of reliability*, NOT eligibility bans and not
-invented curator scores. Confirm exceptions with a human interviewer.
-"""
+﻿"""Configurable availability signals supported by the museum interview."""
 from __future__ import annotations
 
+import json
 import re
+from pathlib import Path
 
 
-def availability_risks(answers) -> list[str]:
-    """Flag explicit schedule/retention risk while preserving individual exceptions."""
+RULES = json.loads((Path(__file__).resolve().parent.parent / "knowledge" / "availability_rules.json").read_text(encoding="utf-8"))
+
+
+def valid_availability_days(days) -> list[str]:
+    """Use only actual weekdays as structured evidence of a concrete schedule."""
+    if not isinstance(days, list):
+        return []
+    allowed = {
+        value.strip().casefold()
+        for option in RULES["weekday_options"]
+        for value in (option["id"], *option.get("aliases", []))
+    }
+    return list(dict.fromkeys(day.strip().casefold() for day in days
+                              if isinstance(day, str) and day.strip().casefold() in allowed))
+
+
+def _matches(name: str, value: str) -> bool:
+    return bool(re.search(RULES["patterns"][name], value))
+
+
+def availability_signal_ids(answers) -> list[str]:
+    """Return source-backed workload signal IDs for deterministic scoring."""
     course = str(getattr(answers, "course", "") or "").casefold()
     status = str(getattr(answers, "status", "") or "").casefold()
     obligations = str(getattr(answers, "other_commitments", "") or "").casefold()
     volunteering = str(getattr(answers, "other_volunteer_programs", "") or "").casefold()
     hours = getattr(answers, "availability_hours_month", None)
-    days = getattr(answers, "availability_days", None) or []
-    schedule = str(getattr(answers, "availability_schedule_type", "") or "").casefold()
+    days = valid_availability_days(getattr(answers, "availability_days", None))
     followups = getattr(answers, "followup_answers", None) or {}
-    clarified_schedule = str(followups.get("ai_availability", "") or "").casefold().strip()
-    has_schedule_exception = (
-        len(clarified_schedule) >= 12
-        and not any(x in clarified_schedule for x in ("не знаю", "пока не", "не могу"))
-        and any(x in clarified_schedule for x in (
-            "суббот", "воскрес", "пятниц", "смен", "регуляр", "еженедель",
-            "кажд", "час", "понедель", "вторник", "сред", "четверг"
-        ))
-    )
+    clarified = str(followups.get("ai_availability", "") or "").casefold().strip()
     signals: list[str] = []
+    if _matches("first_year", course) and not _matches("graduate_course", course):
+        signals.append("first_year")
+    if _matches("full_time", obligations + " " + status):
+        signals.append("full_time")
+    if _matches("multiple_projects", volunteering + " " + obligations):
+        signals.append("multiple_projects")
+    if isinstance(hours, int) and not isinstance(hours, bool) and hours == 0:
+        signals.append("zero_hours")
 
-    is_first_year = bool(re.search(r"\b1[\s-]*(?:й|ый)?\s*курс\b|\bперв(?:ый|ом|ого|окурсник\w*)\s*курс", course))
-    is_graduate_course = bool(re.search(r"магистратур|аспирантур|ординатур", course))
-    # First-year *bachelor* workload risk does not apply to 1st-year masters.
-    if is_first_year and not is_graduate_course:
-        signals.append(
-            "Первый курс бакалавриата — неблагоприятный предварительный сигнал "
-            "долгосрочной доступности и устойчивости участия. Это не запрет: "
-            "координатор должен проверить расписание, сессию и возможность "
-            "регулярных смен в течение нескольких месяцев."
-        )
-
-    if re.search(
-        r"полная\s+ставка|полную\s+ставку|полной\s+ставке|"
-        r"фулл[\s-]*тайм|full[\s-]*time|\b40\s*час|\b5\s*/\s*2\b",
-        obligations + " " + status,
+    has_specific_followup = (
+        bool(clarified) and _matches("specific_schedule", clarified)
+        and not _matches("uncertain_schedule", clarified)
+    )
+    if signals and isinstance(hours, int) and hours > 0 and (
+        has_specific_followup or bool(days)
     ):
-        signals.append(
-            "Работа на полной ставке — неблагоприятный предварительный сигнал "
-            "совместимости и длительного участия; уточнить реальные "
-            "смены и нагрузку в пиковые периоды. Гибкий график "
-            "может быть индивидуальным исключением."
-        )
-
-    all_volunteering = volunteering + " " + obligations
-    if re.search(
-        r"(?:нескольк\w*|множеств\w*|много|двух|(?:три|тр[её]х)|"
-        r"[2-9])[\s\w-]{0,45}(?:волонт\w*|проект\w*|программ\w*)|"
-        r"(?:волонт\w*|проект\w*|программ\w*)[\s\w-]{0,35}"
-        r"(?:нескольк\w*|множеств\w*|много|двух|(?:три|тр[её]х)|[2-9])",
-        all_volunteering,
-    ):
-        signals.append(
-            "Несколько параллельных волонтёрских проектов — неблагоприятный "
-            "предварительный сигнал перегрузки и риска раннего ухода; "
-            "уточнить часы, приоритет ГИМ и подтверждённую регулярность. "
-            "Возможны индивидуальные исключения."
-        )
-
-    if isinstance(hours, int) and hours < 8:
-        signals.append(
-            "Заявлено мало часов в месяц — риск недостаточной регулярности; "
-            "уточнить график и требования конкретного направления. "
-            "Число 8 не является установленным музеем порогом отказа."
-        )
-
-    if signals and (has_schedule_exception or (
-        isinstance(hours, int) and hours >= 16 and (
-            days or "выход" in obligations or "суббот" in obligations
-            or "вечер" in obligations or schedule == "regular"
-        )
-    )):
-        signals.append(
-            "Смягчающее обстоятельство: кандидат заявил доступные часы "
-            "и конкретные дни/смены (в том числе в уточнении). "
-            "Это может уменьшить риск, но "
-            "не является доказанной долгосрочной доступностью."
-        )
+        signals.append("mitigation")
     return signals
+
+
+def availability_risks(answers) -> list[str]:
+    """Explain explicit workload signals without deciding eligibility."""
+    return [RULES["messages"][signal] for signal in availability_signal_ids(answers)]

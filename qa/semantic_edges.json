@@ -1,0 +1,20 @@
+{
+  "description": "Вымышленные ответы для живой проверки классификатора отдельных полей.",
+  "cases": [
+    {"id": "abuse", "field_id": "motivation", "answer": "Пошли вы все, тупой музей.", "category": "abusive", "required_signals": [], "forbidden_signals": []},
+    {"id": "profanity_as_answer", "field_id": "motivation", "answer": "Хуйня, ничего писать не буду.", "category": "abusive", "required_signals": [], "forbidden_signals": []},
+    {"id": "nonsense", "field_id": "motivation", "answer": "Шмяк бум мурлыка кабачок.", "category": "nonsense", "required_signals": [], "forbidden_signals": []},
+    {"id": "nonsense_course", "field_id": "course", "answer": "Шмяк бум мурлыка кабачок.", "category": "nonsense", "required_signals": [], "forbidden_signals": []},
+    {"id": "nonsense_day", "field_id": "availability_days.0", "answer": "Шмяк бум мурлыка кабачок.", "category": "nonsense", "required_signals": [], "forbidden_signals": []},
+    {"id": "ornate_empty", "field_id": "motivation", "answer": "О дивное сияние минувших эпох, переплетение вечности и духа времени! Душа воспаряет в безбрежном океане культурных смыслов, и потому я всей сущностью стремлюсь к вашему учреждению.", "category": null, "required_signals": ["ornate_without_substance"], "forbidden_signals": []},
+    {"id": "concrete_experience", "field_id": "experience", "answer": "Провёл пять экскурсий в школьном музее и помогал встречать посетителей на двух выставках.", "category": "specific_relevant", "required_signals": ["concrete_example"], "forbidden_signals": []},
+    {"id": "quoted_insult", "field_id": "motivation", "answer": "На занятии мы обсуждали, почему фраза «тупой музей» оскорбляет сотрудников; я хочу помогать посетителям уважительно.", "category": null, "required_signals": [], "forbidden_signals": ["abusive"]},
+    {"id": "exclusive_funds", "field_id": "motivation", "answer": "Готов только работать в фондах, от любых других задач откажусь.", "category": null, "required_signals": ["exclusive_unavailable_role"], "forbidden_signals": []},
+    {"id": "guaranteed_job", "field_id": "expectations", "answer": "Пойду только если гарантируют работу в штате музея через месяц.", "category": null, "required_signals": ["unrealistic_expectation"], "forbidden_signals": []},
+    {"id": "no_experience", "field_id": "experience", "answer": "Опыта волонтёрства пока нет.", "category": "explicit_none", "required_signals": [], "forbidden_signals": ["abusive", "nonsense"]},
+    {"id": "no_other_projects", "field_id": "other_volunteer_programs", "answer": "В других волонтёрских программах не участвую.", "category": "explicit_none", "required_signals": [], "forbidden_signals": []},
+    {"id": "no_museum_interest", "field_id": "motivation", "answer": "Не хочу работать волонтёром и музей мне неинтересен.", "category": "off_topic", "required_signals": ["museum_mismatch"], "forbidden_signals": ["explicit_none"]},
+    {"id": "long_term_schedule", "field_id": "followup_answers.ai_availability", "answer": "Смогу приходить каждую субботу в течение всего семестра и во время сессии, по пять часов.", "category": null, "required_signals": ["long_term_schedule_commitment"], "forbidden_signals": []},
+    {"id": "session_conflict", "field_id": "followup_answers.ai_availability", "answer": "По субботам могу, но во время сессии не смогу приходить.", "category": null, "required_signals": ["schedule_conflict"], "forbidden_signals": ["long_term_schedule_commitment"]}
+  ]
+}

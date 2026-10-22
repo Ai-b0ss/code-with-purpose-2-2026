@@ -409,31 +409,10 @@
       border-color: var(--gim-red);
     }
 
-    /* Hours presets */
     .hours-row {
       display: flex;
       gap: 12px;
       align-items: center;
-    }
-    .hours-presets {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
-    .preset-btn {
-      background: #f5f1eb;
-      border: 1px solid #ded8ce;
-      border-radius: var(--radius);
-      padding: 9px 13px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      color: var(--text);
-      min-height: 44px;
-      transition: background 0.15s;
-    }
-    .preset-btn:hover {
-      background: #eae2d6;
     }
 
     /* Dynamic Clarification Question Cards */
@@ -853,75 +832,15 @@
 
         <div class="field">
           <label class="title">В работу какого направления ГИМ Вы бы хотели включиться? <span class="req">*</span></label>
-          <div class="direction-cards" id="directionsCards">
-            <label class="dir-card">
-              <input type="radio" name="desired_direction" value="organizational" required>
-              <div class="dir-card-header">
-                <span class="dir-icon">🏛️</span>
-                <span>Организационное</span>
-              </div>
-              <div class="dir-desc">Помощь в организации масштабных культурно-массовых мероприятий музея, навигация, встреча гостей.</div>
-            </label>
-
-            <label class="dir-card">
-              <input type="radio" name="desired_direction" value="project">
-              <div class="dir-card-header">
-                <span class="dir-icon">🎯</span>
-                <span>Проектное</span>
-              </div>
-              <div class="dir-desc">Разработка и проведение исторических квестов, мастер-классов и просветительских программ.</div>
-            </label>
-
-            <label class="dir-card">
-              <input type="radio" name="desired_direction" value="collections">
-              <div class="dir-card-header">
-                <span class="dir-icon">📦</span>
-                <span>Фондовое</span>
-              </div>
-              <div class="dir-desc">Помощь в работе с музейными фондами, сверка, описи, научная систематизация коллекций.</div>
-            </label>
-
-            <label class="dir-card">
-              <input type="radio" name="desired_direction" value="inclusive">
-              <div class="dir-card-header">
-                <span class="dir-icon">🤝</span>
-                <span>Инклюзивное</span>
-              </div>
-              <div class="dir-desc">Программы доступной среды, сопровождение посетителей с инвалидностью, тактильные экскурсии.</div>
-            </label>
-
-            <label class="dir-card">
-              <input type="radio" name="desired_direction" value="media">
-              <div class="dir-card-header">
-                <span class="dir-icon">📸</span>
-                <span>Медиа</span>
-              </div>
-              <div class="dir-desc">Фото- и видеосъёмка музейных событий, монтаж, написание постов, дизайн материалов для соцсетей.</div>
-            </label>
-
-            <label class="dir-card">
-              <input type="radio" name="desired_direction" value="undecided">
-              <div class="dir-card-header">
-                <span class="dir-icon">🧭</span>
-                <span>Пока не определился</span>
-              </div>
-              <div class="dir-desc">Хочу познакомиться с разными проектами и определить направление вместе с куратором.</div>
-            </label>
-          </div>
+          <div class="direction-cards" id="directionsCards" aria-live="polite">Загрузка направлений…</div>
         </div>
 
         <div class="field">
           <label class="title" for="availability_hours_month">Сколько часов в месяц Вы готовы уделять волонтёрству? <span class="req">*</span></label>
           <div class="hours-row">
-            <input type="number" id="availability_hours_month" name="availability_hours_month" min="0" max="400" value="16" required style="max-width: 140px;">
-            <div class="hours-presets">
-              <button type="button" class="preset-btn" data-hours="8">8 ч / мес</button>
-              <button type="button" class="preset-btn" data-hours="16">16 ч / мес</button>
-              <button type="button" class="preset-btn" data-hours="24">24 ч / мес</button>
-              <button type="button" class="preset-btn" data-hours="36">36+ ч / мес</button>
-            </div>
+            <input type="number" id="availability_hours_month" name="availability_hours_month" min="0" max="400" required style="max-width: 140px;">
           </div>
-          <div class="field-hint">Обычно участие в регулярных проектах музея требует от 8–12 часов в месяц.</div>
+          <div class="field-hint">Укажите число часов, которое вы реально сможете выделять в месяц.</div>
         </div>
 
         <div class="field">
@@ -934,15 +853,7 @@
 
         <div class="field">
           <label class="title">Удобные дни недели</label>
-          <div class="days-picker" id="daysPicker">
-            <div class="day-chip" data-day="пн">Пн</div>
-            <div class="day-chip" data-day="вт">Вт</div>
-            <div class="day-chip" data-day="ср">Ср</div>
-            <div class="day-chip" data-day="чт">Чт</div>
-            <div class="day-chip" data-day="пт">Пт</div>
-            <div class="day-chip" data-day="сб">Сб</div>
-            <div class="day-chip" data-day="вс">Вс</div>
-          </div>
+          <div class="days-picker" id="daysPicker"></div>
         </div>
 
         <div class="field">
@@ -965,8 +876,8 @@
 
         <div id="clarificationsContainer">
           <div class="empty-clarifications" id="noClarificationsCard" hidden>
-            <h3>✨ Отличная анкета!</h3>
-            <p>Ваши ответы содержат всю необходимую информацию. Дополнительных уточнений перед отправкой не требуется.</p>
+            <h3>Дополнительных вопросов нет</h3>
+            <p>Вы можете отправить анкету. Итоговое рассмотрение выполняет куратор.</p>
           </div>
           <div class="clarification-list" id="clarificationsList"></div>
         </div>
@@ -998,10 +909,10 @@
 
   <!-- Results View (Museum Certificate style) -->
   <section class="card" id="results" hidden>
-    <span class="result-badge">Заявка принята</span>
+    <span class="result-badge" id="resStatusBadge">Заявка зарегистрирована</span>
     <h2 style="margin: 0 0 10px; font-size: 26px;">Ваша заявка успешно зарегистрирована!</h2>
-    <p style="color: var(--text-muted); font-size: 15px; line-height: 1.55; margin: 0 0 20px;">
-      Благодарим за интерес к волонтёрской программе Государственного исторического музея! Ваша анкета передана кураторам направлений. Мы свяжемся с вами во ВКонтакте или по электронной почте для согласования даты и формата собеседования.
+    <p id="resStatusMessage" style="color: var(--text-muted); font-size: 15px; line-height: 1.55; margin: 0 0 20px;">
+      Благодарим за интерес к волонтёрской программе Государственного исторического музея! Анкета передана кураторам. Если потребуется продолжить рассмотрение, с вами свяжутся по указанным контактам.
     </p>
 
     <div class="result-card">
@@ -1012,7 +923,7 @@
       <div style="border-top: 1px solid #eee5d8; padding-top: 14px; margin-top: 14px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 14px;">
         <div>
           <span style="color: var(--text-muted); display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Готовность по времени:</span>
-          <strong id="resHoursConfirmed">16 часов в месяц</strong>
+          <strong id="resHoursConfirmed">—</strong>
         </div>
         <div>
           <span style="color: var(--text-muted); display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Контакты для связи:</span>
@@ -1069,6 +980,7 @@
   let applicationId = null;
   let dynamicClarifications = [];
   let followupAnswers = {};
+  let followupSignature = "";
 
   const byId = id => document.getElementById(id);
 
@@ -1110,35 +1022,79 @@
   }
 
   // --- Days picker toggle ---
-  const dayChips = document.querySelectorAll(".day-chip");
-  dayChips.forEach(chip => {
-    chip.addEventListener("click", () => {
-      chip.classList.toggle("active");
-      saveDraft();
-    });
-  });
+  let dayChips = [];
+  async function loadWeekdays() {
+    const picker = byId("daysPicker");
+    try {
+      const response = await fetch("/api/v1/weekdays");
+      if (!response.ok) throw new Error("Не удалось загрузить дни недели");
+      const options = await response.json();
+      if (!Array.isArray(options) || !options.length) throw new Error("Список дней недели пуст");
+      picker.replaceChildren();
+      options.forEach(option => {
+        const chip = document.createElement("div");
+        chip.className = "day-chip";
+        chip.dataset.day = option.id;
+        chip.textContent = option.label;
+        chip.addEventListener("click", () => {
+          chip.classList.toggle("active");
+          saveDraft();
+        });
+        picker.append(chip);
+      });
+      dayChips = [...picker.querySelectorAll(".day-chip")];
+    } catch (_) {
+      picker.textContent = "Не удалось загрузить дни недели. Обновите страницу и повторите попытку.";
+    }
+  }
 
-  // --- Hours preset buttons ---
-  document.querySelectorAll(".preset-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      byId("availability_hours_month").value = btn.dataset.hours;
-      saveDraft();
-    });
-  });
-
-  // --- Direction Card UI highlight ---
-  const dirCards = document.querySelectorAll(".dir-card");
-  dirCards.forEach(card => {
-    card.addEventListener("click", () => {
-      dirCards.forEach(c => c.classList.remove("selected"));
-      card.classList.add("selected");
-    });
-  });
+  // The API validates the same catalog that is rendered here.
+  const directionsCards = byId("directionsCards");
+  function clearDirectionSelection() {
+    directionsCards.querySelectorAll(".dir-card").forEach(card => card.classList.remove("selected"));
+  }
+  async function loadDirections() {
+    try {
+      const response = await fetch("/api/v1/directions");
+      if (!response.ok) throw new Error("Не удалось загрузить направления");
+      const catalog = await response.json();
+      if (!Array.isArray(catalog.directions) || !catalog.directions.length) throw new Error("Список направлений пуст");
+      directionsCards.replaceChildren();
+      catalog.directions.forEach((direction, index) => {
+        const card = document.createElement("label");
+        card.className = "dir-card";
+        const radio = document.createElement("input");
+        radio.type = "radio";
+        radio.name = "desired_direction";
+        radio.value = direction.id;
+        radio.required = index === 0;
+        const header = document.createElement("div");
+        header.className = "dir-card-header";
+        const icon = document.createElement("span");
+        icon.className = "dir-icon";
+        icon.textContent = direction.icon;
+        const label = document.createElement("span");
+        label.textContent = direction.label;
+        header.append(icon, label);
+        const description = document.createElement("div");
+        description.className = "dir-desc";
+        description.textContent = direction.description;
+        card.append(radio, header, description);
+        card.addEventListener("click", () => {
+          clearDirectionSelection();
+          card.classList.add("selected");
+        });
+        directionsCards.append(card);
+      });
+    } catch (_) {
+      directionsCards.textContent = "Не удалось загрузить направления. Обновите страницу и повторите попытку.";
+    }
+  }
 
   // --- Form Data Serialization ---
   function getSelectedDirection() {
     const checked = document.querySelector('input[name="desired_direction"]:checked');
-    return checked ? checked.value : "undecided";
+    return checked ? checked.value : "";
   }
 
   function getSelectedStatus() {
@@ -1160,9 +1116,8 @@
   }
 
   function buildPayload() {
-    const combinedFollowup = Object.entries(followupAnswers)
-      .map(([k, v]) => `${k}: ${v}`)
-      .join("\n") || (byId("fallback_answer") ? byId("fallback_answer").value.trim() : "");
+    const fallbackFollowup = Object.keys(followupAnswers).length
+      ? "" : (byId("fallback_answer") ? byId("fallback_answer").value.trim() : "");
 
     return {
       application_id: applicationId,
@@ -1190,11 +1145,12 @@
       availability_days: getSelectedDays(),
       other_commitments: byId("other_commitments") ? byId("other_commitments").value.trim() : "",
       other_volunteer_programs: byId("other_volunteer_programs") ? byId("other_volunteer_programs").value.trim() : "",
-      followup_answer: combinedFollowup,
+      followup_answer: fallbackFollowup,
       followup_answers: followupAnswers,
       followup_questions: dynamicClarifications.map(q => ({
         id: q.id, category: q.category || "", question: q.question, reason: q.reason || ""
-      }))
+      })),
+      followup_signature: followupSignature
     };
   }
 
@@ -1263,8 +1219,9 @@
         showError("Пожалуйста, выберите интересующее вас направление.");
         return false;
       }
-      const hours = Number(byId("availability_hours_month").value);
-      if (isNaN(hours) || hours < 0 || hours > 400) {
+      const hoursText = byId("availability_hours_month").value.trim();
+      const hours = Number(hoursText);
+      if (!hoursText || isNaN(hours) || hours < 0 || hours > 400) {
         showError("Укажите корректное количество часов в месяц (от 0 до 400).");
         byId("availability_hours_month").focus();
         return false;
@@ -1411,7 +1368,11 @@
       if (data.other_commitments && byId("other_commitments")) byId("other_commitments").value = data.other_commitments;
       if (data.other_volunteer_programs && byId("other_volunteer_programs")) byId("other_volunteer_programs").value = data.other_volunteer_programs;
 
-      if (data.followup_answers) {
+      if (data.followup_signature && Array.isArray(data.followup_questions) && data.followup_questions.length) {
+        followupSignature = data.followup_signature;
+        dynamicClarifications = data.followup_questions;
+      }
+      if (data.followup_answers && followupSignature) {
         followupAnswers = data.followup_answers;
       }
 
@@ -1423,8 +1384,10 @@
     localStorage.removeItem(STORAGE_KEY);
     form.reset();
     dayChips.forEach(c => c.classList.remove("active"));
-    dirCards.forEach(c => c.classList.remove("selected"));
+    clearDirectionSelection();
+    dynamicClarifications = [];
     followupAnswers = {};
+    followupSignature = "";
     draftInfo.hidden = true;
     currentStep = 0;
     renderStep();
@@ -1437,6 +1400,7 @@
     if (currentStep < steps.length - 1) {
       dynamicClarifications = [];
       followupAnswers = {};
+      followupSignature = "";
     }
     saveDraft();
   }
@@ -1476,9 +1440,12 @@
       if (currentStep === 2) nextBtn.textContent = "ИИ изучает анкету...";
       // Transitioning to Step 4: request dynamic clarifications from API
       if (currentStep === 2) {
-        const payload = buildPayload();
-        const res = await api("/api/v1/clarification", payload);
-        dynamicClarifications = res.questions || [];
+        if (!dynamicClarifications.length || !followupSignature) {
+          const payload = buildPayload();
+          const res = await api("/api/v1/clarification", payload);
+          dynamicClarifications = res.questions || [];
+          followupSignature = res.followup_signature || "";
+        }
         renderClarifications(dynamicClarifications);
 
         // No obsolete "one more question" when AI found no uncertainty.
@@ -1517,14 +1484,21 @@
 
       const payload = buildPayload();
       const res = await api("/api/v1/applications", payload);
+      if (res.evaluation?.screening_outcome === "screen_out_for_curator_review") {
+        byId("resStatusBadge").textContent = "Требуется ручная проверка";
+        byId("resStatusMessage").textContent = "Автоматическая оценка остановлена из-за недопустимого содержания одного из ответов. Анкета зарегистрирована и передана куратору. Решение о дальнейшем рассмотрении принимает координатор.";
+      } else {
+        byId("resStatusBadge").textContent = "Заявка зарегистрирована";
+        byId("resStatusMessage").textContent = "Благодарим за интерес к волонтёрской программе Государственного исторического музея! Анкета передана кураторам. Если потребуется продолжить рассмотрение, с вами свяжутся по указанным контактам.";
+      }
       // Confirm the candidate's own choice; curator recommendations stay internal.
       const selectedDirection = form.querySelector('input[name="desired_direction"]:checked');
       if (byId("resDirection")) {
         const label = selectedDirection?.closest(".dir-card")?.querySelector(".dir-card-header span:last-child");
-        byId("resDirection").textContent = label?.textContent || "Пока не определился";
+        byId("resDirection").textContent = label?.textContent || "";
       }
 
-      const hoursVal = byId("availability_hours_month") ? byId("availability_hours_month").value : "16";
+      const hoursVal = byId("availability_hours_month").value;
       if (byId("resHoursConfirmed")) {
         byId("resHoursConfirmed").textContent = hoursVal + " ч / месяц";
       }
@@ -1558,15 +1532,17 @@
     currentStep = 0;
     form.reset();
     dayChips.forEach(c => c.classList.remove("active"));
-    dirCards.forEach(c => c.classList.remove("selected"));
+    clearDirectionSelection();
+    dynamicClarifications = [];
     followupAnswers = {};
+    followupSignature = "";
     results.hidden = true;
     wizard.hidden = false;
     renderStep();
   });
 
   // Initial load
-  restoreDraft();
+  Promise.all([loadDirections(), loadWeekdays()]).then(restoreDraft);
   renderStep();
 })();
 </script>

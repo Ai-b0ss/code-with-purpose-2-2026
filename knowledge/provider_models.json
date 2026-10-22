@@ -1,0 +1,5 @@
+{
+  "_default_endpoint": "https://api.reformboss.com/v1/chat/completions",
+  "_default_model": "deepseek-v4.1-flash",
+  "api.reformboss.com": ["deepseek-v4.1-flash", "glm-5.3", "kimi-k3"]
+}

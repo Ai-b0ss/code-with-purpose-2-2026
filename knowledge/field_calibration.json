@@ -1,0 +1,75 @@
+{
+  "version": "gim-field-median-v1",
+  "taxonomy_version": "gim-field-quality-v1",
+  "source": "llm_historical_fields",
+  "shrinkage": 20.0,
+  "excluded_disputed_fields": 12,
+  "fields": {
+    "expectations": {
+      "n": 107,
+      "median": 3
+    },
+    "experience": {
+      "n": 68,
+      "median": 3.0
+    },
+    "followup_answers.superpower": {
+      "n": 105,
+      "median": 2
+    },
+    "hobbies": {
+      "n": 110,
+      "median": 3.0
+    },
+    "scientific_interests": {
+      "n": 108,
+      "median": 3.0
+    }
+  },
+  "cohorts": {
+    "2025 весна Хакатон ВШЭ": {
+      "expectations": {
+        "n": 51,
+        "median": 3
+      },
+      "experience": {
+        "n": 27,
+        "median": 3
+      },
+      "followup_answers.superpower": {
+        "n": 50,
+        "median": 2.0
+      },
+      "hobbies": {
+        "n": 53,
+        "median": 3
+      },
+      "scientific_interests": {
+        "n": 52,
+        "median": 3.0
+      }
+    },
+    "Анкеты 2024 осень": {
+      "expectations": {
+        "n": 56,
+        "median": 3.0
+      },
+      "experience": {
+        "n": 41,
+        "median": 3
+      },
+      "followup_answers.superpower": {
+        "n": 55,
+        "median": 2
+      },
+      "hobbies": {
+        "n": 57,
+        "median": 3
+      },
+      "scientific_interests": {
+        "n": 56,
+        "median": 3.0
+      }
+    }
+  }
+}
