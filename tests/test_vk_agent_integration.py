@@ -1,5 +1,6 @@
 import unittest
 from unittest.mock import MagicMock
+import requests
 import importlib.util
 if importlib.util.find_spec("vk_api") is None:
     raise unittest.SkipTest("VK tests require requirements-vk.txt")
@@ -64,6 +65,43 @@ class VkAgentIntegrationTests(unittest.TestCase):
         second, _ = fsm.handle_message(808, "Повторить отправку")
         self.assertIn("успешно принята", second)
         self.assertEqual(api.submit_application.call_args.args[0]["application_id"], first_id)
+        self.assertEqual(session.state, DialogState.DONE)
+
+    def test_notices_distinguish_clarification_from_submission(self):
+        api = MagicMock(spec=GimApiClient)
+        api.get_clarifications.return_value = {"questions": [], "round": 1}
+        api.submit_application.return_value = {"application_id": "qa-vk"}
+        notices = []
+        fsm = VolunteerBotFSM(api, notifier=lambda uid, msg: notices.append(msg))
+        session = fsm.get_or_create_session(810, "Тест")
+        session.state = DialogState.OTHER_VOLUNTEERING
+        fsm.handle_message(810, "Нет")
+        self.assertEqual(len(notices), 2)
+        self.assertIn("Анкета пока не отправлена", notices[0])
+        self.assertIn("сохраняет заявку", notices[1])
+
+    def test_provider_503_retry_preserves_followup_and_needs_explicit_command(self):
+        api = MagicMock(spec=GimApiClient)
+        response = requests.Response()
+        response.status_code = 503
+        response._content = b'{"detail":"evaluator_provider_timeout"}'
+        error = requests.HTTPError(response=response)
+        api.submit_application.side_effect = [error, {"application_id": "qa-vk", "created": False}]
+        fsm = VolunteerBotFSM(api)
+        session = fsm.get_or_create_session(811, "Тест")
+        session.state = DialogState.SUBMIT_RETRY
+        session.followup_answers = {"q1": "Да"}
+        session.pending_clarifications = []
+        first, _ = fsm.handle_message(811, "Повторить отправку")
+        self.assertIn("Не удалось завершить оценку ИИ", first)
+        first_payload = api.submit_application.call_args.args[0]
+        blocked, _ = fsm.handle_message(811, "Случайное сообщение")
+        self.assertIn("Повторить отправку", blocked)
+        self.assertEqual(api.submit_application.call_count, 1)
+        fsm.handle_message(811, "Повторить отправку")
+        second_payload = api.submit_application.call_args.args[0]
+        self.assertEqual(first_payload["application_id"], second_payload["application_id"])
+        self.assertEqual(second_payload["followup_answers"], {"q1": "Да"})
         self.assertEqual(session.state, DialogState.DONE)
 
     def test_processing_notice_does_not_skip_required_clarifications(self):
