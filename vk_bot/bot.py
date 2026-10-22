@@ -100,7 +100,7 @@ def load_dotenv_custom() -> None:
                         os.environ[key] = val
                 break
             except Exception as exc:
-                logger.warning("Не удалось прочитать .env файл %s: %s", env_file, exc)
+                logger.warning("configuration_file_read_failed error_type=%s", type(exc).__name__)
 
 
 @dataclass
@@ -567,7 +567,7 @@ class VolunteerBotFSM:
                 )
                 self.notifier(user_id, message)
             except Exception as exc:
-                logger.warning("Не удалось отправить статус обработки пользователю %s: %s", user_id, type(exc).__name__)
+                logger.warning("status_delivery_failed error_type=%s", type(exc).__name__)
 
     def get_or_create_session(self, user_id: int, user_name: str | None = None) -> UserSession:
         now = time.time()
@@ -1322,7 +1322,7 @@ def process_vk_message_event(
                 user_name = f"{first} {last}".strip()
                 user_name_cache[from_id] = user_name or f"Волонтёр #{from_id}"
             except Exception as err:
-                logger.warning("Не удалось получить профиль пользователя %s: %s", from_id, err)
+                logger.warning("profile_fetch_failed error_type=%s", type(err).__name__)
                 user_name_cache[from_id] = f"Волонтёр #{from_id}"
 
         reply_text, keyboard = fsm.handle_message(
@@ -1341,20 +1341,17 @@ def process_vk_message_event(
         try:
             vk.messages.send(**send_kwargs)
         except vk_api.exceptions.ApiError as err:
-            logger.error("Ошибка при отправке сообщения в VK (user_id=%s): %s", from_id, err)
+            logger.error("vk_send_failed error_type=%s", type(err).__name__)
             if keyboard:
                 send_kwargs.pop("keyboard", None)
                 try:
                     vk.messages.send(**send_kwargs)
                 except Exception as retry_err:
-                    logger.error("Повторная отправка в VK не удалась (user_id=%s): %s", from_id, retry_err)
+                    logger.error("vk_send_retry_failed error_type=%s", type(retry_err).__name__)
     except Exception as exc:
-        logger.error(
-            "Ошибка обработки сообщения пользователя %s; Long Poll продолжит работу: %s",
-            from_id,
-            exc,
-            exc_info=True,
-        )
+        # Exception messages/tracebacks can include an API token or an applicant's answers.
+        # Keep this a bounded diagnostic even when a worker handler fails.
+        logger.error("vk_event_failed error_type=%s", type(exc).__name__)
 
 def run_bot() -> None:
     """Инициализация и запуск Long Poll слушателя сообщений группы VK."""
@@ -1376,7 +1373,7 @@ def run_bot() -> None:
             group_name = group_info.get("name", "")
             logger.info("Автоматически определён ID группы: %s (%s)", group_id, group_name)
         except Exception as exc:
-            logger.error("Не удалось автоматически определить ID группы: %s", exc)
+            logger.error("vk_group_lookup_failed error_type=%s", type(exc).__name__)
             print_setup_guide()
             sys.exit(1)
 
@@ -1384,12 +1381,9 @@ def run_bot() -> None:
     api_client = GimApiClient(base_url=config.backend_url)
     health = api_client.check_health()
     if health:
-        logger.info("Подключение к бэкенду ГИМ успешно (%s)", config.backend_url)
+        logger.info("backend_connected")
     else:
-        logger.warning(
-            "Сервер бэкенда ГИМ по адресу %s пока не отвечает. "
-            "Убедитесь, что запущен backend (run.bat)", config.backend_url
-        )
+        logger.warning("backend_unavailable: check that the local server is running")
 
     worker_vk = ThreadLocalVkClient(config.token)
 
@@ -1425,7 +1419,7 @@ def run_bot() -> None:
                     except Exception as exc:
                         # Защитный барьер на уровне цикла: ошибка одного события
                         # не должна завершать генератор Long Poll.
-                        logger.error("Ошибка обработки события Long Poll: %s", exc, exc_info=True)
+                        logger.error("longpoll_dispatch_failed error_type=%s", type(exc).__name__)
 
             except requests.exceptions.ReadTimeout:
                 # Штатный таймаут опроса Long Poll
@@ -1434,7 +1428,7 @@ def run_bot() -> None:
                 logger.warning("Потеря связи с сервером VK Long Poll. Переподключение через 5 сек...")
                 time.sleep(5)
             except Exception as exc:
-                logger.error("Непредвиденная ошибка в основном цикле бота: %s", exc, exc_info=True)
+                logger.error("longpoll_loop_failed error_type=%s", type(exc).__name__)
                 time.sleep(2)
     finally:
         dispatcher.close()
