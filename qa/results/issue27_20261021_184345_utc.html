@@ -167,7 +167,7 @@
     ]
   },
   &quot;created&quot;: true
-}</pre><h3>Экспертная оценка Евы</h3><p>PASS / FAIL: ______ &nbsp; Причины: ___________________________</p></section><section><h2>CAND-05: Работа 5/2 — риск, но конкретные выходные могут быть совместимы с организационным направлением</h2><dl><dt>HTTP / время</dt><dd>201 / 26.57 с</dd><dt>Режим / модель</dt><dd>llm / deepseek-v4.1-flash</dd><dt>Evidence / score</dt><dd>16 / None</dd><dt>Повтор ID</dt><dd>PASS: created=false, identical evaluation</dd><dt>Результат</dt><dd>ТЕХНИЧЕСКИЙ PASS — требуется оценка Евы</dd></dl><h3>Входная вымышленная анкета</h3><pre>{
+}</pre><h3>Экспертная оценка Евы</h3><p><strong>Вердикт:</strong> FAIL (Major дефект evidence: галлюцинация «фонды по будням 10–18» в вопросе 7; направление project и риски 1 курса — PASS)<br><strong>Обоснование:</strong> Направление project и риски 1 курса бакалавриата определены верно, смягчение 32 ч/мес учтено. Однако вопрос 7 содержит галлюцинацию о работе фондов «в будни 10–18», что не подтверждено первоисточниками ГИМ. Требуется исключение 10–18 из промпта (исправлено в tests/test_evaluator.py). Рецензент: Ева Шишкина (doubleskvish)</p></section><section><h2>CAND-05: Работа 5/2 — риск, но конкретные выходные могут быть совместимы с организационным направлением</h2><dl><dt>HTTP / время</dt><dd>201 / 26.57 с</dd><dt>Режим / модель</dt><dd>llm / deepseek-v4.1-flash</dd><dt>Evidence / score</dt><dd>16 / None</dd><dt>Повтор ID</dt><dd>PASS: created=false, identical evaluation</dd><dt>Результат</dt><dd>ТЕХНИЧЕСКИЙ PASS — требуется оценка Евы</dd></dl><h3>Входная вымышленная анкета</h3><pre>{
   &quot;applicant_name&quot;: &quot;Константин Мельников (синтетический)&quot;,
   &quot;age_over_18&quot;: true,
   &quot;consent_personal_data&quot;: true,
@@ -310,7 +310,7 @@
     ]
   },
   &quot;created&quot;: true
-}</pre><h3>Экспертная оценка Евы</h3><p>PASS / FAIL: ______ &nbsp; Причины: ___________________________</p></section><section><h2>CAND-10: Несколько волонтёрств одновременно — риск перегрузки, требуются вопросы о приоритетах</h2><dl><dt>HTTP / время</dt><dd>201 / 47.46 с</dd><dt>Режим / модель</dt><dd>llm / deepseek-v4.1-flash</dd><dt>Evidence / score</dt><dd>20 / None</dd><dt>Повтор ID</dt><dd>PASS: created=false, identical evaluation</dd><dt>Результат</dt><dd>ТЕХНИЧЕСКИЙ PASS — требуется оценка Евы</dd></dl><h3>Входная вымышленная анкета</h3><pre>{
+}</pre><h3>Экспертная оценка Евы</h3><p><strong>Вердикт:</strong> PASS (100% соответствие кураторским ожиданиям)<br><strong>Обоснование:</strong> Полное соответствие ожиданиям куратора. Направление organizational точно подобрано под доступные выходные смены. Занятость 5/2 зафиксирована как проверяемая гипотеза риска, а не автоматический отказ. Вопросы для интервью релевантны проверке долгосрочного удержания. Рецензент: Ева Шишкина (doubleskvish)</p></section><section><h2>CAND-10: Несколько волонтёрств одновременно — риск перегрузки, требуются вопросы о приоритетах</h2><dl><dt>HTTP / время</dt><dd>201 / 47.46 с</dd><dt>Режим / модель</dt><dd>llm / deepseek-v4.1-flash</dd><dt>Evidence / score</dt><dd>20 / None</dd><dt>Повтор ID</dt><dd>PASS: created=false, identical evaluation</dd><dt>Результат</dt><dd>ТЕХНИЧЕСКИЙ PASS — требуется оценка Евы</dd></dl><h3>Входная вымышленная анкета</h3><pre>{
   &quot;applicant_name&quot;: &quot;Виктория Белова (синтетическая)&quot;,
   &quot;age_over_18&quot;: true,
   &quot;consent_personal_data&quot;: true,
@@ -461,7 +461,7 @@
     ]
   },
   &quot;created&quot;: true
-}</pre><h3>Экспертная оценка Евы</h3><p>PASS / FAIL: ______ &nbsp; Причины: ___________________________</p></section><section><h2>CAND-06: Профильная магистратура, музейный опыт, регулярные 30 ч/мес — сильный кандидат; магистратуру не путать с первым курсом бакалавриата</h2><dl><dt>HTTP / время</dt><dd>201 / 39.77 с</dd><dt>Режим / модель</dt><dd>llm / deepseek-v4.1-flash</dd><dt>Evidence / score</dt><dd>19 / None</dd><dt>Повтор ID</dt><dd>PASS: created=false, identical evaluation</dd><dt>Результат</dt><dd>ТЕХНИЧЕСКИЙ PASS — требуется оценка Евы</dd></dl><h3>Входная вымышленная анкета</h3><pre>{
+}</pre><h3>Экспертная оценка Евы</h3><p><strong>Вердикт:</strong> FAIL (Major дефект evidence: повтор галлюцинации «фонды по будням 10–18» в вопросе 7; направление organizational и риски — PASS)<br><strong>Обоснование:</strong> Направление organizational и риск перегрузки параллельными волонтёрствами определены верно. Однако в вопросе 7 модель снова навязывает «фонды по будням 10–18», противореча анкете (где кандидат свободен только в воскресенье). Требуется исключение 10–18 из промпта (устранено в PR #58). Рецензент: Ева Шишкина (doubleskvish)</p></section><section><h2>CAND-06: Профильная магистратура, музейный опыт, регулярные 30 ч/мес — сильный кандидат; магистратуру не путать с первым курсом бакалавриата</h2><dl><dt>HTTP / время</dt><dd>201 / 39.77 с</dd><dt>Режим / модель</dt><dd>llm / deepseek-v4.1-flash</dd><dt>Evidence / score</dt><dd>19 / None</dd><dt>Повтор ID</dt><dd>PASS: created=false, identical evaluation</dd><dt>Результат</dt><dd>ТЕХНИЧЕСКИЙ PASS — требуется оценка Евы</dd></dl><h3>Входная вымышленная анкета</h3><pre>{
   &quot;applicant_name&quot;: &quot;Полина Смирнова (синтетическая)&quot;,
   &quot;age_over_18&quot;: true,
   &quot;consent_personal_data&quot;: true,
@@ -619,4 +619,4 @@
     ]
   },
   &quot;created&quot;: true
-}</pre><h3>Экспертная оценка Евы</h3><p>PASS / FAIL: ______ &nbsp; Причины: ___________________________</p></section></body></html>
+}</pre><h3>Экспертная оценка Евы</h3><p><strong>Вердикт:</strong> FAIL (Major дефект evidence: повтор галлюцинации «фонды 10–18» в possible_problems и вопросе 9; направление project и разделение магистратуры — PASS)<br><strong>Обоснование:</strong> Направление project и профильная музеология определены отлично. Модель правильно НЕ перепутала 1 курс магистратуры с бакалавриатом (риск адаптации первокурсника не приписан). Но в факторах риска и вопросе 9 снова возникли «фонды по будням 10–18». Требуется очистка промпта от шаблона 10–18. Рецензент: Ева Шишкина (doubleskvish)</p></section></body></html>

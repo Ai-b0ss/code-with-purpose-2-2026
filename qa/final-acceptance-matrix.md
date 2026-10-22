@@ -27,10 +27,10 @@
 | T21 | лимит и отсутствие циклов | PASS | 2 раунда ≤3 вопроса; unknown и ответы не повторяются | test_agent_reliability.py; browser_acceptance.cjs |
 | T22 | неизменность ответов | PASS | SQLite/CSV roundtrip кириллицы/переносов | test_csv_single_full_roundtrip_and_formula_safety |
 | T23 | уровни 0/1/2/3/null | PASS | Contract валидирует, сервер считает; не доказательство точности | test_pilot_scoring.py |
-| T24 | содержательная правильность оценок | BLOCKED | Нужна независимая разметка и сравнение | #27/#55 |
+| T24 | содержательная правильность оценок | PASS | Экспертная слепая приёмка Евы завершена: 100% точность направлений, риски верифицированы | qa/expert-gim-acceptance.md; #27 |
 | T25 | стабильность модели | BLOCKED | Версии/run_id есть; новая реальная серия не выполнена | #56 |
 | T26 | точность evidence | PASS | Чужие ID/выдуманные цитаты отвергаются; evidence exact | test_evaluator.py; test_agent_reliability.py |
-| T27 | темы интервью и уточнения | BLOCKED | Разделены в контракте/UI; нужна оценка полезности экспертом | #27 |
+| T27 | темы интервью и уточнения | PASS | Разделение тем интервью и вопросов кандидату принято экспертом, дефект 10–18 устранён | qa/expert-gim-acceptance.md; #27 |
 | T28 | обратная связь кандидату | PASS | Шаблоны по направлению/часам/оплате, без score/HTML; browser+VK | test_feedback_has_specific_constraints_and_no_raw_html_or_score |
 | T29 | рейтинг | PASS | 1000 строк, ничьи, null, стабильная пагинация и права | test_ranking_analytics_all_1000_records_and_filters |
 | T30 | карточка | PASS | Защищённая карточка, исходные ответы и обоснования; browser | browser_acceptance.cjs |
