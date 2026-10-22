@@ -104,17 +104,20 @@ def write_row(application_id: str, values: list) -> str:
         raise SheetSyncError("duplicate_id_in_sheet")
     if matches:
         row_number = matches[0]
-        _json(session.put(root + "/values/" + _quoted(title) + f"!A{row_number}:{last}{row_number}",
-                          params={"valueInputOption": "RAW"}, json={"values": [values]}, timeout=30))
     else:
-        result = _json(session.post(root + "/values/" + _quoted(title) + f"!A:{last}:append",
+        # Reserve a row in the ID column first. Appending the entire wide range
+        # lets Sheets detect an adjacent table and shift the row into AA:BQ.
+        # If the later full-row update fails, a retry finds this ID in A:A.
+        result = _json(session.post(root + "/values/" + _quoted(title) + "!A:A:append",
                                     params={"valueInputOption": "RAW", "insertDataOption": "INSERT_ROWS"},
-                                    json={"values": [values]}, timeout=30))
+                                    json={"values": [[application_id]]}, timeout=30))
         updated = result.get("updates", {}).get("updatedRange", "")
-        match = re.search(r"![A-Z]+(\d+):", updated)
+        match = re.search(r"!A(\d+)(?::A\1)?$", updated)
         if not match:
-            raise SheetSyncError("missing_updated_range")
+            raise SheetSyncError("invalid_updated_range")
         row_number = int(match.group(1))
+    _json(session.put(root + "/values/" + _quoted(title) + f"!A{row_number}:{last}{row_number}",
+                      params={"valueInputOption": "RAW"}, json={"values": [values]}, timeout=30))
     _json(session.post(root + ":batchUpdate", json={"requests": [{"autoResizeDimensions": {
         "dimensions": {"sheetId": gid, "dimension": "COLUMNS", "startIndex": 0, "endIndex": len(HEADERS)}
     }}]}, timeout=30))
