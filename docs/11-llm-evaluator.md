@@ -60,19 +60,19 @@ JSON со следующими полями: `score` (0–3 либо `null` пр
 
 ```powershell
 python -m pip install -r requirements.txt
-powershell -NoProfile -ExecutionPolicy Bypass -File .\start-reformboss.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\launchers\start-reformboss.ps1
 ```
 
 Скрипт читает `GIM_LLM_API_KEY` из окружения или локального `.env`. Если ключа там нет, скрипт спросит его обычным видимым вводом. Затем выполнит один настоящий API-запрос с вымышленной анкетой, проверит JSON-контракт и запустит FastAPI на свободном локальном порту начиная с `8765`. `.env` исключён из Git. Остановка: Ctrl+C.
 
 Выбрать другую модель (одна проверка):
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\start-reformboss.ps1 -Model deepseek-v4-pro
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\launchers\start-reformboss.ps1 -Model deepseek-v4-pro
 ```
 
 Сравнить **три модели** (три реальных вызова, расходуют лимит API; после проверки приложение запускается на выбранной модели):
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\start-reformboss.ps1 -Compare
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\launchers\start-reformboss.ps1 -Compare
 ```
 
 Если шлюз не принимает `response_format: json_object`, повторите с `-DisableJsonMode`; проверка JSON остаётся включённой в приложении. Проверка без дополнительного вызова при запуске: `-SkipProbe`.

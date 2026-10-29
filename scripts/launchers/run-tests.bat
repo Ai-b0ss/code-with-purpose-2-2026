@@ -2,7 +2,9 @@
 chcp 65001 >nul 2>&1
 setlocal enabledelayedexpansion
 
-cd /d "%~dp0"
+set "GIM_ROOT=%~dp0"
+if not exist "%GIM_ROOT%backend\app.py" set "GIM_ROOT=%~dp0..\.."
+cd /d "%GIM_ROOT%"
 
 REM ---------------------------------------------------------
 REM 1. Find Python executable

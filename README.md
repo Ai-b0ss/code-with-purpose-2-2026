@@ -21,7 +21,7 @@ $env:GIM_GOOGLE_SHEET_NAME = "Заявки API"  # необязательно
 python -m uvicorn backend.app:app --host 127.0.0.1 --port 8765
 ```
 
-Для постоянного локального запуска можно записать эти три значения в `.env` в корне проекта (файл игнорируется Git). `run.bat`, `run.sh` и `start-reformboss.ps1` передают его Uvicorn через `--env-file`. После изменения `.env` перезапустите сервер. Тесты не загружают `.env`, поэтому их синтетические заявки не попадут в Google.
+Для постоянного локального запуска можно записать эти три значения в `.env` в корне проекта (файл игнорируется Git). `run.bat`, `run.sh` и `scripts/launchers/start-reformboss.ps1` передают его Uvicorn через `--env-file`. После изменения `.env` перезапустите сервер. Тесты не загружают `.env`, поэтому их синтетические заявки не попадут в Google.
 
 Без переменных анкета всё равно сохраняется в SQLite, а `sheet_sync.status` будет `failed` с `error=google_not_configured`. При ошибке Google статус также `failed`, а локальная запись остаётся. После исправления доступа повторите синхронизацию: `POST /api/v1/applications/{application_id}/sync`. Статус, код ошибки и ссылка на строку видны в ответах `POST` и `GET /api/v1/applications/{application_id}`; `synced` означает успешную запись и подбор ширины. Повтор того же ID не запускает оценщик и не добавляет строку. Если Google успел записать строку, но ответ потерялся, повтор найдёт её по ID и обновит.
 
@@ -73,10 +73,10 @@ CSV: **32 колонки, разделитель `;`, UTF-8 BOM**, перено�
 
 ## Запуск ReformBoss (настоящая LLM)
 
-Добавлен [`start-reformboss.ps1`](start-reformboss.ps1): по умолчанию проверяет `deepseek-v4.1-flash` через `https://api.reformboss.com/v1/chat/completions` на вымышленном кандидате, затем поднимает приложение в режиме `llm`. Ключ запрашивается **видимым вводом** (не показывайте экран во время ввода) и не записывается на диск.
+Добавлен [`scripts/launchers/start-reformboss.ps1`](scripts/launchers/start-reformboss.ps1): по умолчанию проверяет `deepseek-v4.1-flash` через `https://api.reformboss.com/v1/chat/completions` на вымышленном кандидате, затем поднимает приложение в режиме `llm`. Ключ запрашивается **видимым вводом** (не показывайте экран во время ввода) и не записывается на диск.
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\start-reformboss.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\launchers\start-reformboss.ps1
 ```
 
 `-TimeoutSeconds 180` — таймаут запроса к провайдеру (по умолчанию 180, диапазон 1–300 с); `-SkipProbe` — запустить без повторного LLM-пробника; `-Port 8766` — выбрать желаемый начальный порт (по умолчанию 8765 с автопереходом на следующий свободный); `-Model glm-5.3` — переключить модель; `-Compare` — три реальные API-вызова для DeepSeek, GLM и Kimi; `-DisableJsonMode` — обход несовместимого `response_format`. Живой запрос к `deepseek-v4.1-flash` **успешен (37,8 с; валидный JSON, 12 evidence, score=null и риск первого курса отражён)**. Старый порт `8765` оказался занят; [PR #26](https://github.com/Ai-b0ss/code-with-purpose-2-2026/pull/26) добавил автоматический поиск свободного порта. Чтобы не повторять долгий вызов при запуске, используйте `-SkipProbe`. [Инструкция](docs/11-llm-evaluator.md).
@@ -92,7 +92,7 @@ python -m pip install -r requirements.txt
 python -m uvicorn backend.app:app --host 127.0.0.1 --port 8765
 ```
 
-На Windows можно запустить `run.bat`. Откройте **http://127.0.0.1:8765** *на том же компьютере*. Установка и запуск тестов одной командой в Windows — `run-tests.bat`. Эти тесты не требуют GitHub Actions или платных ключей.
+На Windows можно запустить `run.bat`. Откройте **http://127.0.0.1:8765** *на том же компьютере*. Установка и запуск тестов одной командой в Windows — `scripts/launchers/run-tests.bat`. Эти тесты не требуют GitHub Actions или платных ключей.
 
 **По умолчанию `rules_demo`.** Чтобы попробовать настоящую совместимую LLM, нужно отдельно настроить `GIM_EVALUATION_MODE=llm`, `GIM_LLM_ENDPOINT` (полный URL `/v1/chat/completions`) и `GIM_LLM_MODEL`; ключ `GIM_LLM_API_KEY` необязателен для локальной модели. Ненастроенную модель не считать активной. [Подробная настройка](docs/11-llm-evaluator.md).
 

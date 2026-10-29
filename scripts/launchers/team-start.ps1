@@ -1,7 +1,8 @@
 param([switch]$Demo, [int]$Port = 8876)
 # Local-only team smoke kit. No Git/admin access or stored credentials.
 $ErrorActionPreference = "Stop"
-Push-Location $PSScriptRoot
+$RepoRoot = if (Test-Path -LiteralPath (Join-Path $PSScriptRoot "backend\app.py")) { $PSScriptRoot } else { (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\..")).Path }
+Push-Location $RepoRoot
 $oldPath = $env:Path
 $oldMode = $env:GIM_EVALUATION_MODE
 $oldExternalPermission = $env:GIM_ALLOW_EXTERNAL_LLM
@@ -9,7 +10,7 @@ $oldCoordinatorToken = $env:GIM_COORDINATOR_TOKEN
 try {
     Write-Host "GIM / TEAM QA: local site, DeepSeek via ReformBoss"
     Write-Host "Requires Python 3.11+ and internet for dependency installation and AI calls."
-    $venvPython = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
+    $venvPython = Join-Path $RepoRoot ".venv\Scripts\python.exe"
     if (-not (Test-Path $venvPython)) {
         if (Get-Command py.exe -ErrorAction SilentlyContinue) {
             & py -3 -m venv .venv
@@ -22,9 +23,9 @@ try {
     }
     $validVersion = & $venvPython -c "import sys; print(int(sys.version_info >= (3,11)))"
     if ($LASTEXITCODE -ne 0 -or $validVersion -ne "1") { throw "Python 3.11+ is required." }
-    $requirements = Join-Path $PSScriptRoot "requirements.txt"
+    $requirements = Join-Path $RepoRoot "requirements.txt"
     $currentHash = (Get-FileHash -Algorithm SHA256 -Path $requirements).Hash
-    $stampPath = Join-Path $PSScriptRoot ".venv\requirements-sha256"
+    $stampPath = Join-Path $RepoRoot ".venv\requirements-sha256"
     $oldHash = if (Test-Path $stampPath) { (Get-Content -Raw $stampPath).Trim() } else { "" }
     if ($oldHash -ne $currentHash) {
         Write-Host "Installing/updating Python dependencies into local .venv..."
@@ -32,7 +33,7 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "pip install failed. Check internet and requirements." }
         Set-Content -Path $stampPath -Value $currentHash -Encoding Ascii
     }
-    $env:Path = (Join-Path $PSScriptRoot ".venv\Scripts") + ";" + $oldPath
+    $env:Path = (Join-Path $RepoRoot ".venv\Scripts") + ";" + $oldPath
     Write-Host "Demo/test-only: use fictitious candidates. NO real personal data."
     Write-Host "API binds to 127.0.0.1 only. No external/public access."
     if ($Demo) {

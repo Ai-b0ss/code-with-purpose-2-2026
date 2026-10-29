@@ -9,6 +9,10 @@ from pathlib import Path
 import zipfile
 
 ROOT=Path(__file__).resolve().parent.parent
+# Launchers and kit READMEs live outside the repo root; archive names stay flat.
+_MOVED={**{n:"scripts/launchers/"+n for n in ("CURATOR-REPORT.cmd","QA-4-CASES.cmd","START-ILYA.cmd","START-TEAM.cmd","portable-start.ps1","start-reformboss.ps1","team-start.ps1","run_vk_bot.bat")},
+        **{n:"docs/team/"+n for n in ("README-ILYA.md","README-TEAM.md")}}
+def source_path(name): return ROOT/_MOVED.get(name,name)
 FILES=(
     "START-ILYA.cmd",
     "QA-4-CASES.cmd",
@@ -41,7 +45,7 @@ def build(destination: Path | None = None) -> Path:
     with zipfile.ZipFile(destination,"w",compression=zipfile.ZIP_DEFLATED,
                          compresslevel=9) as archive:
         for name in FILES:
-            src=ROOT/name
+            src=source_path(name)
             if not src.is_file() or not src.resolve().is_relative_to(ROOT.resolve()):
                 raise FileNotFoundError(f"Missing or invalid packaged file: {name}")
             data=src.read_bytes()

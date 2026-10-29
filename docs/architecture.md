@@ -33,10 +33,10 @@ flowchart TD
 | `backend/evaluator.py` | OpenAI-compatible chat/completions, системная инструкция, схема в user payload, response_format=json_object, локальная проверка полей/цитат |
 | `backend/availability_policy.py` | Согласованные предварительные сигналы нагрузки с индивидуальными исключениями; без числового штрафа и автоматического отказа |
 | `scripts/check_reformboss.py` | Отдельная синтетическая live-проба; тот же timeout, что у launcher |
-| `start-reformboss.ps1` | Ключ из окружения/локального `.env` или ввод, выбор свободного порта, mode=llm, потоковый ответ, timeout=300 с по умолчанию, fallback=false |
+| `scripts/launchers/start-reformboss.ps1` | Ключ из окружения/локального `.env` или ввод, выбор свободного порта, mode=llm, потоковый ответ, timeout=300 с по умолчанию, fallback=false |
 | `data/gim.sqlite3` | applications: id, created_at, applicant_name, payload JSON, evaluation JSON. Миграций контактов/assessment_runs в main нет |
 | CSV | 32 колонки, `;`, UTF-8 BOM, защита от формул, свёрнутые переносы; выгружает сохранённые applications |
-| `tests/`, `run-tests.bat` | Offline unit и настоящий локальный HTTP со временной SQLite; провайдер не требуется |
+| `tests/`, `scripts/launchers/run-tests.bat` | Offline unit и настоящий локальный HTTP со временной SQLite; провайдер не требуется |
 
 `score=null`, score_status=not_calibrated. Исторический код 0–3 и предлагаемая рубрика Саши 1–3 с шагом 0,25 — разные сущности. Решение о приёме остаётся за куратором. Выбранное направление и recommended_direction хранятся раздельно.
 

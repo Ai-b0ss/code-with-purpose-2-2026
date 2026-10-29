@@ -26,4 +26,4 @@ Offline/локальный HTTP runner: **69 PASS / 1 live SKIP / 0 FAIL**. Че
 
 Полный синтетический протокол: [JSON](../qa/results/issue27_20261021_184345_utc.json) и [HTML](../qa/results/issue27_20261021_184345_utc.html).
 
-Переносной ZIP в releases пересобирается из того же allowlist. Для уже распакованной версии достаточно заменить backend/evaluator.py и frontend/index.html, затем перезапустить сервер с ключом. Не удалять data, reports и браузерный черновик. Для проверки #27 повторить QA-4-CASES.cmd; технический PASS не заменяет заключение Евы.
+Переносной ZIP в releases пересобирается из того же allowlist. Для уже распакованной версии достаточно заменить backend/evaluator.py и frontend/index.html, затем перезапустить сервер с ключом. Не удалять data, reports и браузерный черновик. Для проверки #27 повторить scripts/launchers/QA-4-CASES.cmd; технический PASS не заменяет заключение Евы.
