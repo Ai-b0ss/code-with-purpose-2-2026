@@ -144,14 +144,14 @@ class VkBotUnitTests(unittest.TestCase):
         self.assertIn("Мотивация и опыт", resp)
         self.assertEqual(session.foreign_languages, ["Английский B1-B2"])
 
-    @patch("vk_bot.bot.load_dotenv_custom")
+    @patch("vk_bot.config.load_dotenv_custom")
     def test_config_loader_when_missing(self, mock_dotenv):
         """Проверка возврата None при отсутствии VK_GROUP_TOKEN."""
         with patch.dict(os.environ, {}, clear=True):
             cfg = load_config()
             self.assertIsNone(cfg)
 
-    @patch("vk_bot.bot.load_dotenv_custom")
+    @patch("vk_bot.config.load_dotenv_custom")
     def test_config_loader_when_present(self, mock_dotenv):
         """Проверка корректного парсинга параметров окружения."""
         env = {
