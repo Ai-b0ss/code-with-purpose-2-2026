@@ -4,7 +4,7 @@ from tempfile import TemporaryDirectory
 from unittest import TestCase
 import hashlib
 import zipfile
-from scripts.make_team_portable import build, ROOT, FILES, PREFIX
+from scripts.make_team_portable import build, ROOT, FILES, PREFIX, source_path
 
 class TeamPackageTests(TestCase):
     def test_manifest_and_safe_contents(self):
@@ -16,7 +16,7 @@ class TeamPackageTests(TestCase):
                 manifest=z.read(PREFIX+"SHA256-MANIFEST.txt").decode("utf-8")
                 for n in FILES:
                     content=z.read(PREFIX+n)
-                    self.assertEqual(content, (ROOT/n).read_bytes())
+                    self.assertEqual(content, source_path(n).read_bytes())
                     self.assertIn(hashlib.sha256(content).hexdigest()+"  "+n, manifest)
                     self.assertNotIn("..", Path(n).parts)
                 names=" ".join(z.namelist()).casefold()
@@ -31,8 +31,8 @@ class TeamPackageTests(TestCase):
                 self.assertIn(b"class PerUserDispatcher", z.read(PREFIX+"vk_bot/dispatcher.py"))
 
     def test_launch_safe(self):
-        entry=(ROOT/"team-start.ps1").read_text(encoding="utf-8-sig")
-        launcher=(ROOT/"start-reformboss.ps1").read_text(encoding="utf-8-sig")
+        entry=(ROOT/"scripts/launchers/team-start.ps1").read_text(encoding="utf-8-sig")
+        launcher=(ROOT/"scripts/launchers/start-reformboss.ps1").read_text(encoding="utf-8-sig")
         self.assertIn("-SkipProbe", entry)
         self.assertIn("Read-Host", launcher)
         self.assertIn('Remove-Item Env:GIM_LLM_API_KEY', launcher)

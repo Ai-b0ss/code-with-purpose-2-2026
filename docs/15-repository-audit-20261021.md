@@ -67,7 +67,7 @@ CSV теперь форматирует created_at как ДД.ММ.ГГГГ Ч�
 | Retrieval | Нет | Нет | Neo4j graph/fulltext/vector, 90 train / 23 holdout |
 | CSV/Sheets | CSV 32 колонки; Sheets нет | CSV 32, улучшен тест | Старый CSV 28 читает applications; новый UI пишет sessions; Sheets нет |
 | Тесты | unittest/автономный HTTP runner | unittest, 15 PASS | pytest 50 PASS / 1 live SKIP; старый runner не собирает pytest-функции |
-| Запуск | run.bat/demo, start-reformboss/live, свободный порт, 180 с | Нет новых настроек live | start-scoring + Docker/Neo4j + OpenAI key; порт 8765 фиксирован, общий timeout не задан |
+| Запуск | run.bat/demo, scripts/launchers/start-reformboss/live, свободный порт, 180 с | Нет новых настроек live | start-scoring + Docker/Neo4j + OpenAI key; порт 8765 фиксирован, общий timeout не задан |
 | Документы/материалы | Требования, ответы ГИМ, материалы Евы и live-приёмка сохранены | Добавлен materials/4 контрастных примера.xlsx | Часть документов/материалов Евы удалена; оригиналы переименованы/продублированы, добавлен третий XLSX |
 
 В app.py main остался вводный docstring о rules-only demo: он устарел относительно evaluate_application и не является описанием режима сервера. Аналогично наличие слова demo в функции не означает, что всё приложение работает в demo: проверять вызов маршрута и окружение.

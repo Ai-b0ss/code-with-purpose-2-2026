@@ -1,6 +1,8 @@
 @echo off
 chcp 65001 >nul 2>&1
-cd /d "%~dp0"
+set "GIM_ROOT=%~dp0"
+if not exist "%GIM_ROOT%backend\app.py" set "GIM_ROOT=%~dp0..\.."
+cd /d "%GIM_ROOT%"
 
 set "PYTHON_EXE="
 if exist ".venv\Scripts\python.exe" set "PYTHON_EXE=.venv\Scripts\python.exe"

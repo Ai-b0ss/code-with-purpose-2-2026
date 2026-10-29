@@ -55,19 +55,19 @@ class ReformBossLauncherTests(unittest.TestCase):
         from scripts.check_reformboss import MODELS
         self.assertEqual(MODELS[0], "deepseek-v4.1-flash")
         self.assertNotIn("deepseek-v4.1-flash-1017", MODELS)
-        launcher = (ROOT / "start-reformboss.ps1").read_text(encoding="utf-8")
+        launcher = (ROOT / "scripts" / "launchers" / "start-reformboss.ps1").read_text(encoding="utf-8")
         self.assertIn('[string]$Model = "deepseek-v4.1-flash"', launcher)
         self.assertNotIn("deepseek-v4.1-flash-1017", launcher)
 
     def test_launcher_plain_input_without_securestring_conversion(self):
-        launcher = (ROOT / "start-reformboss.ps1").read_text(encoding="utf-8")
+        launcher = (ROOT / "scripts" / "launchers" / "start-reformboss.ps1").read_text(encoding="utf-8")
         self.assertIn('(Read-Host "Enter ReformBoss API key (VISIBLE)").Trim()', launcher)
         self.assertNotIn("-AsSecureString", launcher)
         self.assertNotIn("SecureStringToBSTR(", launcher)
         self.assertIn("Remove-Item Env:GIM_LLM_API_KEY", launcher)
 
     def test_launcher_avoids_killing_process_on_busy_port(self):
-        launcher = (ROOT / "start-reformboss.ps1").read_text(encoding="utf-8")
+        launcher = (ROOT / "scripts" / "launchers" / "start-reformboss.ps1").read_text(encoding="utf-8")
         self.assertIn('[int]$Port = 8765', launcher)
         self.assertIn('TcpListener', launcher)
         self.assertIn('$selectedPort', launcher)
@@ -76,7 +76,7 @@ class ReformBossLauncherTests(unittest.TestCase):
         self.assertNotIn('taskkill', launcher.lower())
 
     def test_powershell_launcher_uses_module_execution(self):
-        launcher = (ROOT / "start-reformboss.ps1").read_text(encoding="utf-8")
+        launcher = (ROOT / "scripts" / "launchers" / "start-reformboss.ps1").read_text(encoding="utf-8")
         self.assertIn(
             '$probe = @("-m", "scripts.check_reformboss", "--model", $Model)',
             launcher,

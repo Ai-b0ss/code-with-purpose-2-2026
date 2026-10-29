@@ -13,7 +13,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-Push-Location $PSScriptRoot
+$RepoRoot = if (Test-Path -LiteralPath (Join-Path $PSScriptRoot "backend\app.py")) { $PSScriptRoot } else { (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\..")).Path }
+Push-Location $RepoRoot
 $previousCoordinatorToken = $env:GIM_COORDINATOR_TOKEN
 $previousExternalPermission = $env:GIM_ALLOW_EXTERNAL_LLM
 $previousCaFile = $env:SSL_CERT_FILE
@@ -40,7 +41,7 @@ try {
         return
     }
 
-    if (-not $env:GIM_LLM_API_KEY -and (Test-Path -LiteralPath (Join-Path $PSScriptRoot ".env"))) {
+    if (-not $env:GIM_LLM_API_KEY -and (Test-Path -LiteralPath (Join-Path $RepoRoot ".env"))) {
         $env:GIM_LLM_API_KEY = (& python -c "from dotenv import dotenv_values; print(dotenv_values('.env').get('GIM_LLM_API_KEY', ''))").Trim()
     }
     if (-not $env:GIM_LLM_API_KEY) {
@@ -104,7 +105,7 @@ try {
     Write-Host "Live GIM server: http://127.0.0.1:$selectedPort"
     Write-Host "Ctrl+C stops this server. This script clears the key from its process environment on exit."
     $serverEnvArgs = @()
-    if (Test-Path -LiteralPath (Join-Path $PSScriptRoot ".env")) { $serverEnvArgs = @("--env-file", ".env") }
+    if (Test-Path -LiteralPath (Join-Path $RepoRoot ".env")) { $serverEnvArgs = @("--env-file", ".env") }
     python -m uvicorn backend.app:app --host 127.0.0.1 --port $selectedPort @serverEnvArgs
 } finally {
     if ($previousCaFile) { $env:SSL_CERT_FILE = $previousCaFile } else { Remove-Item Env:SSL_CERT_FILE -ErrorAction SilentlyContinue }

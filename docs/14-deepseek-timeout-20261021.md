@@ -25,7 +25,7 @@
 
 ## Исправление
 
-- `start-reformboss.ps1`: `-TimeoutSeconds`, default 180, диапазон 1–300 с; значение передаётся через GIM_LLM_TIMEOUT.
+- `scripts/launchers/start-reformboss.ps1`: `-TimeoutSeconds`, default 180, диапазон 1–300 с; значение передаётся через GIM_LLM_TIMEOUT.
 - `scripts/check_reformboss.py`: timeout берётся из той же переменной (default 180); CLI `--timeout` явно переопределяет её. Прежние отдельные hardcoded 60 с убраны.
 - Универсальный адаптер сохраняет default 30 с для других способов запуска; для них нужно задать env явно.
 - Схема, дословные evidence, запрет выдуманного балла и явный отказ без fallback сохранены.

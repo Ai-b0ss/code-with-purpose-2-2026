@@ -4,6 +4,11 @@ import hashlib
 import zipfile
 
 ROOT = Path(__file__).resolve().parent.parent
+
+# Launchers and kit READMEs live outside the repo root; archive names stay flat.
+_MOVED={**{n:"scripts/launchers/"+n for n in ("CURATOR-REPORT.cmd","QA-4-CASES.cmd","START-ILYA.cmd","START-TEAM.cmd","portable-start.ps1","start-reformboss.ps1","team-start.ps1","run_vk_bot.bat")},
+        **{n:"docs/team/"+n for n in ("README-ILYA.md","README-TEAM.md")}}
+def source_path(name): return ROOT/_MOVED.get(name,name)
 ZIP_NAME = "GIM_TEAM_QA_AGENT_FIXED_20261022.zip"
 PREFIX = "GIM_TEAM_QA/"
 FILES = (
@@ -39,7 +44,7 @@ def build(destination=None):
     manifest = []
     with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as z:
         for name in FILES:
-            path = ROOT / name
+            path = source_path(name)
             if not path.is_file() or not path.resolve().is_relative_to(ROOT.resolve()):
                 raise FileNotFoundError(name)
             if any(x.lower() in FORBIDDEN for x in Path(name).parts):

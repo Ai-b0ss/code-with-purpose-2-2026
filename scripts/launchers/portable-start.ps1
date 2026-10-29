@@ -1,11 +1,12 @@
 # Runs a private/local copy of GIM with a freshly provided ReformBoss key.
 # Requires Python 3.11+; dependencies installed into .venv on FIRST startup.
 $ErrorActionPreference = "Stop"
-Push-Location $PSScriptRoot
+$RepoRoot = if (Test-Path -LiteralPath (Join-Path $PSScriptRoot "backend\app.py")) { $PSScriptRoot } else { (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..\..")).Path }
+Push-Location $RepoRoot
 $oldPath = $env:Path
 try {
     Write-Host "GIM: portable QA for Ilya. Python 3.11+ required."
-    $venvPython = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
+    $venvPython = Join-Path $RepoRoot ".venv\Scripts\python.exe"
     if (-not (Test-Path $venvPython)) {
         $pyLauncher = Get-Command py.exe -ErrorAction SilentlyContinue
         if ($pyLauncher) {
@@ -19,7 +20,7 @@ try {
     }
     $versionOk = & $venvPython -c "import sys;print(int(sys.version_info >= (3,11)))"
     if ($versionOk -ne "1") { throw "Python 3.11+ required." }
-    $ready = Join-Path $PSScriptRoot ".venv\deps-ready"
+    $ready = Join-Path $RepoRoot ".venv\deps-ready"
     $googleDepsReady = (& $venvPython -c "import google.auth, dotenv, requests; print('ok')" 2>$null) -eq 'ok'
     if (-not (Test-Path $ready) -or -not $googleDepsReady) {
         Write-Host "Installing dependencies into local .venv (first run needs Internet)..."
@@ -27,7 +28,7 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "Dependency installation failed." }
         Set-Content -Path $ready -Value "requirements.txt installed" -Encoding Ascii
     }
-    $env:Path = (Join-Path $PSScriptRoot ".venv\Scripts") + ";" + $oldPath
+    $env:Path = (Join-Path $RepoRoot ".venv\Scripts") + ";" + $oldPath
     Write-Host "Local-only. The server is not exposed to other PCs or the public Internet."
     Write-Host "DeepSeek is used by the backend when a volunteer SUBMITS a form."
     Write-Host "Candidate sees confirmation. Curator report is a separate local file."
