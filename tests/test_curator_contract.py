@@ -50,11 +50,13 @@ class CuratorContractTests(unittest.TestCase):
             def get(self, url, **kwargs):
                 if url.endswith("!A:A"): return Reply({"values": [[HEADERS[0]], ["qa"]]})
                 if "/values/" in url: return Reply({"values": [HEADERS[:32]]})
-                return Reply({"sheets": [{"properties": {"sheetId": 1, "title": "Заявки API"}}]})
+                return Reply({"sheets": [{"properties": {"sheetId": 1, "title": "Заявки"}}]})
             def put(self, url, **kwargs): self.writes.append((url, kwargs["json"]["values"])); return Reply({})
             def post(self, *args, **kwargs): return Reply({})
         session = Session()
-        with patch.dict(os.environ, {"GIM_GOOGLE_SPREADSHEET_ID": "test"}), patch("backend.google_sheets._client", return_value=session):
+        with patch.dict(os.environ, {"GIM_GOOGLE_SPREADSHEET_ID": "test"}), \
+             patch("backend.google_sheets._client", return_value=session), \
+             patch("backend.sheets_dashboard.ensure_dashboard"):
             write_row("qa", ["qa"] + [""]*42)
         self.assertTrue(session.writes[0][0].endswith("!A1:AQ1"))
         self.assertEqual(session.writes[0][1][0][:32], HEADERS[:32])
