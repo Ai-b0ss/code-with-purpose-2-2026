@@ -18,7 +18,7 @@ Google сбой не удаляет заявку. После восстанов�
 
 Проверки: `python -m pytest -q`, `python tests/run_local_smoke.py`, `python -m scripts.make_team_portable`, `git diff --check`. ZIP содержит allowlist и SHA256 manifest, исключает материалы и данные. Чистый Windows ноутбук, реальные Google/VK и пользовательские 5–7 минут должны проверяться отдельно на закреплённом release SHA. Linux smoke и mocked provider не подтверждают их автоматически.
 
-Проверенный новый пакет: releases/GIM_PRODUCT_LOCAL_DEMO_20261022.zip. В нём только allowlist исходников и документация, без материалов/исторических анкет/ключей/SQLite. Протокол фактического Windows и Excel прогона: qa/windows-excel-acceptance-20261022.md. CSV проверен обычным открытием Excel 16.0; legacy OpenText для многострочных ответов не поддерживается.
+Проверенный новый пакет: `GIM_PRODUCT_LOCAL_DEMO_20261022.zip` в GitHub Release [hackathon-2026-10-22](https://github.com/Ai-b0ss/code-with-purpose-2-2026/releases/tag/hackathon-2026-10-22). В нём только allowlist исходников и документация, без материалов/исторических анкет/ключей/SQLite. Протокол фактического Windows и Excel прогона: qa/windows-excel-acceptance-20261022.md. CSV проверен обычным открытием Excel 16.0; legacy OpenText для многострочных ответов не поддерживается.
 
 Дополнительная проверка сбоев: `python tests/real_http_recovery.py`. Поднимает собственные backend и контролируемый HTTP-провайдер, использует временную SQLite, проверяет безопасные ошибки, повторы и восстановление после kill. Внешние API не вызываются; это не проверка качества ИИ. Протокол и ограничения: qa/autonomous-checks-20261022.md.
 

@@ -16,3 +16,11 @@ GEMINI.md
 /dist/
 
 /reports/
+
+# Built kits live in GitHub Releases, not in git
+/releases/
+
+# Real volunteer questionnaires contain personal data: keep them local only
+materials/gim/*.xlsx
+materials/gim/*.csv
+materials/*.xlsx
